@@ -275,15 +275,15 @@ kiểm thử.
 
 ### Tests cho User Story 7 ⚠️
 
-- [ ] T116 [P] [US7] Integration test lọc log theo `job_id` đủ sự kiện theo thứ tự, không secret trong `backend/tests/integration/test_job_logs.py` (FR-050)
-- [ ] T117 [P] [US7] Integration test retention log: file cũ hơn `logging.retention_days` bị xóa; file 89 ngày giữ nguyên kể cả khi vượt `logging.disk_warn_gb`; vượt ngưỡng → cảnh báo trong log và `system/status.log_storage.warning`; audit log trong DB không bị ảnh hưởng trong `backend/tests/integration/test_log_retention.py` (FR-057)
-- [ ] T118 [P] [US7] Integration test backup → restore vào DB trống → số bản ghi mọi bảng khớp; xoay vòng giữ `BACKUP_RETENTION` bản trong `backend/tests/integration/test_backup_restore.py` (FR-073, SC-012)
+- [X] T116 [P] [US7] Integration test lọc log theo `job_id` đủ sự kiện theo thứ tự, không secret trong `backend/tests/integration/test_job_logs.py` (FR-050)
+- [X] T117 [P] [US7] Integration test retention log: file cũ hơn `logging.retention_days` bị xóa; file 89 ngày giữ nguyên kể cả khi vượt `logging.disk_warn_gb`; vượt ngưỡng → cảnh báo trong log và `system/status.log_storage.warning`; audit log trong DB không bị ảnh hưởng trong `backend/tests/integration/test_log_retention.py` (FR-057)
+- [X] T118 [P] [US7] Integration test backup → restore vào DB trống → số bản ghi mọi bảng khớp; xoay vòng giữ `BACKUP_RETENTION` bản trong `backend/tests/integration/test_backup_restore.py` (FR-073, SC-012)
 
 ### Implementation cho User Story 7
 
-- [ ] T119 [US7] Tác vụ bảo trì log hằng ngày (xóa file quá hạn lưu, đo dung lượng, cảnh báo không xóa) trong `backend/src/nichepilot/jobs/maintenance.py` và trường `log_storage` trong `backend/src/nichepilot/api/v1/system.py` (FR-057)
-- [ ] T120 [US7] Script `deploy/scripts/backup.sh` (`pg_dump -Fc`, xoay vòng theo `BACKUP_RETENTION`) và `deploy/scripts/restore.sh`; service `backup` (profile `ops`, `BACKUP_CRON`) trong `deploy/docker-compose.yml` (FR-073)
-- [ ] T121 [US7] Xoay vòng stdout Docker (bản sao xem nhanh; bản lưu chính là file theo ngày) cho api/worker trong `deploy/docker-compose.yml` (FR-050, FR-057, R-09)
+- [X] T119 [US7] Tác vụ bảo trì log hằng ngày (xóa file quá hạn lưu, đo dung lượng, cảnh báo không xóa) trong `backend/src/nichepilot/jobs/maintenance.py` và trường `log_storage` trong `backend/src/nichepilot/api/v1/system.py` (FR-057)
+- [X] T120 [US7] Script `deploy/scripts/backup.sh` (`pg_dump -Fc`, xoay vòng theo `BACKUP_RETENTION`) và `deploy/scripts/restore.sh`; service `backup` (profile `ops`, `BACKUP_CRON`) trong `deploy/docker-compose.yml` (FR-073)
+- [X] T121 [US7] Xoay vòng stdout Docker (bản sao xem nhanh; bản lưu chính là file theo ngày) cho api/worker trong `deploy/docker-compose.yml` (FR-050, FR-057, R-09)
 
 **Checkpoint**: Quickstart §8 (log, backup) đạt.
 

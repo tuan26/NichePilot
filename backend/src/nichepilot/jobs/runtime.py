@@ -22,7 +22,7 @@ from nichepilot.ai.gateway import AIGateway, CallContext, GatewayResult, JobCanc
 from nichepilot.ai.providers.base import LLMMessage, ToolSpec
 from nichepilot.core.config import Settings
 from nichepilot.core.errors import AppError
-from nichepilot.core.logging import bind_context, get_logger
+from nichepilot.core.logging import bind_context, get_logger, unbind_context
 from nichepilot.tools.registry import ToolContext, ToolDeniedError, ToolRegistry
 
 log = get_logger(__name__)
@@ -158,6 +158,15 @@ class JobContext:
                 ),
                 params,
             )
+        log.info(
+            "tool.executed",
+            job_id=str(row["job_id"]),
+            step_id=str(row["step_id"]) if row.get("step_id") else None,
+            tool_name=row.get("tool_name"),
+            status=row.get("status"),
+            denial_reason=row.get("denial_reason"),
+            duration_ms=row.get("duration_ms"),
+        )
 
 
 def _now() -> datetime:
@@ -229,7 +238,9 @@ class JobRuntime:
             s=seq,
             o=origin,
         )
-        return uuid.UUID(str(row.scalar_one()))
+        step_id = uuid.UUID(str(row.scalar_one()))
+        log.info("step.started", job_id=str(job_id), step_id=str(step_id), seq=seq)
+        return step_id
 
     async def _end_step(
         self,
@@ -258,6 +269,16 @@ class JobRuntime:
             c=ctx.step_cost,
             org=ctx.step_origin,
         )
+        log.info(
+            "step.finished",
+            job_id=str(ctx.job_id),
+            step_id=str(step_id),
+            seq=ctx.seq,
+            status=status,
+            name=name,
+            error_code=error_code,
+            cost_usd=str(ctx.step_cost),
+        )
         await self._exec(
             "UPDATE agent_jobs SET cost_accumulated_usd = cost_accumulated_usd + :c, ai_call_count = :a,"
             " heartbeat_at = now(), updated_at = now() WHERE id = :j",
@@ -267,12 +288,27 @@ class JobRuntime:
         )
 
     async def run(self, job_id: uuid.UUID) -> str | None:
-        import asyncio
 
         job = await self._claim(job_id)
         if job is None:
             return None  # đã chạy/đã xong/không tồn tại – idempotent
         bind_context(job_id=str(job_id))
+        try:
+            return await self._run_claimed(job_id, job)
+        finally:
+            unbind_context("job_id")  # log của worker sau khi job kết thúc không gắn nhầm job_id
+
+    async def _run_claimed(self, job_id: uuid.UUID, job: dict[str, Any]) -> str | None:
+        import asyncio
+
+        log.info(
+            "job.started",
+            job_id=str(job_id),
+            job_type=job["job_type"],
+            attempt=int(job["attempt"]),
+            data_origin=job["data_origin"],
+            resume_from_seq=int(job["last_completed_seq"]) + 1,
+        )
         agent = self.agents.get(job["job_type"])
         if agent is None:
             await self._finish(job_id, "FAILED", "VALIDATION_ERROR", {"reason": "unknown job_type"})

@@ -37,6 +37,12 @@ def build_services(settings: Settings, sessionmaker: async_sessionmaker[AsyncSes
     queue = ProcrastinateJobQueue(proc_app)
     runtime.requeue = queue.enqueue_run
     register_maintenance(
-        proc_app, gateway.budget, sessionmaker, queue, settings.job_stalled_after_s, settings.ai_provider_override
+        proc_app,
+        gateway.budget,
+        sessionmaker,
+        queue,
+        settings.job_stalled_after_s,
+        settings.ai_provider_override,
+        settings.log_dir,
     )
     return Services(settings, gateway, tools, agents, runtime, proc_app, queue)

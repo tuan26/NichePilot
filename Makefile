@@ -39,8 +39,8 @@ test-live:
 	cd backend && uv run pytest -m live
 
 backup:
-	$(COMPOSE) --profile ops run --rm backup /scripts/backup.sh
+	$(COMPOSE) --profile ops run --rm --entrypoint /scripts/backup.sh backup
 
 restore:
 	@test -n "$(FILE)" || (echo "Dùng: make restore FILE=backups/<file>.dump" && exit 1)
-	$(COMPOSE) --profile ops run --rm backup /scripts/restore.sh /backups/$(notdir $(FILE))
+	$(COMPOSE) --profile ops run --rm --entrypoint /scripts/restore.sh backup /backups/$(notdir $(FILE))

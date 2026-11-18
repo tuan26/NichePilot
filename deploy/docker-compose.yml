@@ -73,7 +73,31 @@ services:
       - "8080:8080"
     depends_on:
       api: { condition: service_healthy }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     mem_limit: 128m
+    cpus: 0.5
+
+  # Backup theo lịch (FR-073): docker compose --profile ops up -d backup ; backup thủ công: make backup
+  backup:
+    image: postgres:17-alpine
+    profiles: ["ops"]
+    env_file: ./env/.env
+    environment:
+      PGHOST: postgres
+      BACKUP_DIR: /backups
+    entrypoint: ["/scripts/backup-cron.sh"]
+    volumes:
+      - ./scripts:/scripts:ro
+      - ../backups:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+    mem_limit: 256m
     cpus: 0.5
 
 volumes:

@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from nichepilot.api.deps import SessionDep, SettingsDep, UserDep
 from nichepilot.api.v1.providers import ProviderStatus, provider_statuses
+from nichepilot.core.config import Settings
 from nichepilot.core.logging import get_logger
+from nichepilot.jobs.maintenance import GB, log_policy, measure_log_dir
 
 router = APIRouter(prefix="/system", tags=["system"])
 log = get_logger(__name__)
@@ -58,6 +62,9 @@ async def status(_user: UserDep, session: SessionDep, settings: SettingsDep) -> 
         database = "UNAVAILABLE"
 
     providers = await provider_statuses(session, settings) if database == "OK" else []
+    log_storage: LogStorage | None = None
+    if database == "OK":
+        log_storage = await _log_storage(session, settings)
     return SystemStatus(
         version=settings.app_version,
         app_env=settings.app_env,
@@ -67,4 +74,16 @@ async def status(_user: UserDep, session: SessionDep, settings: SettingsDep) -> 
         paid_calls_enabled=settings.ai_paid_calls_enabled,
         provider_override=settings.ai_provider_override,
         providers=providers,
+        log_storage=log_storage,
+    )
+
+
+async def _log_storage(session: AsyncSession, settings: Settings) -> LogStorage:
+    """FR-057: hạn lưu log, dung lượng đang dùng và cảnh báo khi vượt ngưỡng (không xóa log chưa đủ hạn)."""
+    retention, warn_gb = await log_policy(session)
+    if settings.log_dir is None:
+        return LogStorage(retention_days=retention, warn_gb=warn_gb)
+    used = await asyncio.to_thread(measure_log_dir, settings.log_dir)
+    return LogStorage(
+        retention_days=retention, used_gb=round(used / GB, 6), warn_gb=warn_gb, warning=used > warn_gb * GB
     )

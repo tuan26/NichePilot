@@ -415,4 +415,20 @@ class AIGateway:
         params = ", ".join(f":{k}" for k in cols)
         async with self.sessionmaker() as s, s.begin():
             await s.execute(text(f"INSERT INTO ai_usage_logs ({names}) VALUES ({params})"), cols)  # noqa: S608
+        log.info(
+            "ai.call",
+            usage_log_id=str(usage_id),
+            job_id=str(row["job_id"]) if row.get("job_id") else None,
+            step_id=str(row["step_id"]) if row.get("step_id") else None,
+            provider=row.get("provider"),
+            model=row.get("model"),
+            task_type=row.get("task_type"),
+            data_origin=row.get("data_origin"),
+            outcome=row.get("outcome"),
+            billing_status=row.get("billing_status"),
+            input_tokens=row.get("input_tokens", 0),
+            output_tokens=row.get("output_tokens", 0),
+            cost_usd=str(row.get("cost_usd", 0)),
+            latency_ms=row.get("latency_ms"),
+        )
         return usage_id

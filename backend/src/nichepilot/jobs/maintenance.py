@@ -5,8 +5,13 @@ Gồm: quét reservation treo, khôi phục job mất heartbeat, scheduler tick 
 
 from __future__ import annotations
 
+import asyncio
+import re
 import uuid
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import procrastinate
 from sqlalchemy import text
@@ -18,7 +23,91 @@ from nichepilot.jobs.queue import TASK_NAME, JobQueue
 from nichepilot.jobs.scheduler import scheduler_tick
 
 MAINTENANCE_QUEUE = "maintenance"
+MIN_LOG_RETENTION_DAYS = 90
+LOG_FILE_RE = re.compile(r"^app-(\d{4}-\d{2}-\d{2})\.jsonl$")
+GB = 1_000_000_000
 log = get_logger(__name__)
+
+
+@dataclass
+class LogStorageReport:
+    retention_days: int
+    warn_gb: float
+    used_bytes: int
+    warning: bool
+    deleted: list[str] = field(default_factory=list)
+
+    @property
+    def used_gb(self) -> float:
+        return round(self.used_bytes / GB, 6)
+
+
+LOG_POLICY_SQL = "SELECT key, value FROM settings WHERE key IN ('logging.retention_days', 'logging.disk_warn_gb')"
+
+
+async def log_policy(session: AsyncSession) -> tuple[int, float]:
+    rows: dict[str, object] = dict((await session.execute(text(LOG_POLICY_SQL))).tuples().all())
+    # Phòng thủ: không bao giờ giữ ít hơn 90 ngày kể cả khi DB bị sửa tay (FR-057).
+    retention = max(MIN_LOG_RETENTION_DAYS, int(str(rows.get("logging.retention_days", MIN_LOG_RETENTION_DAYS))))
+    return retention, float(str(rows.get("logging.disk_warn_gb", 2)))
+
+
+async def read_log_policy(sessionmaker: async_sessionmaker[AsyncSession]) -> tuple[int, float]:
+    async with sessionmaker() as s:
+        return await log_policy(s)
+
+
+def measure_log_dir(log_dir: Path) -> int:
+    if not log_dir.is_dir():
+        return 0
+    return sum(p.stat().st_size for p in log_dir.rglob("*") if p.is_file())
+
+
+def _expired_files(log_dir: Path, retention_days: int, today: date) -> list[Path]:
+    """Chỉ file log ứng dụng theo ngày (`app-YYYY-MM-DD.jsonl`) có ngày < hôm nay − retention mới bị xóa."""
+    cutoff = today - timedelta(days=retention_days)
+    expired: list[Path] = []
+    if not log_dir.is_dir():
+        return expired
+    for p in log_dir.iterdir():
+        m = LOG_FILE_RE.match(p.name)
+        if not m or not p.is_file():
+            continue
+        try:
+            file_date = date.fromisoformat(m.group(1))
+        except ValueError:
+            continue
+        if file_date < cutoff:
+            expired.append(p)
+    return sorted(expired)
+
+
+async def run_log_maintenance(
+    sessionmaker: async_sessionmaker[AsyncSession], log_dir: Path, *, today: date | None = None
+) -> LogStorageReport:
+    """Xóa log quá hạn lưu; đo dung lượng; vượt ngưỡng chỉ CẢNH BÁO – không bao giờ xóa log chưa đủ hạn (FR-057).
+
+    Không đụng tới audit log (nằm trong database).
+    """
+    retention, warn_gb = await read_log_policy(sessionmaker)
+    today = today or datetime.now(UTC).date()
+    deleted: list[str] = []
+    for p in await asyncio.to_thread(_expired_files, log_dir, retention, today):
+        await asyncio.to_thread(p.unlink, missing_ok=True)
+        deleted.append(p.name)
+    if deleted:
+        log.info("logs.retention_deleted", count=len(deleted), files=deleted, retention_days=retention)
+    used = await asyncio.to_thread(measure_log_dir, log_dir)
+    warning = used > warn_gb * GB
+    if warning:
+        log.warning(
+            "logs.disk_warning",
+            used_gb=round(used / GB, 3),
+            warn_gb=warn_gb,
+            retention_days=retention,
+            note="log chưa đủ hạn lưu không bị xóa vì dung lượng",
+        )
+    return LogStorageReport(retention, warn_gb, used, warning, deleted)
 
 
 async def release_stalled_queue_jobs(app: procrastinate.App, *, stalled_after_s: int) -> int:
@@ -91,6 +180,7 @@ def register_maintenance(
     queue: JobQueue,
     stalled_after_s: int,
     provider_override: str | None = None,
+    log_dir: Path | None = None,
 ) -> None:
     @app.periodic(cron="* * * * *", periodic_id="budget_sweep_stale")
     @app.task(name="budget_sweep_stale", queue=MAINTENANCE_QUEUE, pass_context=False)
@@ -111,3 +201,9 @@ def register_maintenance(
         # Periodic Procrastinate đảm bảo mỗi phút chỉ defer 1 lần; tick vẫn an toàn khi chạy song song (SKIP LOCKED +
         # idempotency_key) và tự chạy bù theo misfire_policy sau khi worker khởi động lại.
         await scheduler_tick(sessionmaker, queue.enqueue_run, override=provider_override)
+
+    @app.periodic(cron="41 2 * * *", periodic_id="logs_retention")
+    @app.task(name="logs_retention", queue=MAINTENANCE_QUEUE, pass_context=False)
+    async def logs_retention(timestamp: int) -> None:
+        if log_dir is not None:
+            await run_log_maintenance(sessionmaker, log_dir)

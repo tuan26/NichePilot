@@ -14,12 +14,14 @@ from sqlalchemy import text
 from nichepilot.ai.providers.mock import validate_scenario
 from nichepilot.api.deps import MetaDep, SessionDep, SettingsDep, UserDep
 from nichepilot.core.errors import AppError
+from nichepilot.core.logging import get_logger
 from nichepilot.jobs.state_machine import check_transition
 from nichepilot.modules.audit.service import record_audit
 from nichepilot.modules.settings.service import get_default_project, get_setting_values
 from nichepilot.services import Services
 
 router = APIRouter(tags=["jobs"])
+log = get_logger(__name__)
 JOB_STATUSES = Literal[
     "QUEUED", "RUNNING", "PAUSED", "PAUSED_BUDGET", "RETRY_SCHEDULED", "SUCCEEDED", "FAILED", "CANCELLED"
 ]
@@ -147,6 +149,7 @@ async def create_job(
         )
         response.status_code = status.HTTP_200_OK
         return job_dict(existing)
+    log.info("job.created", job_id=str(row["id"]), job_type=d.job_type, trigger="MANUAL", data_origin=origin)
     await record_audit(
         session,
         action="job.created",

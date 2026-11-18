@@ -180,6 +180,10 @@ def bind_context(**values: Any) -> None:
     structlog.contextvars.bind_contextvars(**values)
 
 
+def unbind_context(*keys: str) -> None:
+    structlog.contextvars.unbind_contextvars(*keys)
+
+
 def clear_context() -> None:
     structlog.contextvars.clear_contextvars()
 

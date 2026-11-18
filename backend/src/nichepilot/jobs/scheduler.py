@@ -191,6 +191,15 @@ async def scheduler_tick(
                 job_id = await _create_job(s, sched, agent, scheduled_for, origin)
                 if job_id is not None:
                     created.append(job_id)
+                    log.info(
+                        "job.created",
+                        job_id=str(job_id),
+                        job_type=sched["job_type"],
+                        trigger="SCHEDULE",
+                        schedule_id=str(sched["id"]),
+                        scheduled_for=scheduled_for.isoformat(),
+                        data_origin=origin,
+                    )
                 last_created = scheduled_for  # job đã tồn tại (tick song song/khởi động lại) vẫn tính là đã chạy
             if not runs and sched["misfire_policy"] == "SKIP" and sched["next_run_at"] <= now:
                 log.info("scheduler.misfire_skipped", schedule_id=str(sched["id"]))
