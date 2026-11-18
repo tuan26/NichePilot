@@ -26,6 +26,9 @@ lúc chạy nằm trong bảng `settings` (xem data-model §4); bảng dưới l
 | `WORKER_CONCURRENCY` | Không | `1` | Trần cứng số job đồng thời (setting `worker.max_concurrent_jobs` không vượt được) |
 | `LOG_LEVEL` | Không | `INFO` | |
 | `LOG_FORMAT` | Không | `json` | `json` \| `console` (dev) |
+| `LOG_DIR` | Không | `/var/log/nichepilot` (volume `logs`) | Nơi lưu file log ứng dụng theo ngày (`app-YYYY-MM-DD.jsonl`) – nguồn lưu chính |
+| `LOG_RETENTION_DAYS` | Không | `90` | Khởi tạo setting `logging.retention_days`; giá trị < 90 bị từ chối |
+| `LOG_DISK_WARN_GB` | Không | `2` | Khởi tạo `logging.disk_warn_gb`; vượt ngưỡng chỉ cảnh báo |
 | `BACKUP_RETENTION` | Không | `7` | Số bản backup giữ lại |
 | `BACKUP_CRON` | Không | `0 3 * * *` | Lịch backup (service `backup`, profile `ops`) |
 | `NICHEPILOT_LIVE_MAX_USD` | Không | `0.05` | Trần chi phí cho bộ test live thủ công |

@@ -38,7 +38,7 @@
 |---|---|---|---|
 | E0-01 | FR-001, FR-060 | E0-11 | FR-040, FR-041, FR-044 |
 | E0-02 | FR-002 | E0-12 | FR-042, FR-043 |
-| E0-03 | FR-003 | E0-13 | FR-050 |
+| E0-03 | FR-003 | E0-13 | FR-050, FR-057 |
 | E0-04 | FR-004 | E0-14 | FR-051 |
 | E0-05 | FR-010 | E0-15 | FR-052, FR-053 |
 | E0-06 | FR-011 | E0-16 | FR-054, FR-055 |
@@ -46,7 +46,7 @@
 | E0-08 | FR-030, FR-031 | E0-18 | FR-072 |
 | E0-09 | FR-032, FR-033 | E0-19 | FR-073 |
 | E0-10 | FR-014, FR-035 | E0-20 | FR-036 |
-| AI-01…AI-18 | FR-010…FR-019c, FR-021…FR-025, FR-043, FR-045, FR-047, FR-048, FR-054, FR-056 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
+| AI-01…AI-18 | FR-010…FR-019c, FR-021…FR-025, FR-043, FR-045, FR-047, FR-048, FR-049, FR-054, FR-056 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
 | DATA-01/02/03/06 | FR-005, FR-004, FR-007, FR-006 | BR-08 | FR-023 |
 
 ## Notes
@@ -55,4 +55,5 @@
 - Lần validate 2 (sau Clarify 2026-11-18): tất cả mục đạt; thêm FR-017, FR-045, FR-056, FR-074.
 - Lần validate 3 (yêu cầu phát triển không phí API): tất cả mục đạt; thêm FR-018, FR-019, FR-019b, SC-003b; SC-003 ghi rõ chỉ kiểm chứng khi có key.
 - Lần validate 4 (điều kiện phê duyệt plan): tất cả mục đạt; thêm FR-019c, FR-047, FR-048, SC-004b; mở rộng FR-018 (f–h), FR-043, FR-044, FR-053, FR-073.
+- Lần validate 5 (sau analyze lần 1): tất cả mục đạt; thêm FR-049 (giới hạn UNCERTAIN), FR-057 (lưu log 90 ngày), kịch bản `network_error`, SC-002 đo trên Windows.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

@@ -149,7 +149,10 @@ phê duyệt (chi tiết vòng đời, công thức và tính nguyên tử: data
    từ tài liệu chính thức trước khi coi là `NOT_BILLED`; cho tới khi xác minh, các phản hồi lỗi bị coi là `UNCERTAIN`
    (bảo thủ). Đây là việc cần làm trước khi bật `AI_PAID_CALLS_ENABLED` (tasks.md).
 6. Ngày/tháng tính theo múi giờ cấu hình (`Asia/Ho_Chi_Minh`); reservation tính vào kỳ của thời điểm tạo.
-7. Mặc định $3/ngày, $30/tháng, $2/job; chặn thay đổi làm job trần > ngân sách ngày; không tự tăng, không tự đổi model.
+7. **Giới hạn `UNCERTAIN` mỗi job** (U1, quyết định chủ sở hữu): mặc định 3 (`budget.max_uncertain_per_job`); đạt giới
+   hạn → `PAUSED_BUDGET(UNCERTAIN_RESERVATION_LIMIT)`, không lời gọi có phí nào nữa; resume chỉ khi job không còn
+   `UNCERTAIN` chưa đối soát và ngân sách đủ. Giảm rủi ro một chuỗi timeout/429 khóa hết ngân sách ngày.
+8. Mặc định $3/ngày, $30/tháng, $2/job; chặn thay đổi làm job trần > ngân sách ngày; không tự tăng, không tự đổi model.
 
 Độ vượt tối đa lý thuyết = 0 (vì đặt chỗ theo chi phí tối đa và tuần tự hóa bằng advisory lock); thực tế chỉ có thể lệch
 nếu bảng giá sai hoặc ước tính token vào thấp hơn thực tế (phát hiện qua cảnh báo `BUDGET_RESERVATION_OVERRUN`).
@@ -180,8 +183,14 @@ cuối). Bảng `settings` có danh sách khóa cấm (`*key*`, `*secret*`, `*to
 
 **Quyết định**: `structlog` 26.1 (MIT/Apache-2.0) xuất JSON ra stdout (Docker thu thập); context vars `request_id`,
 `job_id`, `step_id`, `user_id`; processor redaction (R-08). Audit log là bảng append-only, chặn `UPDATE/DELETE` bằng
-trigger PostgreSQL; ghi trong cùng transaction với thay đổi được audit. Giữ log ứng dụng 90 ngày (Docker log rotation
-cấu hình kích thước) – không tự xóa audit log trong MVP.
+trigger PostgreSQL; ghi trong cùng transaction với thay đổi được audit.
+
+**Lưu log 90 ngày (FR-057, quyết định chủ sở hữu)**: nguồn lưu chính là file JSON Lines theo ngày
+(`LOG_DIR/app-YYYY-MM-DD.jsonl`, volume riêng) do api/worker ghi song song với stdout. Tác vụ bảo trì hằng ngày chỉ xóa file
+**cũ hơn** `logging.retention_days` (≥ 90). Dung lượng vượt `logging.disk_warn_gb` → cảnh báo trong log và trang trạng
+thái, **không xóa**. Stdout của Docker chỉ là bản sao để xem nhanh (`docker compose logs`), được xoay vòng theo kích thước –
+việc này không làm mất log vì bản lưu chính là file theo ngày. Audit log nằm trong PostgreSQL, không chịu chính sách này.
+Mọi log đi qua processor redaction trước khi ghi (cả file và stdout). Ước tính dung lượng: vài MB/ngày ở tải MVP.
 
 ## R-10. Frontend (khung E0, Clarify Q3)
 
@@ -224,6 +233,7 @@ bộ `users.ui_locale` khi đăng nhập. Script CI so sánh khóa `vi.json`/`en
 | Live (thủ công) | `pytest -m live` + biến `NICHEPILOT_LIVE_MAX_USD` (mặc định $0.05) | Không chạy trong CI mặc định |
 | E2E | Playwright | Khởi tạo tài khoản, đăng nhập, khóa tài khoản, chuyển VI/EN, trang trạng thái |
 | Chất lượng | ruff 0.17, mypy 2.4 (strict cho `core/`, `ai/`, `jobs/`), ESLint, `tsc` | Cổng trước merge |
+| Kiến trúc | import-linter 2.16 (BSD-2-Clause, tra PyPI 2026-11-18) | Hợp đồng: `modules.*` không import lẫn nhau ngoài service interface; `jobs.agents` không import `ai.providers` (chỉ qua `ai.gateway`) – FR-001, FR-025 |
 | Bảo mật | detect-secrets, test đảm bảo không secret trong log/response | SC-008 |
 
 CI: GitHub Actions (Linux) – chạy lint, type check, unit, integration (Docker có sẵn trên runner), E2E với stack Compose.
@@ -248,7 +258,8 @@ backend (không có API key, điều khoản dùng cho cá nhân tương tác). 
   `.env.example` cho dev đặt `AI_PROVIDER_OVERRIDE=mock`. Khi có key: xóa override (hoặc đặt `anthropic`), điền
   `ANTHROPIC_API_KEY`, bật `AI_PAID_CALLS_ENABLED=true` → không sửa mã.
 - **Kịch bản mock** (`mock_scenario`): `success`, `timeout` (trước khi gửi), `timeout_after_send`, `rate_limit`,
-  `schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy` (usage giả lập lớn để chạm ngân sách), cùng dạng
+  `schema_invalid`, `provider_error`, `auth_error`, `network_error` (mô phỏng không có internet), `refusal`, `truncated`,
+  `budget_heavy` (usage giả lập lớn để chạm ngân sách), cùng dạng
   `fail_n_then_success:<kịch bản>:<n>` để kiểm thử retry/checkpoint. Chọn theo tham số job (chỉ hợp lệ khi provider là
   mock), mặc định theo `MOCK_AI_DEFAULT_SCENARIO=success`.
 - **Kết quả mock**: sinh từ JSON Schema của output (giá trị tối thiểu hợp lệ, chuỗi có tiền tố `[MOCK]`), xác định

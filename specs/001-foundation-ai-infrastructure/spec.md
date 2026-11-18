@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-18
 
-**Status**: Draft – chờ Clarify
+**Status**: Clarified – plan đã duyệt có điều kiện, tasks đã tạo và analyze; chờ chủ sở hữu cho phép triển khai
 
 **Input**: User description: "E0 — Foundation & AI Infrastructure: xây dựng nền tảng kỹ thuật để các AI Agent
 và module hoạt động độc lập nhưng phối hợp trong cùng một hệ thống: cấu trúc dự án, API backend, database và
@@ -13,8 +13,6 @@ Job và trạng thái, chạy thủ công và theo lịch, retry/timeout/error h
 ngân sách ngày/tháng/job, structured logging, audit log, xác thực Dashboard, quản lý cấu hình và API key an toàn,
 Docker Compose, unit/integration test, backup/restore, checkpoint/resume." (Nguồn: Master Requirements §3.1,
 E0-01…E0-20, AI-01…AI-10)
-
-**Status cập nhật**: Clarified (2026-11-18) – sẵn sàng cho `/speckit-plan`
 
 ## Clarifications
 
@@ -33,6 +31,8 @@ E0-01…E0-20, AI-01…AI-10)
 - Q: Điều kiện nào áp dụng cho model AI trước khi gọi API có phí? → A: Model ID, khả năng hỗ trợ và bảng giá phải được xác minh từ nguồn chính thức; chưa xác minh → chặn lời gọi có phí; không hard-code model ID hay giá trong business logic; cấu hình theo loại tác vụ; không tự nâng cấp/chuyển model khi chưa cấu hình.
 - Q: Rào chắn MockAIProvider cần chặt đến mức nào? → A: Kiểm tra ở cả tầng cấu hình (khởi động) và runtime; production cấu hình mock → từ chối khởi động; không thể chọn mock động trong production; mọi dữ liệu mock có `data_origin = MOCK`; không xuất hiện trong báo cáo nghiên cứu hay thống kê kinh doanh thực tế; usage/chi phí mock tách hoàn toàn khỏi chi phí thật; test dùng mock không được tính là đã kiểm thử API thật.
 - Q: Reservation ngân sách xử lý thế nào khi gọi thất bại hoặc chưa rõ kết quả? → A: Giữ chỗ nguyên tử trong database, an toàn khi nhiều worker; thành công → đối soát theo usage thực tế; thất bại → phân biệt "chắc chắn chưa phát sinh phí" (giải phóng) và "chưa xác định được chi phí" (giữ nguyên phần giữ chỗ, chờ đối soát); không tự động giải phóng toàn bộ khi chưa xác định; có cơ chế xử lý reservation bị treo; không thể vượt giới hạn ngày/tháng/job do race condition.
+- Q: Giới hạn số reservation chưa xác định chi phí cho mỗi job? → A: Tối đa 3 reservation `UNCERTAIN` mỗi job (cấu hình được); đạt giới hạn → job `PAUSED_BUDGET` với lý do `UNCERTAIN_RESERVATION_LIMIT`, không gọi thêm API có phí; không tự giải phóng `UNCERTAIN`; chỉ tiếp tục khi các reservation của job đã được đối soát (có audit) và ngân sách đủ; vẫn bắt buộc xác minh chính sách tính phí của provider trước khi bật API thật.
+- Q: Lưu log ứng dụng thế nào? → A: Giữ log ứng dụng 90 ngày; có thể đặt ngưỡng dung lượng để cảnh báo nhưng không tự xóa log trước 90 ngày vì vượt dung lượng; log ứng dụng tách khỏi audit log (audit lưu trong database, không tự xóa trong MVP); dữ liệu nhạy cảm luôn được che trước khi ghi.
 - Q: Các giá trị mặc định vận hành có cố định không? → A: Tạm chấp thuận (phiên 12 giờ, khóa 15 phút sau 5 lần sai, backup 03:00 giữ 7 bản, CI GitHub Actions, PostgreSQL 17, bảng giá mock riêng không tính là chi phí thật) và tất cả phải thay đổi được bằng cấu hình.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -262,6 +262,9 @@ bản ghi.
 - Rate limit (429) từ provider → chờ theo chỉ dẫn của provider rồi thử lại trong giới hạn.
 - Timeout sau khi yêu cầu đã gửi đi (không biết provider có xử lý hay không) → reservation chuyển `UNCERTAIN`, phần giữ
   chỗ vẫn tính vào chi tiêu; lần thử lại tạo reservation mới; chủ sở hữu đối soát sau.
+- Một job tích lũy 3 reservation `UNCERTAIN` (ví dụ timeout liên tiếp sau khi gửi) → job `PAUSED_BUDGET`
+  (`UNCERTAIN_RESERVATION_LIMIT`), không gọi tiếp; tiếp tục chỉ sau khi đối soát hết.
+- Dung lượng log vượt ngưỡng → cảnh báo, không xóa log chưa đủ 90 ngày; ổ đĩa đầy là sự cố vận hành được hướng dẫn xử lý.
 - Worker chết giữa lời gọi → reservation treo được phát hiện và chuyển `RELEASED` (chưa gửi) hoặc `UNCERTAIN` (đã gửi).
 - Model trong profile chưa được xác minh hoặc giá chưa xác minh → chặn lời gọi có phí (`MODEL_NOT_VERIFIED` /
   `PRICING_NOT_VERIFIED`), không tự chọn model khác.
@@ -300,8 +303,8 @@ bản ghi.
   (chính), `OpenAIAPIProvider` (dự phòng, chỉ dùng khi được cấu hình rõ ràng) và `MockAIProvider` (phát triển/kiểm
   thử); chuyển provider chỉ bằng cấu hình, không sửa business logic. *(E0-06, AI-07, AI-14)*
 - **FR-018**: `MockAIProvider` MUST: (a) không gọi mạng; (b) trả kết quả xác định theo kịch bản cấu hình được –
-  thành công, timeout, rate limit, sai schema, lỗi provider, lỗi xác thực, refusal, kết quả bị cắt, và usage lớn để
-  kích hoạt vượt ngân sách; (c) báo usage và chi phí giả lập theo bảng giá giả lập riêng; (d) gắn nhãn `MOCK` lên
+  thành công, timeout (trước và sau khi gửi), rate limit, sai schema, lỗi provider, lỗi xác thực, lỗi mạng (không có
+  internet), refusal, kết quả bị cắt, và usage lớn để kích hoạt vượt ngân sách; (c) báo usage và chi phí giả lập theo bảng giá giả lập riêng; (d) gắn nhãn `MOCK` lên
   mọi kết quả, usage log, bước job và dữ liệu sinh ra; (e) chỉ được bật ở môi trường `development`/`test` – hệ thống
   MUST từ chối khởi động nếu bật ở `production`. Chi tiêu giả lập MUST được tính riêng, không cộng vào chi tiêu thật,
   nhưng đi qua cùng cơ chế kiểm tra ngân sách; (f) điều kiện sử dụng mock MUST được kiểm tra ở cả tầng cấu hình (khi
@@ -401,6 +404,11 @@ bản ghi.
   nguyên toàn bộ phần đã giữ chỗ** trong chi tiêu cho tới khi được đối soát; hệ thống MUST NOT tự động giải phóng
   reservation `UNCERTAIN`. Chủ sở hữu MUST có thể đối soát reservation `UNCERTAIN` bằng chi phí thực tế (ví dụ lấy từ
   trang quản lý của provider) hoặc xác nhận không tính phí; mỗi lần đối soát được ghi audit log. *(E0-12, AI-18)*
+- **FR-049**: Mỗi job MUST có giới hạn số reservation `UNCERTAIN` chưa đối soát (setting cấu hình được, mặc định 3). Khi
+  đạt giới hạn, job MUST chuyển `PAUSED_BUDGET` với lý do `UNCERTAIN_RESERVATION_LIMIT` và MUST NOT tạo thêm reservation
+  hay lời gọi có phí nào cho job đó. Job chỉ được tiếp tục khi mọi reservation `UNCERTAIN` của nó đã được đối soát và
+  ngân sách đủ; yêu cầu tiếp tục khi còn reservation chưa đối soát MUST bị từ chối với mã
+  `UNCERTAIN_RESERVATIONS_UNRESOLVED`. *(E0-12, AI-18)*
 - **FR-048**: Hệ thống MUST phát hiện reservation bị treo (`ACTIVE` quá hạn, ví dụ do worker chết): nếu lời gọi chắc
   chắn chưa được gửi → `RELEASED`; nếu đã gửi hoặc không chắc → `UNCERTAIN`. Tổng reservation `UNCERTAIN` MUST hiển thị
   trong trạng thái ngân sách kèm cảnh báo. *(E0-12, AI-18)*
@@ -411,6 +419,10 @@ bản ghi.
 
 - **FR-050**: Hệ thống MUST ghi log có cấu trúc (máy đọc được) với mã tương quan (request, job, bước) và MUST tự
   động che secret trong log. *(E0-13, NFR-05)*
+- **FR-057**: Log ứng dụng MUST được lưu tối thiểu 90 ngày (cấu hình được, không thấp hơn 90 ngày) và chỉ bị xóa khi quá
+  thời hạn lưu; hệ thống MUST cảnh báo (log + trang trạng thái) khi dung lượng log vượt ngưỡng cấu hình nhưng MUST NOT tự
+  xóa log chưa đủ 90 ngày vì lý do dung lượng. Log ứng dụng tách biệt với audit log (audit log nằm trong database, không
+  bị chính sách xóa log ứng dụng tác động). *(E0-13, NFR-09)*
 - **FR-051**: Hệ thống MUST ghi audit log cho: đăng nhập thành công/thất bại, khóa tài khoản, tạo tài khoản, thay
   đổi cấu hình/ngân sách/lịch, tạo/hủy/tạm dừng/tiếp tục/chạy lại job; mỗi bản ghi có tác nhân, thời điểm, hành
   động, đối tượng, giá trị trước/sau (không chứa secret); audit log không sửa/xóa được qua giao diện. *(E0-14)*
@@ -486,7 +498,8 @@ bản ghi.
 
 - **SC-001**: Người dùng làm theo hướng dẫn vận hành có thể khởi động hệ thống và đăng nhập trên máy Windows
   (4 core, 15 GB RAM, không GPU) trong vòng 30 phút kể từ khi có mã nguồn, với một lệnh khởi động. *(AC-01)*
-- **SC-002**: Ở trạng thái nghỉ, toàn bộ thành phần bắt buộc của E0 dùng tổng cộng không quá 3 GB RAM. *(NFR-01)*
+- **SC-002**: Ở trạng thái nghỉ, toàn bộ thành phần bắt buộc của E0 dùng tổng cộng không quá 3 GB RAM, đo trên cấu hình
+  mục tiêu (Windows 10/11, Docker Desktop + WSL2, 4 core, 15 GB RAM) và trên CI Linux. *(NFR-01)*
 - **SC-003**: Job chẩn đoán AI với provider thật hoàn tất thành công và hiển thị token và chi phí; chi phí ghi nhận
   lệch không quá 1% so với tính toán thủ công từ usage và bảng giá. *(AC-02, E0-11)* – **Chỉ kiểm chứng được khi chủ
   sở hữu cung cấp API key và cho phép gọi có phí; trước đó tiêu chí này ghi trạng thái "chưa kiểm chứng", không được
@@ -498,7 +511,8 @@ bản ghi.
   worker × 10 lời gọi tranh chấp), không có lời gọi tốn phí nào được gửi khi ngân sách còn lại không đủ cho chi phí ước
   tính tối đa, và tổng chi tiêu + giữ chỗ không vượt giới hạn. *(AC-03)*
 - **SC-004b**: 100% kịch bản lỗi sau khi gửi (timeout, mất kết nối, worker chết) để lại reservation `UNCERTAIN` không bị
-  giải phóng tự động; 100% kịch bản lỗi trước khi gửi giải phóng reservation. *(FR-047, FR-048)*
+  giải phóng tự động; 100% kịch bản lỗi trước khi gửi giải phóng reservation; 100% job chạm giới hạn `UNCERTAIN` dừng ở
+  `PAUSED_BUDGET` mà không phát sinh thêm lời gọi có phí. *(FR-047, FR-048, FR-049)*
 - **SC-005**: 100% kết quả AI sai schema trong kiểm thử bị từ chối và không được lưu. *(AI-03)*
 - **SC-006**: Job bị gián đoạn (worker dừng đột ngột) tiếp tục được từ checkpoint, không mất bước đã hoàn tất và
   không tạo bản ghi trùng, trong 100% kịch bản kiểm thử. *(E0-20, QA-10)*
@@ -530,5 +544,5 @@ bản ghi.
   model mạnh hơn cho phân tích phức tạp) và chủ sở hữu thay đổi được; hệ thống không tự đổi model lúc chạy.
 - Truy cập Dashboard chủ yếu từ máy cục bộ hoặc mạng nội bộ; công khai ra internet cần reverse proxy có HTTPS (ngoài
   phạm vi E0, có ghi trong hướng dẫn).
-- Thời gian giữ log và audit log: mặc định 90 ngày cho log ứng dụng, không tự xóa audit log trong MVP.
+- Thời gian giữ log: log ứng dụng tối thiểu 90 ngày (FR-057); audit log không tự xóa trong MVP.
 - Môi trường phát triển chính: Windows 10/11 + Docker Desktop (WSL2); hệ thống phải chạy được trên Linux không sửa mã.

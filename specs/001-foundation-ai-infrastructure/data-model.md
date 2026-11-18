@@ -12,6 +12,12 @@ Quy ước chung (DATA-01, FR-005):
 - Enum lưu dạng `TEXT` + `CHECK` (dễ migration hơn enum PostgreSQL).
 - `data_origin TEXT NOT NULL CHECK (data_origin IN ('REAL','MOCK'))` trên mọi bảng chứa kết quả AI/tool/nghiên cứu (R-14).
 - Bảng `procrastinate_*` do thư viện quản lý, được tạo trong migration Alembic, không mô tả ở đây.
+- **Tổng số bảng E0**: 16 bảng nghiệp vụ (§1–§14, gồm §5a) + 4 bảng Procrastinate.
+- **Migration** (Alembic, theo thứ tự khóa ngoại – 7 migration): `0001_core` (projects, users, auth_sessions, settings,
+  audit_logs), `0002_procrastinate`, `0003_seed_core`, `0004_ai_jobs` (ai_models, model_pricing, model_task_profiles,
+  job_schedules, agent_jobs, job_steps, tool_executions, ai_usage_logs – `job_schedules` đặt trước `agent_jobs` vì
+  `agent_jobs.schedule_id` tham chiếu nó), `0005_seed_ai`, `0006_budget` (budget_reservations), `0007_evidence`
+  (research_sources, research_evidence).
 
 ## Sơ đồ quan hệ
 
@@ -107,6 +113,9 @@ Khóa seed:
 | `auth.lockout_threshold` | 5 |
 | `auth.lockout_minutes` | 15 |
 | `budget.reservation_margin_s` | 60 (cộng vào timeout lời gọi để tính `expires_at`) |
+| `budget.max_uncertain_per_job` | 3 (≥ 1; FR-049) |
+| `logging.retention_days` | 90 (≥ 90; FR-057) |
+| `logging.disk_warn_gb` | 2 (ngưỡng cảnh báo dung lượng log, không xóa) |
 | `billing.error_responses_not_billed_verified` | `false` theo từng provider (xem §11, R-06) |
 
 Giá trị khởi động lấy từ biến môi trường (contracts/configuration.md) nếu có; sau đó chỉnh qua API `settings`.
@@ -193,7 +202,7 @@ Seed theo bảng R-04 (`system.diagnostic`, `extract.simple`, `analyze.standard`
 | pause_requested, cancel_requested | BOOL | cờ yêu cầu từ người dùng |
 | attempt | INT | số lượt thực thi đã chạy |
 | max_attempts | INT | mặc định 3 (retry tự động lỗi tạm thời) |
-| status_reason_code | TEXT | ví dụ `BUDGET_DAILY_EXCEEDED`, `PAID_CALLS_DISABLED`, `REFUSED`, `MAX_STEPS` |
+| status_reason_code | TEXT | ví dụ `BUDGET_DAILY_EXCEEDED`, `BUDGET_MONTHLY_EXCEEDED`, `BUDGET_JOB_EXCEEDED`, `UNCERTAIN_RESERVATION_LIMIT`, `PAID_CALLS_DISABLED`, `REFUSED`, `MAX_STEPS` |
 | status_reason_detail | JSONB | số liệu kèm (ngân sách bị chạm, ước tính, phần còn lại…) |
 | result | JSONB | output đã validate theo output schema |
 | queue_job_id | BIGINT | id lượt thực thi Procrastinate hiện tại |
@@ -219,7 +228,7 @@ stateDiagram-v2
   RETRY_SCHEDULED --> CANCELLED
   PAUSED --> QUEUED : resume
   PAUSED --> CANCELLED
-  PAUSED_BUDGET --> QUEUED : resume (chỉ khi chủ sở hữu yêu cầu và ngân sách đủ)
+  PAUSED_BUDGET --> QUEUED : resume (chủ sở hữu yêu cầu + ngân sách đủ + job không còn reservation UNCERTAIN chưa đối soát nếu lý do là UNCERTAIN_RESERVATION_LIMIT)
   PAUSED_BUDGET --> CANCELLED
   FAILED --> QUEUED : retry thủ công (tiếp tục từ checkpoint)
 ```
@@ -312,6 +321,11 @@ stateDiagram-v2
 ```
 
 Không có chuyển tự động nào ra khỏi `UNCERTAIN`.
+
+**Giới hạn `UNCERTAIN` theo job (FR-049)**: `reserve()` từ chối (trong cùng transaction có khóa) nếu job đã có
+≥ `budget.max_uncertain_per_job` reservation `UNCERTAIN`; ngay sau `mark_uncertain()` nếu số lượng đạt giới hạn thì job
+chuyển `PAUSED_BUDGET` với `agent_jobs.status_reason_code = UNCERTAIN_RESERVATION_LIMIT`. Resume yêu cầu số reservation
+`UNCERTAIN` của job = 0 (đã `RESOLVED`).
 
 **Công thức chi tiêu kỳ** (ngày/tháng/job), lọc theo `data_origin` và kỳ theo múi giờ cấu hình:
 

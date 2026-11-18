@@ -4,8 +4,8 @@
 
 **Input**: Feature specification from `/specs/001-foundation-ai-infrastructure/spec.md`
 
-**Trạng thái**: Đã được chủ sở hữu phê duyệt có điều kiện (2026-11-18); các điều kiện đã được đưa vào spec/plan/data
-model/contracts. Chưa có implementation code; chờ duyệt tasks + analyze trước khi triển khai.
+**Trạng thái**: Đã được chủ sở hữu phê duyệt có điều kiện (2026-11-18); các điều kiện và kết quả analyze đã được đưa vào
+spec/plan/data model/contracts/tasks. Chưa có implementation code; chờ chủ sở hữu cho phép triển khai.
 
 ## Summary
 
@@ -30,7 +30,8 @@ Tailwind CSS 4.3, shadcn (CLI 4.23), i18next 27 + react-i18next 18, TanStack Que
 
 **Storage**: PostgreSQL 17 (dữ liệu + hàng đợi Procrastinate); migration Alembic; backup `pg_dump -Fc`
 
-**Testing**: pytest 9.2 + pytest-asyncio, testcontainers (PostgreSQL thật), httpx, respx, `MockAIProvider`/`FakeLLMProvider`;
+**Testing**: pytest 9.2 + pytest-asyncio, testcontainers (PostgreSQL thật), httpx, respx, import-linter 2.16 (BSD-2, ranh giới
+module), `MockAIProvider`/`FakeLLMProvider`;
 Vitest 5; Playwright 1.65; ruff, mypy, ESLint, tsc; detect-secrets
 
 **Target Platform**: Docker Compose trên Windows 10/11 (Docker Desktop + WSL2) và Linux server; trình duyệt desktop hiện đại
@@ -43,8 +44,8 @@ mock hoàn tất < 10 s; scheduler sai lệch ≤ 1 phút; phát hiện worker c
 **Constraints**: CPU 4 core, RAM 15 GB, không GPU, không LLM local; tổng RAM service bắt buộc ≤ 3 GB khi nghỉ; mặc định 1 job đồng
 thời; không gọi API có phí khi phát triển/test; không secret trong DB/log/git; mock bị cấm ở production
 
-**Scale/Scope**: 1 người dùng, 1 project; ~14 bảng nghiệp vụ E0 + 4 bảng Procrastinate; ~30 endpoint; 3 trang giao diện; dự kiến
-hàng nghìn job/tháng ở các giai đoạn sau
+**Scale/Scope**: 1 người dùng, 1 project; 16 bảng nghiệp vụ E0 + 4 bảng Procrastinate; 7 migration; ~35 endpoint; 3 trang giao
+diện; dự kiến hàng nghìn job/tháng ở các giai đoạn sau
 
 ## Constitution Check
 
@@ -84,8 +85,11 @@ specs/001-foundation-ai-infrastructure/
 │   ├── openapi.yaml              # REST API (OpenAPI 3.1, đã validate)
 │   ├── internal-interfaces.md    # LLMProvider, ToolRegistry, Agent, JobQueue, BudgetService, EvidenceService
 │   └── configuration.md          # Biến môi trường, quy tắc khởi động, chuyển mock → API thật
-├── checklists/requirements.md
-└── tasks.md                      # Phase 2 (/speckit-tasks – CHƯA tạo)
+├── checklists/
+│   ├── requirements.md           # chất lượng spec
+│   ├── verification.md           # kết quả chạy quickstart (tạo trong giai đoạn implement – tasks.md Phase 10)
+│   └── windows-manual.md         # kiểm thử thủ công Windows, gồm đo RAM (tasks.md Phase 10)
+└── tasks.md                      # Phase 2 (/speckit-tasks)
 ```
 
 ### Source Code (repository root)
@@ -95,11 +99,14 @@ backend/
 ├── pyproject.toml / uv.lock
 ├── Dockerfile
 ├── alembic.ini
-├── alembic/versions/                 # 0001_core, 0002_procrastinate, 0003_jobs_ai, 0004_evidence, 0005_seed
+├── .importlinter                     # hợp đồng ranh giới module (FR-001, FR-025)
+├── alembic/versions/                 # 0001_core, 0002_procrastinate, 0003_seed_core, 0004_ai_jobs, 0005_seed_ai,
+│                                     # 0006_budget, 0007_evidence (thứ tự khóa ngoại – data-model.md)
+├── scripts/                          # export_error_codes.py, traceability_report.py
 ├── src/nichepilot/
 │   ├── main.py                       # tạo FastAPI app
 │   ├── worker.py                     # entrypoint worker (Procrastinate + scheduler tick + dọn dẹp)
-│   ├── core/                         # config (pydantic-settings), db, logging (structlog + redaction), errors, security, clock
+│   ├── core/                         # config (pydantic-settings), db, logging (structlog + redaction + file sink theo ngày), errors, security, models_base
 │   ├── ai/
 │   │   ├── gateway.py                # AIGateway: chọn provider, ngân sách, công tắc phí, validate, usage log
 │   │   ├── providers/                # base.py (LLMProvider), anthropic_api.py, openai_api.py, mock.py
@@ -108,13 +115,14 @@ backend/
 │   │   ├── budget.py                 # BudgetService (reserve/mark_sent/settle/release/mark_uncertain/resolve/sweep_stale)
 │   │   └── sanitize.py               # sanitize_for_llm, bọc untrusted_content
 │   ├── tools/                        # registry.py, builtin/system_runtime_info.py
-│   ├── jobs/                         # runtime.py, state_machine.py, queue.py (JobQueue + Procrastinate), scheduler.py, agents/diagnostic.py
+│   ├── jobs/                         # runtime.py, state_machine.py, queue.py (JobQueue + Procrastinate), scheduler.py,
+│   │                                 # maintenance.py (sweep reservation treo, stalled job, retention log), agents/diagnostic.py
 │   ├── modules/
 │   │   ├── identity/                 # users, sessions, auth service
 │   │   ├── settings/                 # settings, projects, model profiles, pricing
 │   │   ├── audit/                    # audit service
 │   │   └── evidence/                 # research_sources, research_evidence service
-│   └── api/v1/                       # routers: system, auth, jobs, schedules, costs, settings, providers, audit, tools
+│   └── api/v1/                       # routers: system, auth, jobs, schedules, costs, settings, models, providers, audit, tools
 └── tests/
     ├── unit/  integration/  contract/  live/   # live/ chỉ chạy thủ công
     └── fakes/                        # FakeLLMProvider và fixture – test double, có nhãn rõ
@@ -192,7 +200,8 @@ sequenceDiagram
 | Chi phí khi phát triển | `MockAIProvider` + `AI_PAID_CALLS_ENABLED=false` mặc định; test live tách riêng, cần cho phép | R-14 |
 | Xác thực | Argon2id, phiên server-side, CSRF double-submit, khóa 15 phút sau 5 lần sai | R-07 |
 | Secrets | env/Docker secrets, `SecretStr`, redaction, cấm khóa bí mật trong `settings`, detect-secrets | R-08 |
-| Log/audit | structlog JSON + context; audit append-only bằng trigger | R-09 |
+| Log/audit | structlog JSON + context; file log theo ngày giữ ≥ 90 ngày, cảnh báo dung lượng không xóa; audit append-only bằng trigger trong DB | R-09 |
+| Giới hạn UNCERTAIN | Tối đa 3 reservation UNCERTAIN/job (cấu hình được) → PAUSED_BUDGET(UNCERTAIN_RESERVATION_LIMIT); resume sau đối soát | R-06 |
 | Frontend | React/Vite/Tailwind/shadcn/i18next; 3 trang; nhãn MOCK | R-10 |
 | Triển khai | Compose + dev override; Caddy; backup profile `ops`; hướng dẫn WSL2 | R-11 |
 
@@ -200,28 +209,28 @@ sequenceDiagram
 
 | Mốc | Nội dung | User story | Kiểm chứng |
 |---|---|---|---|
-| M1 | Khung repo, Compose, config, logging, DB + Alembic, health, CI | US1 (một phần) | `make up`, migration up/down, CI xanh |
-| M2 | Identity: setup, login, phiên, CSRF, khóa, audit; khung frontend VI/EN 3 trang | US1, US6 (audit) | API + E2E đăng nhập/khóa/ngôn ngữ |
+| M1 | Khung repo, Compose, config, logging (file theo ngày), DB + migration 0001–0003, health, CI, import-linter | Setup, Foundational | `make up`, migration up/down, CI xanh |
+| M2 | Identity: setup, login, phiên, CSRF, khóa, audit; khung frontend VI/EN 3 trang | US1 | API + E2E đăng nhập/khóa/ngôn ngữ |
 | M3 | Settings, project, bảng giá, model profiles, providers status/test-connection | US6 | API test, không lộ secret |
-| M4 | AI Gateway: interface, MockAIProvider, Anthropic/OpenAI adapter (test HTTP giả lập), pricing, sanitize | US2 | Unit + contract, 0 lời gọi mạng thật |
-| M5 | BudgetService (reservation nguyên tử, UNCERTAIN, sweep, resolve) + công tắc phí + catalog/xác minh model | US3 | Unit + integration đồng thời 2 tiến trình |
+| M4 | Lõi dữ liệu AI/Job + sổ ngân sách: migration 0004–0006, interface `LLMProvider`, `BudgetService` lõi (reserve nguyên tử, mark_sent, settle, release, mark_uncertain, giới hạn UNCERTAIN) | Foundational | Unit + integration đồng thời 2 tiến trình |
+| M5 | AI Gateway: MockAIProvider, Anthropic/OpenAI adapter (test HTTP giả lập), catalog/xác minh model, pricing, sanitize, công tắc phí; ngân sách: PAUSED_BUDGET, sweep, resolve, API | US2, US3 | Unit + contract, 0 lời gọi mạng thật |
 | M6 | Tool Registry + Job Runtime + JobQueue + agent chẩn đoán + checkpoint/stalled | US2, US4 | Kịch bản quickstart 3–6 |
 | M7 | Scheduler + lịch API | US5 | Kịch bản quickstart 7 |
-| M8 | Evidence service (bảng + service, không dữ liệu) | — (nền cho E1) | Integration test ràng buộc CHECK |
-| M9 | Backup/restore, tài liệu vận hành Windows/Linux, truy vết, hoàn thiện | US7 | Quickstart 8, 10 |
+| M8 | Lưu log 90 ngày + cảnh báo dung lượng, backup/restore | US7 | Quickstart 8 |
+| M9 | Evidence service (migration 0007), tài liệu vận hành Windows/Linux, test tài liệu, smoke CI, truy vết, checklist Windows | Polish | Quickstart 8, 10; checklist Windows |
 
 ## Chiến lược kiểm thử & truy vết
 
 | Nhóm yêu cầu | Loại test chính | Kịch bản quickstart |
 |---|---|---|
-| FR-001…FR-007 | Integration (migration, ràng buộc), contract (health/status) | 1 |
+| FR-001…FR-007 | import-linter (ranh giới module), integration (migration, seed, ràng buộc, mất kết nối DB), contract (health/status) | 1, 8 |
 | FR-010…FR-019b | Unit (gateway, phân loại lỗi, override, rào chắn production, sanitize), contract adapter (respx), integration với MockAIProvider | 3, 4, 8, 9 |
 | FR-020…FR-026 | Unit (registry, quyền, external_effect, giới hạn bước), integration agent chẩn đoán | 3, 4 |
 | FR-030…FR-038 | Unit (state machine), integration (queue, idempotency, stalled, cancel, pause, concurrency) | 6, 7 |
 | FR-040…FR-045 | Unit (pricing, phân tầng giá), integration (đặt chỗ đồng thời, PAUSED_BUDGET, resume) | 5 |
-| FR-050…FR-056 | Unit (redaction), API (auth, CSRF, khóa, settings, audit bất biến), security (quét secret) | 2, 8 |
+| FR-050…FR-057 | Unit (redaction), integration (retention log 90 ngày, cảnh báo dung lượng), API (auth, CSRF, khóa, settings, audit bất biến), security (quét secret) | 2, 8 |
 | FR-060…FR-061 | Vitest (khóa i18n đầy đủ), Playwright (chuyển VI/EN, thông báo lỗi) | 2 |
-| FR-070…FR-074 | Smoke Compose trong CI (Linux), kiểm tra thủ công Windows, test backup/restore | 1, 8 |
+| FR-070…FR-074 | Smoke Compose trong CI (Linux, cả dev hot-reload), kiểm tra tài liệu/cấu hình mẫu, checklist thủ công Windows (gồm RAM), test backup/restore | 1, 8 |
 
 Mã test case theo quy ước `TC-<REQ-ID>-<nn>`; `tasks.md` sẽ gắn mỗi task với FR và test case. Tiêu chí SC-003 (API thật) giữ trạng
 thái **"chưa kiểm chứng"** cho tới khi chủ sở hữu cung cấp key và cho phép.

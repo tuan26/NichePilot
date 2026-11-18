@@ -34,7 +34,8 @@ Kỳ vọng:
 
 - `make up` chạy `migrate` (one-shot) rồi `postgres`, `api`, `worker`, `web`; mọi service `healthy` trong ≤ 5 phút.
 - `curl -s localhost:8080/health` → `{"status":"ok"}`.
-- `docker stats --no-stream` → tổng RAM các service bắt buộc ≤ 3 GB ở trạng thái nghỉ.
+- `docker stats --no-stream` → tổng RAM các service bắt buộc ≤ 3 GB ở trạng thái nghỉ (đo cả trên Windows 10/11 + Docker
+  Desktop/WSL2 với cấu hình mục tiêu 4 core/15 GB, ghi vào checklist `checklists/windows-manual.md`).
 - Mở `http://localhost:8080` → trang **Khởi tạo tài khoản** bằng tiếng Việt.
 
 ## 2. Tài khoản, đăng nhập, khóa, ngôn ngữ (US1)
@@ -73,7 +74,8 @@ Tạo job với `params.mock_scenario`:
 | `auth_error` | `FAILED` ngay, không retry, `PROVIDER_AUTH_ERROR` |
 | `refusal` | Bước `REFUSED`, job `FAILED` với `AI_REFUSED`, usage có `refusal_category`; không đổi model/provider |
 | `truncated` | Bước `TRUNCATED`, `FAILED`, không lưu kết quả thiếu |
-| `timeout_after_send` | Như `timeout` nhưng mô phỏng yêu cầu đã gửi → mỗi lần thử để lại một reservation `UNCERTAIN` |
+| `timeout_after_send` | Như `timeout` nhưng mô phỏng yêu cầu đã gửi → mỗi lần thử để lại một reservation `UNCERTAIN`; đến reservation thứ 3 job dừng `PAUSED_BUDGET` (`UNCERTAIN_RESERVATION_LIMIT`) |
+| `network_error` | Mô phỏng không có internet: retry rồi `FAILED`, `PROVIDER_NETWORK_ERROR`; trong lúc đó đăng nhập, trang trạng thái, danh sách job vẫn hoạt động (QA-14) |
 
 ## 5. Ngân sách (US3, QA-11, SC-004, FR-045)
 
@@ -86,6 +88,8 @@ Tạo job với `params.mock_scenario`:
 6. Tạo job `mock_scenario = timeout_after_send` → reservation chuyển `UNCERTAIN` (`GET /api/v1/budget/reservations?status=UNCERTAIN`),
    `GET /api/v1/budget` có `uncertain_count = 1` và cảnh báo `UNCERTAIN_RESERVATIONS`; phần giữ chỗ vẫn bị trừ.
 7. `POST /api/v1/budget/reservations/{id}/resolve` với `actual_usd = 0` và ghi chú nguồn → `RESOLVED`, có audit log.
+7b. Job đang `PAUSED_BUDGET (UNCERTAIN_RESERVATION_LIMIT)`: `POST …/resume` khi còn reservation chưa đối soát → `423
+    UNCERTAIN_RESERVATIONS_UNRESOLVED`; đối soát hết cả 3 rồi resume → job tiếp tục từ checkpoint.
 8. Model/giá chưa xác minh: với provider thật và `AI_PAID_CALLS_ENABLED=true` nhưng model `verified = false` → job `FAILED`,
    `MODEL_NOT_VERIFIED` (kiểm thử tự động bằng respx, không gọi mạng).
 
@@ -110,6 +114,10 @@ Tạo job với `params.mock_scenario`:
 - `docker compose logs api worker | grep -E "sk-ant-|sk-proj-|Bearer "` → không có kết quả.
 - `PATCH /api/v1/settings` đổi `agent.default_max_steps` → audit log có before/after.
 - Thử khởi động với `APP_ENV=production` và `AI_PROVIDER_OVERRIDE=mock` → `api`/`worker` thoát với `MOCK_NOT_ALLOWED`.
+- `GET /api/v1/system/status` → `log_storage.retention_days = 90`; file log theo ngày nằm trong volume `logs`; đặt
+  `logging.disk_warn_gb` rất nhỏ → `log_storage.warning = true` nhưng không file log nào bị xóa.
+- Tắt postgres 30 giây (`docker compose stop postgres`) → API trả `503 SERVICE_UNAVAILABLE`, không job nào bị đánh dấu
+  thành công sai; bật lại → hệ thống tự phục hồi (QA-08).
 - `make backup` → file `backups/nichepilot-<timestamp>.dump`; `make restore FILE=…` vào database trống → số bản ghi khớp.
 
 ## 9. (Chỉ khi chủ sở hữu cho phép) Kiểm thử tích hợp API thật

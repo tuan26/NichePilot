@@ -256,6 +256,11 @@ paths:
       responses:
         "202": { description: Đã xếp hàng, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
         "409": { $ref: "#/components/responses/InvalidTransition" }
+        "423":
+          description: Job còn reservation UNCERTAIN chưa đối soát (code UNCERTAIN_RESERVATIONS_UNRESOLVED); job giữ PAUSED_BUDGET
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "402":
           description: Ngân sách vẫn chưa đủ (code BUDGET_STILL_INSUFFICIENT); job giữ PAUSED_BUDGET
           content:
@@ -760,6 +765,13 @@ components:
         worker: { type: string, enum: [OK, STALE, NOT_RUNNING] }
         schema_revision: { type: string }
         paid_calls_enabled: { type: boolean }
+        log_storage:
+          type: object
+          properties:
+            retention_days: { type: integer, minimum: 90 }
+            used_gb: { type: number }
+            warn_gb: { type: number }
+            warning: { type: boolean, description: "Vượt ngưỡng dung lượng – chỉ cảnh báo, không xóa log chưa đủ hạn" }
         provider_override: { type: [string, "null"] }
         providers:
           type: array
@@ -895,6 +907,7 @@ components:
         monthly_usd: { $ref: "#/components/schemas/Money" }
         per_job_default_usd: { $ref: "#/components/schemas/Money" }
         warning_threshold: { type: number, minimum: 0.1, maximum: 1.0, default: 0.8 }
+        max_uncertain_per_job: { type: integer, minimum: 1, default: 3 }
 
     BudgetStatus:
       type: object

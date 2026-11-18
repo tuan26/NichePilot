@@ -57,7 +57,7 @@ class LLMResponse(BaseModel):
 | `ProviderTimeout` | TIMEOUT | Có (backoff) |
 | `ProviderRateLimited(retry_after_s)` | RATE_LIMITED | Có, chờ `retry_after_s` |
 | `ProviderUnavailable` (5xx, 529) | PROVIDER_ERROR | Có; hết lượt → fallback nếu cấu hình |
-| `ProviderNetworkError` | NETWORK_ERROR | Có |
+| `ProviderNetworkError` (trước khi gửi: NOT_BILLED; mất kết nối sau khi gửi: UNCERTAIN) | NETWORK_ERROR | Có |
 | `ProviderAuthError` (401/403) | AUTH_ERROR | Không |
 | `ProviderBadRequest` (400/404/422) | BAD_REQUEST | Không |
 | — (`stop_reason=refusal`) | REFUSED | Không; không fallback |
@@ -94,7 +94,7 @@ class LLMResponse(BaseModel):
 
 **Hành vi `MockAIProvider`** (R-14): không I/O mạng; xác định theo seed; mọi chuỗi sinh ra có tiền tố `[MOCK]`; usage
 giả lập (mặc định 2 000 vào / 500 ra; `budget_heavy`: 2 000 000 vào); kịch bản: `success`, `timeout`, `rate_limit`,
-`schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy`, `timeout_after_send`,
+`schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy`, `timeout_after_send`, `network_error`,
 `fail_n_then_success:<kịch bản>:<n>`. Khi có `tools`, kịch bản `success` trả một lời gọi tool hợp lệ ở lượt đầu rồi output
 cuối ở lượt sau.
 
@@ -172,17 +172,19 @@ Triển khai mặc định: `ProcrastinateJobQueue`. Phương án dự phòng: `
 ```python
 class BudgetService(Protocol):
     async def reserve(self, job_id: UUID, amount_usd: Decimal, origin: DataOrigin) -> Reservation: ...
-        # advisory lock; kiểm tra ngày, tháng, job; BudgetExceeded(scope, limit, spent, reserved, requested)
+        # advisory lock; kiểm tra ngày, tháng, job và số UNCERTAIN của job < budget.max_uncertain_per_job;
+        # BudgetExceeded(scope, limit, spent, reserved, requested) | UncertainLimitReached(job_id, count, limit)
     async def mark_sent(self, reservation_id: UUID) -> None: ...                  # commit ngay, trước khi gửi
     async def settle(self, reservation_id: UUID, usage_log_id: UUID, actual_usd: Decimal) -> None: ...
         # ghi chênh lệch actual - amount; actual > amount → log cảnh báo BUDGET_RESERVATION_OVERRUN + audit
     async def release(self, reservation_id: UUID, reason: str) -> None: ...     # chỉ khi chắc chắn chưa phát sinh phí
-    async def mark_uncertain(self, reservation_id: UUID, reason: str) -> None: ...
+    async def mark_uncertain(self, reservation_id: UUID, reason: str) -> int: ...  # trả số UNCERTAIN hiện tại của job
+        # Gateway: nếu kết quả ≥ giới hạn → UncertainLimitReached → Job Runtime chuyển PAUSED_BUDGET (UNCERTAIN_RESERVATION_LIMIT)
     async def resolve(self, reservation_id: UUID, actual_usd: Decimal, note: str, user_id: UUID) -> None: ...  # thủ công, audit
     async def sweep_stale(self) -> SweepResult: ...
         # ACTIVE quá expires_at: sent_at NULL → RELEASED(NOT_SENT); ngược lại → UNCERTAIN(WORKER_LOST); không bao giờ tự giải phóng UNCERTAIN
     async def status(self) -> BudgetStatus: ...
-    async def can_resume(self, job_id: UUID) -> bool: ...   # dùng cho POST /jobs/{id}/resume
+    async def can_resume(self, job_id: UUID) -> ResumeCheck: ...   # OK | BUDGET_STILL_INSUFFICIENT | UNCERTAIN_RESERVATIONS_UNRESOLVED
 ```
 
 ## 6. `EvidenceService` (FR-007) — dùng từ E1
@@ -203,7 +205,7 @@ class EvidenceService(Protocol):
 
 `AUTH_REQUIRED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_LOCKED`, `ALREADY_SETUP`, `CSRF_INVALID`, `VALIDATION_ERROR`,
 `NOT_FOUND`, `VERSION_CONFLICT`, `INVALID_JOB_TRANSITION`, `MODEL_NOT_VERIFIED`, `PRICING_NOT_VERIFIED`,
-`RESERVATION_NOT_UNCERTAIN`, `BUDGET_DAILY_EXCEEDED`, `BUDGET_MONTHLY_EXCEEDED`,
+`RESERVATION_NOT_UNCERTAIN`, `UNCERTAIN_RESERVATION_LIMIT`, `UNCERTAIN_RESERVATIONS_UNRESOLVED`, `BUDGET_DAILY_EXCEEDED`, `BUDGET_MONTHLY_EXCEEDED`,
 `BUDGET_JOB_EXCEEDED`, `BUDGET_STILL_INSUFFICIENT`, `BUDGET_NOT_CONFIGURED`, `PAID_CALLS_DISABLED`, `PRICING_MISSING`,
 `PROVIDER_NOT_CONFIGURED`, `PROVIDER_AUTH_ERROR`, `PROVIDER_TIMEOUT`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`,
 `PROVIDER_NETWORK_ERROR`, `AI_REFUSED`, `AI_TRUNCATED`, `AI_SCHEMA_INVALID`, `MAX_STEPS_EXCEEDED`,
