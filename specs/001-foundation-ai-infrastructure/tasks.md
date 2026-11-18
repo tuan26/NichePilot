@@ -298,9 +298,9 @@ kiểm thử.
 - [X] T126 [P] Bộ test live tách riêng (chỉ chạy thủ công, từ chối nếu thiếu key + `AI_PAID_CALLS_ENABLED=true` + `NICHEPILOT_LIVE_MAX_USD`; ghi vào mục "Tích hợp provider thật") trong `backend/tests/live/test_live_providers.py` và target `make test-live` (SC-003, FR-018h) – **không chạy khi chưa được cho phép**
 - [X] T127 Script báo cáo truy vết (quét `TC-<REQ-ID>-nn`, báo FR/SC chưa có test, tách kết quả mock và live, CI thất bại nếu FR Must thiếu test) trong `backend/scripts/traceability_report.py`, kèm test của script trong `backend/tests/unit/test_traceability_report.py`, chạy trong CI (SC-011)
 - [X] T128 Nghiên cứu (không gọi API có phí) và ghi vào `docs/operations/enable-real-api.md`: chính sách tính phí khi phản hồi lỗi của Anthropic/OpenAI theo tài liệu chính thức → đề xuất `billing.error_responses_not_billed_verified`; model ID và giá chính thức hiện hành của các model R-04 – để chủ sở hữu xác nhận trước khi bật gọi có phí (FR-019c, FR-047)
-- [ ] T129 Chạy quickstart §1–§8 và §10, ghi kết quả thực tế vào `specs/001-foundation-ai-infrastructure/checklists/verification.md`; §9 (API thật) ghi "chưa kiểm chứng" nếu chưa được cho phép (SC-003, Constitution I)
-- [ ] T130 Checklist kiểm thử thủ công Windows 10/11 (Docker Desktop + WSL2, 4 core, 15 GB): khởi động (SC-001), đo RAM nghỉ bằng `docker stats` và Task Manager/`vmmem` ≤ 3 GB (SC-002), hot-reload (FR-074), khởi động lại máy/WSL, hướng dẫn tài liệu dùng được (FR-071) trong `specs/001-foundation-ai-infrastructure/checklists/windows-manual.md` (AC-01, FR-070)
-- [ ] T131 Cập nhật `README.md` và `CLAUDE.md` (trạng thái E0, lệnh chạy, cảnh báo API có phí)
+- [X] T129 Chạy quickstart §1–§8 và §10, ghi kết quả thực tế vào `specs/001-foundation-ai-infrastructure/checklists/verification.md`; §9 (API thật) ghi "chưa kiểm chứng" nếu chưa được cho phép (SC-003, Constitution I)
+- [X] T130 Checklist kiểm thử thủ công Windows 10/11 (Docker Desktop + WSL2, 4 core, 15 GB): khởi động (SC-001), đo RAM nghỉ bằng `docker stats` và Task Manager/`vmmem` ≤ 3 GB (SC-002), hot-reload (FR-074), khởi động lại máy/WSL, hướng dẫn tài liệu dùng được (FR-071) trong `specs/001-foundation-ai-infrastructure/checklists/windows-manual.md` (AC-01, FR-070)
+- [X] T131 Cập nhật `README.md` và `CLAUDE.md` (trạng thái E0, lệnh chạy, cảnh báo API có phí)
 
 ---
 
