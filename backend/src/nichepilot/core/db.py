@@ -21,7 +21,14 @@ def make_engine(url: str, *, pool_size: int = 5) -> AsyncEngine:
         pool_size=pool_size,
         max_overflow=5,
         pool_recycle=1800,
-        connect_args={"connect_timeout": 5},
+        # connect_timeout + TCP keepalive: phát hiện DB/mạng gián đoạn thay vì treo vô hạn (QA-08).
+        connect_args={
+            "connect_timeout": 5,
+            "keepalives": 1,
+            "keepalives_idle": 10,
+            "keepalives_interval": 5,
+            "keepalives_count": 3,
+        },
     )
 
 

@@ -11,6 +11,7 @@ import httpx
 from nichepilot.core.config import Settings
 from nichepilot.core.db import dispose_db, init_db
 from nichepilot.main import create_app
+from nichepilot.services import build_services
 
 PASSWORD = "correct-horse-battery"  # mật khẩu chỉ dùng trong test
 
@@ -27,14 +28,22 @@ def make_settings(db_url: str, **overrides: Any) -> Settings:
 
 
 @asynccontextmanager
-async def api_client(db_url: str, **overrides: Any) -> AsyncIterator[httpx.AsyncClient]:
+async def api_client(
+    db_url: str, *, gateway_backoff_zero: bool = True, **overrides: Any
+) -> AsyncIterator[httpx.AsyncClient]:
     settings = make_settings(db_url, **overrides)
     app = create_app(settings=settings)
-    init_db(db_url)
+    sessionmaker = init_db(db_url)
     app.state.settings = settings
+    services = build_services(settings, sessionmaker)
+    if gateway_backoff_zero:
+        services.gateway.backoff_base_s = 0
+    app.state.services = services
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
-    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        yield client
+    async with services.procrastinate_app.open_async():
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            client.services = services  # type: ignore[attr-defined]
+            yield client
     await dispose_db()
 
 
@@ -47,3 +56,11 @@ async def setup_owner(client: httpx.AsyncClient, username: str = "owner", locale
 def csrf_headers(client: httpx.AsyncClient) -> dict[str, str]:
     token = client.cookies.get("np_csrf")
     return {"X-CSRF-Token": token} if token else {}
+
+
+async def run_worker_once(client: httpx.AsyncClient) -> None:
+    """Chạy Procrastinate worker thật cho tới khi hết job trong hàng đợi (wait=False) – mô phỏng tiến trình worker."""
+    services = client.services  # type: ignore[attr-defined]
+    await services.procrastinate_app.run_worker_async(
+        queues=["agent_jobs"], wait=False, install_signal_handlers=False, listen_notify=False
+    )

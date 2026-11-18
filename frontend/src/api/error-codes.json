@@ -59,9 +59,17 @@
     "status": 409,
     "title": "Invalid job state transition"
   },
+  "JOB_CANCELLED": {
+    "status": 409,
+    "title": "Job was cancelled"
+  },
   "JOB_TIMEOUT": {
     "status": 504,
     "title": "Job timed out"
+  },
+  "JOB_TOKEN_BUDGET_EXCEEDED": {
+    "status": 409,
+    "title": "Job token budget exceeded"
   },
   "MAX_AI_CALLS_EXCEEDED": {
     "status": 409,
@@ -98,6 +106,10 @@
   "PROVIDER_AUTH_ERROR": {
     "status": 502,
     "title": "Provider rejected the credentials"
+  },
+  "PROVIDER_BAD_REQUEST": {
+    "status": 502,
+    "title": "Provider rejected the request"
   },
   "PROVIDER_NETWORK_ERROR": {
     "status": 502,

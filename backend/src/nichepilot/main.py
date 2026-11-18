@@ -18,6 +18,7 @@ from nichepilot.core.config import Settings, detect_ignored_credentials, get_set
 from nichepilot.core.db import dispose_db, init_db
 from nichepilot.core.errors import install_error_handlers
 from nichepilot.core.logging import bind_context, clear_context, configure_logging, get_logger
+from nichepilot.services import build_services
 
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 log = get_logger(__name__)
@@ -35,11 +36,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     for name in detect_ignored_credentials():
         log.warning("ignored credential variable", variable=name, reason="chỉ dùng API key chính thức (FR-019b)")
-    if app.state.check_database:
-        init_db(settings.database_url.get_secret_value())
+    if not app.state.check_database:
+        yield
+        return
+    sessionmaker = init_db(settings.database_url.get_secret_value())
+    services = build_services(settings, sessionmaker)
+    app.state.services = services
     log.info("api started", app_env=settings.app_env, version=settings.app_version)
     try:
-        yield
+        async with services.procrastinate_app.open_async():  # dùng để xếp hàng job (worker chạy ở tiến trình riêng)
+            yield
     finally:
         await dispose_db()
 

@@ -231,7 +231,7 @@ bộ `users.ui_locale` khi đăng nhập. Script CI so sánh khóa `vi.json`/`en
 | Integration | testcontainers 4.15 (PostgreSQL 17 thật) | Migration up/down, repository, hàng đợi, scheduler tick, stalled, đồng thời ngân sách |
 | API/contract | httpx 0.28 + so khớp `contracts/openapi.yaml` | Auth, CSRF, mã lỗi |
 | LLM | `MockAIProvider` (kịch bản dựng sẵn) + `FakeLLMProvider` – **test double đặt trong `backend/tests/fakes/`** | Mô phỏng timeout, 429, 401, sai schema, refusal, truncated, usage xác định; test xác nhận 0 lời gọi mạng tới provider thật |
-| HTTP adapter | respx 0.23 | Kiểm tra adapter Claude/OpenAI ở mức HTTP không gọi mạng thật |
+| HTTP adapter | `httpx2.MockTransport` (SDK anthropic 2.x/openai 3.x dùng gói `httpx2`; respx chỉ patch `httpx` nên không áp dụng – ghi nhận khi triển khai) | Kiểm tra adapter Claude/OpenAI ở mức HTTP không gọi mạng thật |
 | Live (thủ công) | `pytest -m live` + biến `NICHEPILOT_LIVE_MAX_USD` (mặc định $0.05) | Không chạy trong CI mặc định |
 | E2E | Playwright | Khởi tạo tài khoản, đăng nhập, khóa tài khoản, chuyển VI/EN, trang trạng thái |
 | Chất lượng | ruff 0.17, mypy 2.4 (strict cho `core/`, `ai/`, `jobs/`), ESLint, `tsc` | Cổng trước merge |
