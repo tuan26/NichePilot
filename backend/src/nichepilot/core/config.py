@@ -93,6 +93,14 @@ class Settings(BaseSettings):
             return None
         return v
 
+    @field_validator("database_url")
+    @classmethod
+    def _postgres_only(cls, v: SecretStr) -> SecretStr:
+        # FR-003: toàn bộ dữ liệu vận hành nằm trong PostgreSQL, driver psycopg 3 (không SQLite/MySQL/asyncpg).
+        if not v.get_secret_value().startswith("postgresql+psycopg://"):
+            raise ValueError("DATABASE_URL phải có dạng postgresql+psycopg://…")
+        return v
+
     @field_validator("log_retention_days")
     @classmethod
     def _retention_at_least_90(cls, v: int) -> int:

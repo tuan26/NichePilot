@@ -96,6 +96,8 @@ async def engine(migrated_db: str) -> AsyncIterator[AsyncEngine]:
 
 
 MUTABLE_TABLES = [
+    "research_evidence",
+    "research_sources",
     "budget_reservations",
     "ai_usage_logs",
     "tool_executions",

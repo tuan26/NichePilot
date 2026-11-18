@@ -33,3 +33,10 @@ Thumbs.db
 logs/
 deploy/logs/
 *.jsonl
+
+# Báo cáo smoke/truy vết sinh ra khi chạy
+smoke-*.txt
+smoke-report.txt
+backend/traceability-report.md
+live-results.jsonl
+backend/live-results.jsonl

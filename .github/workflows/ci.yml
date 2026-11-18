@@ -59,6 +59,44 @@ jobs:
           uvx --from detect-secrets==1.5.0 detect-secrets scan --exclude-files '(package-lock\.json|uv\.lock)$' > /tmp/scan.json
           python3 -c "import json,sys; r=json.load(open('/tmp/scan.json'))['results']; print(r); sys.exit(1 if r else 0)"
 
+  smoke:
+    # SC-001/SC-002/FR-074: healthy ≤ 5 phút, RAM nghỉ ≤ 3 GB, hot reload ở chế độ dev (mock, không gọi API có phí)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke prod (make up)
+        run: SMOKE_REPORT=smoke-prod.txt deploy/tests/smoke.sh prod
+      - name: Stop prod stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env down -v
+      - name: Smoke dev (hot reload)
+        run: SMOKE_REPORT=smoke-dev.txt deploy/tests/smoke.sh dev
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-report
+          path: smoke-*.txt
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml --env-file deploy/env/.env logs
+
+  traceability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+      - name: Báo cáo truy vết (SC-011) – thất bại nếu FR Must thiếu test
+        working-directory: backend
+        run: uv run --no-project python scripts/traceability_report.py --strict --out traceability-report.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: traceability-report
+          path: backend/traceability-report.md
+
   e2e:
     runs-on: ubuntu-latest
     needs: [backend, frontend]

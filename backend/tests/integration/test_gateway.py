@@ -288,3 +288,34 @@ async def test_TC_AI07_01_fallback_only_for_configured_unavailable(env: tuple[As
     res = await gw.call("system.diagnostic", system="s", messages=MSG, ctx=CallContext(job_id=job))
     assert res.is_fallback and res.provider == "openai" and backup.calls == 1
     assert (True,) in await _rows(engine, "SELECT is_fallback FROM ai_usage_logs")
+
+
+async def test_TC_FR013_01_structured_output_validated_before_return(env: tuple[AsyncEngine, str]) -> None:
+    engine, url = env
+    job = await insert_job(engine)
+    result = await _gw(engine, url).call(
+        "system.diagnostic", system="s", messages=MSG, output_model=Out, ctx=CallContext(job_id=job)
+    )
+    assert result.schema_valid is True and result.parsed is not None
+    Out.model_validate(result.parsed)  # kết quả trả cho agent luôn khớp schema
+
+
+async def test_TC_FR013_02_invalid_output_never_stored(env: tuple[AsyncEngine, str], migrated_db: str) -> None:
+    from tests.api_helpers import api_client, csrf_headers, run_worker_once, setup_owner
+
+    engine, _ = env
+    async with api_client(migrated_db) as client:
+        await setup_owner(client)
+        r = await client.post(
+            "/api/v1/jobs",
+            json={"job_type": "system.diagnostic", "params": {"mock_scenario": "schema_invalid"}},
+            headers=csrf_headers(client),
+        )
+        await run_worker_once(client)
+        job = (await client.get(f"/api/v1/jobs/{r.json()['id']}")).json()
+        steps = (await client.get(f"/api/v1/jobs/{job['id']}/steps")).json()
+    assert job["status"] == "FAILED" and job["status_reason_code"] == "AI_SCHEMA_INVALID" and job["result"] is None
+    failed = [s for s in steps if s["error_code"] == "AI_SCHEMA_INVALID"]
+    assert failed and all(s["output"] is None for s in failed)  # output sai schema không được lưu
+    rows = await _rows(engine, "SELECT COUNT(*) FROM ai_usage_logs WHERE outcome = 'SCHEMA_INVALID'")
+    assert rows[0][0] >= 1  # nhưng chi phí của lời gọi vẫn được ghi nhận

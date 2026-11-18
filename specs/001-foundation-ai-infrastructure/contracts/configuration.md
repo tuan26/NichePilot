@@ -13,6 +13,8 @@ lúc chạy nằm trong bảng `settings` (xem data-model §4); bảng dưới l
 | `APP_ENV` | Không | `development` | `development` \| `test` \| `production`. `production` cấm mock |
 | `APP_VERSION` | Không | (build) | Hiển thị ở trang trạng thái |
 | `DATABASE_URL` | **Có** (chứa mật khẩu) | — | `postgresql+psycopg://user:pass@postgres:5432/nichepilot` |
+| `POSTGRES_USER` | Không | `nichepilot` | User database (container postgres, script backup/restore) |
+| `POSTGRES_DB` | Không | `nichepilot` | Tên database (container postgres, script backup/restore) |
 | `POSTGRES_PASSWORD` | **Có** | — | Dùng cho container postgres (nên dùng Docker secret) |
 | `SESSION_IDLE_TIMEOUT_HOURS` | Không | `12` | Hết hạn phiên khi không hoạt động (giá trị khởi tạo cho setting `auth.session_idle_timeout_hours`) |
 | `AUTH_LOCKOUT_THRESHOLD` | Không | `5` | Số lần sai trước khi khóa (khởi tạo `auth.lockout_threshold`) |
@@ -31,6 +33,7 @@ lúc chạy nằm trong bảng `settings` (xem data-model §4); bảng dưới l
 | `LOG_DISK_WARN_GB` | Không | `2` | Khởi tạo `logging.disk_warn_gb`; vượt ngưỡng chỉ cảnh báo |
 | `BACKUP_RETENTION` | Không | `7` | Số bản backup giữ lại |
 | `BACKUP_CRON` | Không | `0 3 * * *` | Lịch backup (service `backup`, profile `ops`) |
+| `BACKUP_TZ` | Không | `Asia/Ho_Chi_Minh` | Múi giờ áp dụng cho `BACKUP_CRON` |
 | `NICHEPILOT_LIVE_MAX_USD` | Không | `0.05` | Trần chi phí cho bộ test live thủ công |
 
 ## Quy tắc khởi động (fail-fast)
