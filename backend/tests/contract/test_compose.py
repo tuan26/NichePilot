@@ -39,3 +39,17 @@ def test_TC_FR074_01_dev_override_hot_reload() -> None:
     for name in ("api", "worker"):
         assert any(v.startswith("../backend/src:") for v in dev[name]["volumes"])
     assert any(v.startswith("../frontend:") for v in dev["web"]["volumes"])
+
+
+def _mb(v: str) -> int:
+    n, unit = int(v[:-1]), v[-1].lower()
+    return n * 1024 if unit == "g" else n
+
+
+def test_TC_FR074_03_dev_web_has_memory_for_npm_and_vite() -> None:
+    """Dev override chạy `npm ci` + Vite trong container `web` – không được kế thừa giới hạn 128m của Caddy production
+    (bị OOM-kill: phát hiện khi chạy smoke dev 2026-11-18)."""
+    prod_web = _load("docker-compose.yml")["services"]["web"]
+    dev_web = _load("docker-compose.dev.yml")["services"]["web"]
+    limit = dev_web.get("mem_limit", prod_web["mem_limit"])
+    assert _mb(limit) >= 1024, limit

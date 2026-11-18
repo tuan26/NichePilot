@@ -15,7 +15,10 @@ ENV_FILE="deploy/env/.env"
 TIMEOUT_S="${SMOKE_TIMEOUT_S:-300}"
 MAX_IDLE_MB="${SMOKE_MAX_IDLE_MB:-3072}"
 COMPOSE=(docker compose -f deploy/docker-compose.yml --env-file "$ENV_FILE")
-COMPOSE_DEV=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml --env-file "$ENV_FILE")
+COMPOSE_DEV=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml)
+# SMOKE_EXTRA_COMPOSE: file override chỉ dùng cho máy cần proxy/CA riêng (không commit), ví dụ mạng host cho Vite.
+[ -n "${SMOKE_EXTRA_COMPOSE:-}" ] && COMPOSE_DEV+=(-f "$SMOKE_EXTRA_COMPOSE")
+COMPOSE_DEV+=(--env-file "$ENV_FILE")
 
 [ -f "$ENV_FILE" ] || cp deploy/env/.env.example "$ENV_FILE"
 grep -q '^AI_PAID_CALLS_ENABLED=false$' "$ENV_FILE" || { echo "Smoke test chỉ chạy khi AI_PAID_CALLS_ENABLED=false" >&2; exit 2; }
@@ -51,13 +54,15 @@ if [ "$MODE" = "prod" ]; then
   (( total <= MAX_IDLE_MB )) || { log "FAIL: RAM nghỉ vượt giới hạn"; exit 1; }
   log "PASS prod"
 elif [ "$MODE" = "dev" ]; then
-  "${COMPOSE_DEV[@]}" up -d --build
+  if [ "${SMOKE_NO_BUILD:-0}" = "1" ]; then "${COMPOSE_DEV[@]}" up -d; else "${COMPOSE_DEV[@]}" up -d --build; fi
   wait_http "http://localhost:8000/health" "$TIMEOUT_S" || { log "FAIL: api dev không lên"; exit 1; }
   wait_http "http://localhost:8080/" "$TIMEOUT_S" || { log "FAIL: Vite dev không lên"; exit 1; }
   backend_file="backend/src/nichepilot/__init__.py"
   frontend_file="frontend/src/main.tsx"
   cp "$backend_file" /tmp/smoke_backend.bak; cp "$frontend_file" /tmp/smoke_frontend.bak
   trap 'cp /tmp/smoke_backend.bak "$backend_file"; cp /tmp/smoke_frontend.bak "$frontend_file"' EXIT
+  # Vite chỉ phát HMR/log cho module đã có trong module graph (đã có client tải) → tải trước module sẽ sửa.
+  curl -fsS -o /dev/null "http://localhost:8080/src/main.tsx" || { log "FAIL: Vite không phục vụ src/main.tsx"; exit 1; }
   since="$(date -u +%FT%TZ)"
   echo "# smoke-reload $(date +%s)" >> "$backend_file"
   echo "// smoke-reload $(date +%s)" >> "$frontend_file"

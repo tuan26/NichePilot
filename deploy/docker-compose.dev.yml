@@ -35,6 +35,8 @@ services:
       - web_node_modules:/app/node_modules
     ports:
       - "8080:8080"
+    # Dev chạy `npm ci` + Vite: 128m của Caddy production gây OOM-kill (FR-074). Chỉ áp dụng cho chế độ dev.
+    mem_limit: 1g
 
 volumes:
   web_node_modules:
