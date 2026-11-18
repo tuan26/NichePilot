@@ -73,6 +73,7 @@ Tạo job với `params.mock_scenario`:
 | `auth_error` | `FAILED` ngay, không retry, `PROVIDER_AUTH_ERROR` |
 | `refusal` | Bước `REFUSED`, job `FAILED` với `AI_REFUSED`, usage có `refusal_category`; không đổi model/provider |
 | `truncated` | Bước `TRUNCATED`, `FAILED`, không lưu kết quả thiếu |
+| `timeout_after_send` | Như `timeout` nhưng mô phỏng yêu cầu đã gửi → mỗi lần thử để lại một reservation `UNCERTAIN` |
 
 ## 5. Ngân sách (US3, QA-11, SC-004, FR-045)
 
@@ -82,6 +83,11 @@ Tạo job với `params.mock_scenario`:
 3. `POST /api/v1/jobs/{id}/resume` khi chưa tăng ngân sách → `402 BUDGET_STILL_INSUFFICIENT`.
 4. Tăng ngân sách job (hoặc `PUT /api/v1/budget`) rồi resume → job tiếp tục từ checkpoint, không lặp bước đã xong.
 5. Đặt lại `per_job_default_usd = 2.00`.
+6. Tạo job `mock_scenario = timeout_after_send` → reservation chuyển `UNCERTAIN` (`GET /api/v1/budget/reservations?status=UNCERTAIN`),
+   `GET /api/v1/budget` có `uncertain_count = 1` và cảnh báo `UNCERTAIN_RESERVATIONS`; phần giữ chỗ vẫn bị trừ.
+7. `POST /api/v1/budget/reservations/{id}/resolve` với `actual_usd = 0` và ghi chú nguồn → `RESOLVED`, có audit log.
+8. Model/giá chưa xác minh: với provider thật và `AI_PAID_CALLS_ENABLED=true` nhưng model `verified = false` → job `FAILED`,
+   `MODEL_NOT_VERIFIED` (kiểm thử tự động bằng respx, không gọi mạng).
 
 ## 6. Vòng đời job: hủy, tạm dừng, retry, worker chết (US4, SC-006, QA-09/10)
 

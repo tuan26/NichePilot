@@ -46,7 +46,7 @@
 | E0-08 | FR-030, FR-031 | E0-18 | FR-072 |
 | E0-09 | FR-032, FR-033 | E0-19 | FR-073 |
 | E0-10 | FR-014, FR-035 | E0-20 | FR-036 |
-| AI-01…AI-16 | FR-010…FR-019b, FR-021…FR-025, FR-045, FR-054, FR-056 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
+| AI-01…AI-18 | FR-010…FR-019c, FR-021…FR-025, FR-043, FR-045, FR-047, FR-048, FR-054, FR-056 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
 | DATA-01/02/03/06 | FR-005, FR-004, FR-007, FR-006 | BR-08 | FR-023 |
 
 ## Notes
@@ -54,4 +54,5 @@
 - Lần validate 1: tất cả mục đạt trừ 3 marker [NEEDS CLARIFICATION] (trong giới hạn tối đa 3 của Spec Kit).
 - Lần validate 2 (sau Clarify 2026-11-18): tất cả mục đạt; thêm FR-017, FR-045, FR-056, FR-074.
 - Lần validate 3 (yêu cầu phát triển không phí API): tất cả mục đạt; thêm FR-018, FR-019, FR-019b, SC-003b; SC-003 ghi rõ chỉ kiểm chứng khi có key.
+- Lần validate 4 (điều kiện phê duyệt plan): tất cả mục đạt; thêm FR-019c, FR-047, FR-048, SC-004b; mở rộng FR-018 (f–h), FR-043, FR-044, FR-053, FR-073.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

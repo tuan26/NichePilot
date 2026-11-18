@@ -106,6 +106,12 @@ chủ sở hữu sửa được qua API) ưu tiên chi phí:
 | `analyze.standard` | Phân tích/tổng hợp thông thường (E1–E3) | `claude-sonnet-5-5` | medium | 16 000 |
 | `reason.complex` | Lập kế hoạch/đánh giá phức tạp (E1–E3) | `claude-opus-5-5` | medium | 32 000 |
 
+**Xác minh bắt buộc (điều kiện phê duyệt)**: bảng `ai_models` (data-model §5a) lưu model ID + khả năng + nguồn xác minh;
+seed với `verified = false`. Xác minh model ID/khả năng bằng Models API của provider (`models.retrieve`/`models.list` –
+không tính phí, trả `max_input_tokens`, `max_tokens`, `capabilities`) hoặc chủ sở hữu xác nhận kèm nguồn. Giá **không** có
+API chính thức → chủ sở hữu nhập từ trang giá chính thức, ghi `source_note`. Gateway chặn lời gọi có phí khi model hoặc giá
+chưa xác minh. Không dùng alias tự nâng cấp; đổi model chỉ bằng cách sửa profile (có audit).
+
 Giá tham khảo (giá công bố của Anthropic, bản tài liệu cache 2026-11-03, USD/1M token vào – ra): Haiku 5.5 $0.10 –
 $0.50 (prompt ≤ 100K; $0.50 – $2.50 khi vượt), Sonnet 5.5 $2 – $10, Opus 5.5 $4 – $20; cache read Sonnet 5.5 $0.10,
 Opus 5.5 $0.20. **Bảng giá seed phải được xác minh lại với trang giá chính thức tại thời điểm triển khai**; giá cache
@@ -127,18 +133,27 @@ tra ngân sách và được ghi `is_fallback = true`.
 
 ## R-06. Ngân sách và an toàn đồng thời (Clarify Q1)
 
-**Quyết định**: Mô hình **đặt chỗ – quyết toán** (reservation/settlement):
+**Quyết định**: Mô hình **đặt chỗ – quyết toán** (reservation/settlement), bổ sung trạng thái `UNCERTAIN` theo điều kiện
+phê duyệt (chi tiết vòng đời, công thức và tính nguyên tử: data-model §11; bảng phân loại: internal-interfaces §1):
 
 1. Trong một transaction: `pg_advisory_xact_lock(<budget_lock_key>)` → tính chi tiêu ngày/tháng/job = tổng chi phí
    thực (`ai_usage_logs`) + tổng đặt chỗ `ACTIVE` → nếu `ước tính tối đa > phần còn lại` của bất kỳ ngân sách nào →
    trả `BudgetExceeded` (job → `PAUSED_BUDGET`, lưu ngân sách bị chạm và số liệu) → ngược lại tạo `budget_reservations`.
-2. Sau lời gọi (kể cả lỗi có tính phí, kể cả job đã bị hủy): ghi `ai_usage_logs` với chi phí thực, chuyển đặt chỗ sang
-   `SETTLED`. Đặt chỗ quá hạn (worker chết) được giải phóng bởi tác vụ dọn dẹp sau `expires_at`.
-3. Ngày/tháng tính theo múi giờ cấu hình (`Asia/Ho_Chi_Minh`).
-4. Mặc định $3/ngày, $30/tháng, $2/job; chặn thay đổi làm job trần > ngân sách ngày; không tự tăng, không tự đổi model.
+2. Ngay trước khi gửi: ghi `sent_at` (commit riêng) – mốc phân biệt "chắc chắn chưa gửi" và "có thể đã gửi".
+3. Sau lời gọi: có usage → `SETTLED` theo chi phí thực (kể cả job đã bị hủy trong lúc chờ); chắc chắn không tính phí →
+   `RELEASED`; không xác định → `UNCERTAIN`, giữ nguyên phần giữ chỗ trong chi tiêu, chỉ chủ sở hữu đối soát được
+   (`POST /budget/reservations/{id}/resolve`, có audit). Không có cơ chế tự giải phóng `UNCERTAIN`.
+4. Reservation treo: tác vụ `sweep_stale` mỗi phút – `ACTIVE` quá `expires_at` → `RELEASED` nếu `sent_at` NULL, ngược lại
+   `UNCERTAIN(WORKER_LOST)`.
+5. **Chính sách tính phí khi lỗi**: việc provider có tính phí cho phản hồi lỗi (4xx/5xx/429) hay không phải được xác minh
+   từ tài liệu chính thức trước khi coi là `NOT_BILLED`; cho tới khi xác minh, các phản hồi lỗi bị coi là `UNCERTAIN`
+   (bảo thủ). Đây là việc cần làm trước khi bật `AI_PAID_CALLS_ENABLED` (tasks.md).
+6. Ngày/tháng tính theo múi giờ cấu hình (`Asia/Ho_Chi_Minh`); reservation tính vào kỳ của thời điểm tạo.
+7. Mặc định $3/ngày, $30/tháng, $2/job; chặn thay đổi làm job trần > ngân sách ngày; không tự tăng, không tự đổi model.
 
-Độ vượt tối đa lý thuyết = 0 (vì đặt chỗ theo chi phí tối đa); thực tế chỉ có thể lệch nếu provider tính phí vượt
-`max_tokens` (không xảy ra) hoặc bảng giá sai.
+Độ vượt tối đa lý thuyết = 0 (vì đặt chỗ theo chi phí tối đa và tuần tự hóa bằng advisory lock); thực tế chỉ có thể lệch
+nếu bảng giá sai hoặc ước tính token vào thấp hơn thực tế (phát hiện qua cảnh báo `BUDGET_RESERVATION_OVERRUN`).
+Kiểm thử: integration test với 2 tiến trình × 10 coroutine tranh chấp trên PostgreSQL thật (SC-004).
 
 **Phương án đã cân nhắc**: kiểm tra sau khi gọi (vi phạm Constitution VI); khóa hàng `SELECT … FOR UPDATE` trên bảng
 tổng hợp (cần bảng counter riêng, dễ lệch); advisory lock được chọn vì đơn giản và đúng cho số worker nhỏ.
@@ -232,8 +247,8 @@ backend (không có API key, điều khoản dùng cho cá nhân tương tác). 
   `AI_PROVIDER_OVERRIDE` (ví dụ `mock`) ép mọi tác vụ dùng một provider – tiện cho dev mà không sửa từng profile.
   `.env.example` cho dev đặt `AI_PROVIDER_OVERRIDE=mock`. Khi có key: xóa override (hoặc đặt `anthropic`), điền
   `ANTHROPIC_API_KEY`, bật `AI_PAID_CALLS_ENABLED=true` → không sửa mã.
-- **Kịch bản mock** (`mock_scenario`): `success`, `timeout`, `rate_limit`, `schema_invalid`, `provider_error`,
-  `auth_error`, `refusal`, `truncated`, `budget_heavy` (usage giả lập lớn để chạm ngân sách), cùng dạng
+- **Kịch bản mock** (`mock_scenario`): `success`, `timeout` (trước khi gửi), `timeout_after_send`, `rate_limit`,
+  `schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy` (usage giả lập lớn để chạm ngân sách), cùng dạng
   `fail_n_then_success:<kịch bản>:<n>` để kiểm thử retry/checkpoint. Chọn theo tham số job (chỉ hợp lệ khi provider là
   mock), mặc định theo `MOCK_AI_DEFAULT_SCENARIO=success`.
 - **Kết quả mock**: sinh từ JSON Schema của output (giá trị tối thiểu hợp lệ, chuỗi có tiền tố `[MOCK]`), xác định
@@ -244,8 +259,11 @@ backend (không có API key, điều khoản dùng cho cá nhân tương tác). 
 - **Ngân sách**: bảng giá giả lập riêng (`provider = mock`, giá cấu hình được, mặc định bằng giá Haiku 5.5 để số liệu
   hợp lý); chi tiêu được tính theo `data_origin` – chi tiêu MOCK chỉ so với hạn mức khi kiểm tra lời gọi MOCK, chi tiêu
   REAL chỉ so với lời gọi REAL; cùng mã kiểm tra ngân sách → kiểm thử đầy đủ cơ chế mà không lẫn chi phí thật.
-- **Rào chắn production**: khi `APP_ENV=production`, khởi động thất bại nếu `AI_PROVIDER_OVERRIDE=mock` hoặc có profile
-  `provider=mock`.
+- **Rào chắn production (hai tầng)**: tầng cấu hình – khi `APP_ENV=production`, khởi động thất bại nếu
+  `AI_PROVIDER_OVERRIDE=mock` hoặc có profile `provider=mock`; tầng runtime – AI Gateway, API cập nhật profile và tham số
+  `mock_scenario` đều từ chối mock khi production (không có đường chọn mock động).
+- **Không tính là kiểm thử thật**: bộ test có marker `mock`; báo cáo kiểm thử tách mục "tích hợp provider thật" chỉ đánh
+  dấu đạt khi test `live` chạy thành công.
 - **Công tắc có phí**: `AI_PAID_CALLS_ENABLED` (mặc định `false`) – kiểm tra trong AI Gateway ngay trước khi gửi,
   sau kiểm tra ngân sách; `models.list` (kiểm tra kết nối) không bị chặn vì không tính phí. Test live cần đồng thời
   `-m live`, key thật, `AI_PAID_CALLS_ENABLED=true` và `NICHEPILOT_LIVE_MAX_USD`.

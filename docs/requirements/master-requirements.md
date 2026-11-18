@@ -2,7 +2,7 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phiên bản | 0.3.0 (cập nhật theo quyết định Clarify E0 và yêu cầu phát triển không phí API, 2026-11-18) |
+| Phiên bản | 0.4.0 (cập nhật theo điều kiện phê duyệt plan E0, 2026-11-18) |
 | Ngày tạo | 2026-11-18 |
 | Tuân thủ | `.specify/memory/constitution.md` v1.1.0 |
 | Phạm vi | Toàn bộ E0–E8, NFR, quy tắc nghiệp vụ, tiêu chí nghiệm thu MVP, lộ trình |
@@ -125,6 +125,8 @@ Mục tiêu: nền tảng kỹ thuật để các AI Agent và module hoạt đ�
 | AI-13 | API key chỉ qua `.env`/Docker secrets, không lưu database; có kiểm tra kết nối provider | Must | U, S |
 | AI-14 | Ba provider sau interface chung, chọn bằng cấu hình: `AnthropicAPIProvider` (chính), `OpenAIAPIProvider` (dự phòng), `MockAIProvider` (dev/test: kịch bản thành công, timeout, rate limit, sai schema, lỗi provider, vượt ngân sách…; dữ liệu gắn nhãn `MOCK`; cấm ở production) | Must | U, I |
 | AI-15 | Công tắc cho phép gọi API có phí, mặc định tắt; không tự động gọi API có phí khi phát triển/test; chỉ gọi thật khi chủ sở hữu cho phép | Must | U, I |
+| AI-17 | Model ID, khả năng hỗ trợ và bảng giá phải được xác minh từ nguồn chính thức trước khi gọi có phí; chưa xác minh → chặn; không hard-code model/giá trong business logic; không tự nâng cấp/chuyển model | Must | U, I |
+| AI-18 | Reservation ngân sách nguyên tử, an toàn đa worker; đối soát theo usage thực; phân biệt "chắc chắn chưa phát sinh phí" (giải phóng) và "chưa xác định" (giữ nguyên, chờ đối soát); xử lý reservation treo; không vượt giới hạn do race condition | Must | U, I |
 | AI-16 | Chỉ xác thực provider bằng API key chính thức; không dùng OAuth token, cookie, session, Claude Code CLI hay tài khoản thuê bao cá nhân (Claude Pro) làm backend; không có workflow tự động phụ thuộc Claude Pro | Must | U, S |
 
 ### 3.2 E1 — Autonomous Niche Discovery (MVP) — *module quan trọng nhất*

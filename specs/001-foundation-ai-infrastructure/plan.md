@@ -4,7 +4,8 @@
 
 **Input**: Feature specification from `/specs/001-foundation-ai-infrastructure/spec.md`
 
-**Trạng thái**: Chờ chủ sở hữu phê duyệt. Chưa có implementation code.
+**Trạng thái**: Đã được chủ sở hữu phê duyệt có điều kiện (2026-11-18); các điều kiện đã được đưa vào spec/plan/data
+model/contracts. Chưa có implementation code; chờ duyệt tasks + analyze trước khi triển khai.
 
 ## Summary
 
@@ -12,7 +13,8 @@ E0 xây nền tảng tự host cho NichePilot: backend Python/FastAPI dạng mod
 vừa là kho dữ liệu vừa là hàng đợi job (Procrastinate, đặt sau interface `JobQueue`), AI Gateway với ba provider chọn bằng cấu
 hình – `AnthropicAPIProvider` (chính), `OpenAIAPIProvider` (dự phòng), `MockAIProvider` (phát triển khi chưa có API key) –
 cùng Tool Registry, Job Runtime có checkpoint/retry/timeout/idempotency, scheduler theo cron lưu trong DB, kiểm soát ngân sách
-kiểu đặt chỗ–quyết toán ($3/ngày, $30/tháng, $2/job) và công tắc gọi có phí mặc định TẮT. Có xác thực single-owner, audit log,
+kiểu đặt chỗ–quyết toán nguyên tử ($3/ngày, $30/tháng, $2/job) có trạng thái `UNCERTAIN` cho lời gọi chưa rõ chi phí,
+catalog model với cờ xác minh (model ID, khả năng, giá) và công tắc gọi có phí mặc định TẮT. Có xác thực single-owner, audit log,
 structured logging, khung Dashboard song ngữ VI/EN (khởi tạo tài khoản, đăng nhập, trạng thái), Docker Compose chạy được trên
 Windows (Docker Desktop + WSL2) và Linux. Toàn bộ E0 khởi động và kiểm thử được **không cần API key và không phát sinh chi phí**;
 tích hợp API thật chỉ kiểm thử khi chủ sở hữu cho phép.
@@ -101,8 +103,9 @@ backend/
 │   ├── ai/
 │   │   ├── gateway.py                # AIGateway: chọn provider, ngân sách, công tắc phí, validate, usage log
 │   │   ├── providers/                # base.py (LLMProvider), anthropic_api.py, openai_api.py, mock.py
+│   │   ├── catalog.py                # ai_models: xác minh model ID/khả năng, kiểm tra trước lời gọi có phí
 │   │   ├── pricing.py                # tính chi phí theo bảng giá có phiên bản (kể cả phân tầng)
-│   │   ├── budget.py                 # BudgetService (reserve/settle/release, advisory lock)
+│   │   ├── budget.py                 # BudgetService (reserve/mark_sent/settle/release/mark_uncertain/resolve/sweep_stale)
 │   │   └── sanitize.py               # sanitize_for_llm, bọc untrusted_content
 │   ├── tools/                        # registry.py, builtin/system_runtime_info.py
 │   ├── jobs/                         # runtime.py, state_machine.py, queue.py (JobQueue + Procrastinate), scheduler.py, agents/diagnostic.py
@@ -183,7 +186,9 @@ sequenceDiagram
 | Model mặc định | Haiku 5.5 cho chẩn đoán/trích xuất đơn giản, Sonnet 5.5 phân tích, Opus 5.5 suy luận phức tạp; chủ sở hữu sửa được | R-04 |
 | Refusal | `REFUSED` + lý do; không fallback, không đổi model, không retry | R-03 |
 | Dự phòng OpenAI | Tắt mặc định; chỉ cho `PROVIDER_UNAVAILABLE` khi cấu hình | R-05 |
-| Ngân sách | Đặt chỗ theo chi phí tối đa trước gọi, quyết toán sau; sổ REAL/MOCK tách biệt | R-06 |
+| Ngân sách | Đặt chỗ nguyên tử (advisory lock) theo chi phí tối đa; `sent_at` trước khi gửi; SETTLED/RELEASED/UNCERTAIN/RESOLVED; không tự giải phóng UNCERTAIN; quét reservation treo mỗi phút; sổ REAL/MOCK tách biệt | R-06, data-model §11 |
+| Xác minh model/giá | `ai_models` + `model_pricing.verified`; Models API (không tính phí) hoặc xác nhận thủ công có nguồn; chặn gọi có phí khi chưa xác minh | R-04, data-model §5a |
+| Rào chắn mock | Hai tầng: kiểm tra cấu hình lúc khởi động + kiểm tra runtime ở gateway/API; mock không vào báo cáo/thống kê thật | R-14 |
 | Chi phí khi phát triển | `MockAIProvider` + `AI_PAID_CALLS_ENABLED=false` mặc định; test live tách riêng, cần cho phép | R-14 |
 | Xác thực | Argon2id, phiên server-side, CSRF double-submit, khóa 15 phút sau 5 lần sai | R-07 |
 | Secrets | env/Docker secrets, `SecretStr`, redaction, cấm khóa bí mật trong `settings`, detect-secrets | R-08 |
@@ -199,7 +204,7 @@ sequenceDiagram
 | M2 | Identity: setup, login, phiên, CSRF, khóa, audit; khung frontend VI/EN 3 trang | US1, US6 (audit) | API + E2E đăng nhập/khóa/ngôn ngữ |
 | M3 | Settings, project, bảng giá, model profiles, providers status/test-connection | US6 | API test, không lộ secret |
 | M4 | AI Gateway: interface, MockAIProvider, Anthropic/OpenAI adapter (test HTTP giả lập), pricing, sanitize | US2 | Unit + contract, 0 lời gọi mạng thật |
-| M5 | BudgetService + công tắc phí | US3 | Unit + integration đồng thời |
+| M5 | BudgetService (reservation nguyên tử, UNCERTAIN, sweep, resolve) + công tắc phí + catalog/xác minh model | US3 | Unit + integration đồng thời 2 tiến trình |
 | M6 | Tool Registry + Job Runtime + JobQueue + agent chẩn đoán + checkpoint/stalled | US2, US4 | Kịch bản quickstart 3–6 |
 | M7 | Scheduler + lịch API | US5 | Kịch bản quickstart 7 |
 | M8 | Evidence service (bảng + service, không dữ liệu) | — (nền cho E1) | Integration test ràng buộc CHECK |
@@ -233,13 +238,15 @@ thái **"chưa kiểm chứng"** cho tới khi chủ sở hữu cung cấp key v
 | Không kiểm thử được Windows trong cloud container này | Trung bình | CI Linux + checklist kiểm thử thủ công trên Windows do chủ sở hữu thực hiện (AC-01) |
 | TypeScript 7 chưa tương thích công cụ | Thấp | Pin 6.x |
 
-## Điểm cần xác nhận (không chặn plan, có giá trị mặc định)
+## Quyết định đã phê duyệt (2026-11-18)
 
-1. **Model mặc định theo tác vụ** (R-04): Haiku 5.5 / Sonnet 5.5 / Opus 5.5 như bảng – đồng ý?
-2. **PostgreSQL 17** thay vì 18 (ưu tiên tương thích) – đồng ý?
-3. **Thời gian phiên** 12 giờ không hoạt động; **khóa** 15 phút sau 5 lần sai; **backup** giữ 7 bản lúc 03:00 – đồng ý?
-4. **Bảng giá mock** mặc định bằng giá Haiku 5.5 để số liệu giả lập hợp lý – đồng ý?
-5. **CI GitHub Actions** (miễn phí cho repo; nếu repo private sẽ dùng phút miễn phí của GitHub) – đồng ý dùng?
+| # | Quyết định | Ghi chú |
+|---|---|---|
+| 1 | Model theo độ phức tạp (tiết kiệm / cân bằng / suy luận cao) | Model ID, khả năng, giá phải xác minh trước khi gọi thật; seed `verified = false` |
+| 2 | PostgreSQL 17, Procrastinate, không Redis/Valkey | |
+| 3 | Phiên 12 giờ, khóa 15 phút sau 5 lần sai, backup 03:00 giữ 7 bản | Cấu hình được (settings/env) |
+| 4 | Bảng giá mock riêng (`provider = mock`), không tính là chi phí thật | Sổ MOCK tách biệt |
+| 5 | CI GitHub Actions | |
 
 ## Complexity Tracking
 

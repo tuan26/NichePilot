@@ -138,7 +138,12 @@ nichepilot/
    `PAUSED_BUDGET`, tiếp tục từ checkpoint khi chủ sở hữu điều chỉnh ngân sách. Mặc định $3/ngày, $30/tháng,
    $2/job. Không tự tăng ngân sách, không tự đổi model.
 3. **Sau mỗi lời gọi:** ghi `ai_usage_logs` với usage thực tế, giải phóng phần đặt chỗ dư.
-4. Kiểm tra ngân sách dùng khóa/transaction trong PostgreSQL để nhiều worker không cùng vượt ngân sách.
+4. Kiểm tra + giữ chỗ là một transaction nguyên tử có advisory lock trong PostgreSQL → nhiều worker không thể cùng vượt
+   ngân sách.
+5. Lỗi trước khi gửi → giải phóng; lỗi sau khi gửi mà không rõ chi phí (timeout, mất kết nối, worker chết) → `UNCERTAIN`,
+   giữ nguyên phần giữ chỗ cho tới khi chủ sở hữu đối soát; reservation treo được tác vụ dọn dẹp phân loại lại.
+6. Lời gọi có phí chỉ được phép khi model và bảng giá đã được xác minh từ nguồn chính thức (`ai_models.verified`,
+   `model_pricing.verified`).
 
 ## 5. Job Runtime & Scheduler
 

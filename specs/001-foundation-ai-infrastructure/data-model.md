@@ -29,6 +29,8 @@ erDiagram
   job_steps ||--o{ ai_usage_logs : records
   job_steps ||--o{ tool_executions : records
   model_pricing ||--o{ ai_usage_logs : prices
+  ai_models ||--o{ model_pricing : priced_by
+  ai_models ||--o{ model_task_profiles : used_by
   budget_reservations |o--o| ai_usage_logs : settles
   research_sources ||--o{ research_evidence : supports
   agent_jobs ||--o{ research_evidence : collects
@@ -101,10 +103,38 @@ Khóa seed:
 | `worker.max_concurrent_jobs` | 1 |
 | `schedule.misfire_policy_default` | `RUN_ONCE` |
 | `ui.default_locale` | `vi` |
+| `auth.session_idle_timeout_hours` | 12 |
+| `auth.lockout_threshold` | 5 |
+| `auth.lockout_minutes` | 15 |
+| `budget.reservation_margin_s` | 60 (cộng vào timeout lời gọi để tính `expires_at`) |
+| `billing.error_responses_not_billed_verified` | `false` theo từng provider (xem §11, R-06) |
+
+Giá trị khởi động lấy từ biến môi trường (contracts/configuration.md) nếu có; sau đó chỉnh qua API `settings`.
 
 Ràng buộc chéo: `per_job_default_usd ≤ daily_usd ≤ monthly_usd`; giá trị > 0.
 
-## 5. `model_pricing` — bảng giá có phiên bản (FR-041)
+## 5a. `ai_models` — catalog model đã xác minh (FR-019c)
+
+| Cột | Kiểu | Ràng buộc / Ghi chú |
+|---|---|---|
+| id | UUID | PK |
+| provider | TEXT | `anthropic` \| `openai` \| `mock`; UNIQUE(provider, model_id) |
+| model_id | TEXT | ID chính xác do provider công bố; CHECK không chứa `latest` (không dùng alias tự nâng cấp) |
+| display_name | TEXT | |
+| verified | BOOL | mặc định `false`; chỉ `true` khi có `verification_source` và `verified_at` |
+| verification_source | TEXT | ví dụ "Models API retrieve 2026-…", URL tài liệu chính thức |
+| verified_at | timestamptz | |
+| verified_by | TEXT | `USER:<id>` hoặc `SYSTEM:models_api` |
+| supports_structured_output, supports_tools, supports_effort | BOOL | NULL = chưa xác minh |
+| max_input_tokens, max_output_tokens | BIGINT | từ nguồn chính thức; NULL = chưa xác minh |
+| status | TEXT | `ACTIVE` \| `DEPRECATED` \| `UNAVAILABLE` |
+
+Quy tắc: seed các model của R-04 với `verified = false`. Xác minh qua `POST /providers/{p}/verify-models` (gọi Models API
+không tính phí khi có key) hoặc chủ sở hữu xác nhận thủ công kèm nguồn. Model `mock` được seed `verified = true`
+(`verification_source = "internal mock"`), chỉ dùng được ở dev/test. Profile yêu cầu khả năng nào thì model phải có cờ
+tương ứng là `true` khi gọi có phí.
+
+## 5. `model_pricing` — bảng giá có phiên bản (FR-041, FR-019c)
 
 | Cột | Kiểu | Ràng buộc / Ghi chú |
 |---|---|---|
@@ -118,7 +148,7 @@ Ràng buộc chéo: `per_job_default_usd ≤ daily_usd ≤ monthly_usd`; giá tr
 | long_context_threshold_tokens | BIGINT | NULL = không phân tầng |
 | long_input_per_mtok, long_output_per_mtok | NUMERIC | áp dụng khi prompt > ngưỡng |
 | source_note | TEXT | nguồn giá + ngày xác minh (Evidence-First) |
-| verified | BOOL | `false` → không cho chạy job có phí với model này |
+| verified | BOOL | `false` → không cho chạy job có phí với model này (`PRICING_NOT_VERIFIED`); `true` yêu cầu `source_note` ghi nguồn chính thức + ngày |
 
 Bản ghi chỉ thêm, không sửa (đổi giá = thêm version mới).
 
@@ -128,8 +158,8 @@ Bản ghi chỉ thêm, không sửa (đổi giá = thêm version mới).
 |---|---|---|
 | id | UUID | PK |
 | task_type | TEXT | UNIQUE (ví dụ `system.diagnostic`) |
-| provider | TEXT | `anthropic` \| `openai` \| `mock` |
-| model | TEXT | phải có trong `model_pricing` |
+| provider | TEXT | `anthropic` \| `openai` \| `mock` (giá trị `mock` bị API từ chối khi `APP_ENV=production`) |
+| model | TEXT | phải tồn tại trong `ai_models` (FK logic theo provider+model_id) và có `model_pricing`; được phép lưu khi chưa xác minh nhưng gọi có phí sẽ bị chặn |
 | effort | TEXT | `low`\|`medium`\|`high`\|`xhigh`\|`max`\|NULL (provider không hỗ trợ) |
 | max_output_tokens | INT | 1–128 000 |
 | timeout_s | INT | 5–900, mặc định 120 |
@@ -239,6 +269,8 @@ Mọi chuyển trạng thái do `JobStateMachine` kiểm tra; chuyển không h�
 | is_fallback | BOOL | lời gọi tới provider dự phòng |
 | provider_request_id | TEXT | |
 | outcome | TEXT | `SUCCESS`\|`SCHEMA_INVALID`\|`TIMEOUT`\|`RATE_LIMITED`\|`AUTH_ERROR`\|`NETWORK_ERROR`\|`PROVIDER_ERROR`\|`BAD_REQUEST`\|`REFUSED`\|`TRUNCATED` |
+| billing_status | TEXT | `BILLED` (có usage) \| `NOT_BILLED` (chắc chắn không tính phí) \| `UNCERTAIN` (chưa xác định) |
+| sent | BOOL | yêu cầu đã rời hệ thống hay chưa |
 | stop_reason | TEXT | từ provider |
 | refusal_category, refusal_explanation | TEXT | khi REFUSED |
 | input_tokens, output_tokens, cache_read_tokens, cache_write_tokens | BIGINT | |
@@ -246,20 +278,52 @@ Mọi chuyển trạng thái do `JobStateMachine` kiểm tra; chuyển không h�
 | pricing_id | UUID | FK → model_pricing |
 | latency_ms | INT | |
 
-## 11. `budget_reservations` (FR-043, R-06)
+## 11. `budget_reservations` (FR-043, FR-047, FR-048, R-06)
 
 | Cột | Kiểu | Ràng buộc / Ghi chú |
 |---|---|---|
 | id | UUID | PK |
-| job_id | UUID | FK |
+| job_id | UUID | FK → agent_jobs |
+| step_id | UUID | FK → job_steps |
 | data_origin | TEXT | sổ chi tiêu tách REAL/MOCK |
-| amount_usd | NUMERIC | chi phí ước tính tối đa |
-| status | TEXT | `ACTIVE`\|`SETTLED`\|`RELEASED` |
-| usage_log_id | UUID | FK → ai_usage_logs khi SETTLED |
-| expires_at | timestamptz | ACTIVE quá hạn → RELEASED bởi tác vụ dọn dẹp |
+| amount_usd | NUMERIC | chi phí ước tính tối đa; CHECK > 0 |
+| status | TEXT | `ACTIVE`\|`SETTLED`\|`RELEASED`\|`UNCERTAIN`\|`RESOLVED` |
+| sent_at | timestamptz | ghi (commit riêng) ngay **trước** khi gửi yêu cầu tới provider; NULL = chắc chắn chưa gửi |
+| expires_at | timestamptz | = thời điểm giữ chỗ + timeout lời gọi + `budget.reservation_margin_s` |
+| usage_log_id | UUID | FK → ai_usage_logs |
+| actual_usd | NUMERIC | chi phí thực sau đối soát (SETTLED/RESOLVED) |
+| release_reason | TEXT | ví dụ `NOT_SENT`, `ERROR_RESPONSE_NOT_BILLED`, `PAID_CALLS_DISABLED` |
+| uncertain_reason | TEXT | `TIMEOUT_AFTER_SEND`, `CONNECTION_LOST`, `WORKER_LOST`, `USAGE_UNREADABLE`, `ERROR_BILLING_UNVERIFIED` |
+| resolved_by | UUID | FK → users (đối soát thủ công) |
+| resolved_at | timestamptz | |
+| resolution_note | TEXT | nguồn số liệu đối soát (ví dụ trang usage của provider) |
 
-Chi tiêu kỳ (ngày/tháng/job) = Σ `ai_usage_logs.cost_usd` + Σ `budget_reservations.amount_usd` (ACTIVE), lọc theo
-`data_origin` và kỳ theo múi giờ cấu hình.
+**Vòng đời reservation**:
+
+```mermaid
+stateDiagram-v2
+  [*] --> ACTIVE : reserve() trong transaction có advisory lock
+  ACTIVE --> SETTLED : có usage thực tế → actual_usd
+  ACTIVE --> RELEASED : chắc chắn chưa phát sinh phí (sent_at NULL, hoặc lỗi phản hồi được xác minh không tính phí)
+  ACTIVE --> UNCERTAIN : timeout/mất kết nối sau khi gửi, usage không đọc được, lỗi chưa xác minh chính sách phí
+  ACTIVE --> RELEASED : quá hạn và sent_at NULL (tác vụ dọn dẹp)
+  ACTIVE --> UNCERTAIN : quá hạn và sent_at NOT NULL (WORKER_LOST)
+  UNCERTAIN --> RESOLVED : chủ sở hữu đối soát (actual_usd ≥ 0) – có audit
+```
+
+Không có chuyển tự động nào ra khỏi `UNCERTAIN`.
+
+**Công thức chi tiêu kỳ** (ngày/tháng/job), lọc theo `data_origin` và kỳ theo múi giờ cấu hình:
+
+`spent = Σ ai_usage_logs.cost_usd (billing_status = BILLED) + Σ reservations.actual_usd (RESOLVED)`
+`held  = Σ reservations.amount_usd (status ∈ {ACTIVE, UNCERTAIN})`
+`remaining = limit − spent − held`; giữ chỗ mới chỉ được tạo khi `amount ≤ remaining` cho **cả ba** giới hạn.
+
+**Tính nguyên tử**: `reserve()` chạy trong một transaction: `pg_advisory_xact_lock(hashtext('budget:' || data_origin))`
+→ tính `spent`, `held` cho ngày, tháng, job → kiểm tra → `INSERT` → `COMMIT`. Mọi reserve cùng sổ được tuần tự hóa nên
+không thể vượt giới hạn do race condition (kể cả nhiều tiến trình worker). `settle/release/mark_uncertain` cập nhật với
+điều kiện `WHERE status = 'ACTIVE'` (chuyển trạng thái đúng một lần).
+Chỉ mục: `(data_origin, status, created_at)`, `(job_id)`.
 
 ## 12. `job_schedules` (FR-033, FR-034)
 

@@ -66,20 +66,35 @@ class LLMResponse(BaseModel):
 
 **Bất biến của `AIGateway.call(task_type, request, job_ctx)`** – thứ tự bắt buộc:
 
-1. Chọn profile → provider (override, rào chắn production cho mock).
-2. Từ chối nếu `mock_scenario` được truyền mà provider không phải mock.
-3. Bảng giá model phải tồn tại và `verified` (mock: bảng giá giả lập) → nếu không: `PRICING_MISSING`.
-4. Ước tính chi phí tối đa → `BudgetService.reserve()` (theo `data_origin`) → `BudgetExceeded` nếu không đủ.
-5. Nếu provider có phí và `AI_PAID_CALLS_ENABLED=false` → `PaidCallsDisabled` (giải phóng đặt chỗ).
-6. Kiểm tra `cancel_requested` của job.
-7. Gọi provider với timeout.
-8. Ghi `ai_usage_logs` (luôn, kể cả lỗi có usage) → `settle()` đặt chỗ.
-9. Validate `parsed_output` bằng `output_schema` (Pydantic) → `SCHEMA_INVALID` nếu sai.
-10. Trả kết quả cho agent.
+1. Chọn profile → provider (override). **Rào chắn runtime**: nếu `APP_ENV=production` và provider là `mock` →
+   `MockNotAllowed` (bổ sung cho kiểm tra lúc khởi động – FR-018f).
+2. Từ chối nếu `mock_scenario` được truyền mà provider không phải mock, hoặc đang ở production.
+3. Provider có phí: model phải `ai_models.verified` và có khả năng tác vụ cần (`MODEL_NOT_VERIFIED`), bảng giá phải
+   tồn tại và `verified` (`PRICING_NOT_VERIFIED`). Mock: dùng bảng giá giả lập riêng.
+4. Nếu provider có phí và `AI_PAID_CALLS_ENABLED=false` → `PaidCallsDisabled` (chưa tạo reservation).
+5. Ước tính chi phí tối đa → `BudgetService.reserve()` (nguyên tử, theo `data_origin`) → `BudgetExceeded` nếu không đủ.
+6. Kiểm tra `cancel_requested` của job → nếu hủy: `release(NOT_SENT)`.
+7. `BudgetService.mark_sent(reservation)` (commit riêng) ngay trước khi gửi.
+8. Gọi provider với timeout.
+9. Ghi `ai_usage_logs` với `billing_status` → xử lý reservation theo bảng dưới.
+10. Validate `parsed_output` bằng `output_schema` (Pydantic) → `SCHEMA_INVALID` nếu sai (chi phí vẫn đã `SETTLED`).
+11. Trả kết quả cho agent.
+
+**Phân loại chi phí sau lời gọi (FR-047)**:
+
+| Tình huống | billing_status | Reservation |
+|---|---|---|
+| Phản hồi có usage (thành công, refusal, truncated, sai schema) | BILLED | `settle(actual)` |
+| Lỗi trước khi gửi (DNS, connection refused trước khi ghi request, hủy, ngân sách, công tắc phí) | NOT_BILLED | `release(NOT_SENT)` |
+| Phản hồi lỗi HTTP đầy đủ (4xx/5xx) **và** `billing.error_responses_not_billed_verified[provider] = true` | NOT_BILLED | `release(ERROR_RESPONSE_NOT_BILLED)` |
+| Phản hồi lỗi HTTP khi chính sách tính phí của provider **chưa** được xác minh | UNCERTAIN | `mark_uncertain(ERROR_BILLING_UNVERIFIED)` |
+| Timeout sau khi gửi / mất kết nối giữa chừng | UNCERTAIN | `mark_uncertain(TIMEOUT_AFTER_SEND \| CONNECTION_LOST)` |
+| Phản hồi không đọc được usage | UNCERTAIN | `mark_uncertain(USAGE_UNREADABLE)` |
+| MockAIProvider | theo kịch bản (mô phỏng cả ba loại) | như trên, sổ MOCK |
 
 **Hành vi `MockAIProvider`** (R-14): không I/O mạng; xác định theo seed; mọi chuỗi sinh ra có tiền tố `[MOCK]`; usage
 giả lập (mặc định 2 000 vào / 500 ra; `budget_heavy`: 2 000 000 vào); kịch bản: `success`, `timeout`, `rate_limit`,
-`schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy`,
+`schema_invalid`, `provider_error`, `auth_error`, `refusal`, `truncated`, `budget_heavy`, `timeout_after_send`,
 `fail_n_then_success:<kịch bản>:<n>`. Khi có `tools`, kịch bản `success` trả một lời gọi tool hợp lệ ở lượt đầu rồi output
 cuối ở lượt sau.
 
@@ -158,8 +173,14 @@ Triển khai mặc định: `ProcrastinateJobQueue`. Phương án dự phòng: `
 class BudgetService(Protocol):
     async def reserve(self, job_id: UUID, amount_usd: Decimal, origin: DataOrigin) -> Reservation: ...
         # advisory lock; kiểm tra ngày, tháng, job; BudgetExceeded(scope, limit, spent, reserved, requested)
+    async def mark_sent(self, reservation_id: UUID) -> None: ...                  # commit ngay, trước khi gửi
     async def settle(self, reservation_id: UUID, usage_log_id: UUID, actual_usd: Decimal) -> None: ...
-    async def release(self, reservation_id: UUID) -> None: ...
+        # ghi chênh lệch actual - amount; actual > amount → log cảnh báo BUDGET_RESERVATION_OVERRUN + audit
+    async def release(self, reservation_id: UUID, reason: str) -> None: ...     # chỉ khi chắc chắn chưa phát sinh phí
+    async def mark_uncertain(self, reservation_id: UUID, reason: str) -> None: ...
+    async def resolve(self, reservation_id: UUID, actual_usd: Decimal, note: str, user_id: UUID) -> None: ...  # thủ công, audit
+    async def sweep_stale(self) -> SweepResult: ...
+        # ACTIVE quá expires_at: sent_at NULL → RELEASED(NOT_SENT); ngược lại → UNCERTAIN(WORKER_LOST); không bao giờ tự giải phóng UNCERTAIN
     async def status(self) -> BudgetStatus: ...
     async def can_resume(self, job_id: UUID) -> bool: ...   # dùng cho POST /jobs/{id}/resume
 ```
@@ -181,7 +202,8 @@ class EvidenceService(Protocol):
 ## 8. Mã lỗi ổn định (frontend dịch theo `code`)
 
 `AUTH_REQUIRED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_LOCKED`, `ALREADY_SETUP`, `CSRF_INVALID`, `VALIDATION_ERROR`,
-`NOT_FOUND`, `VERSION_CONFLICT`, `INVALID_JOB_TRANSITION`, `BUDGET_DAILY_EXCEEDED`, `BUDGET_MONTHLY_EXCEEDED`,
+`NOT_FOUND`, `VERSION_CONFLICT`, `INVALID_JOB_TRANSITION`, `MODEL_NOT_VERIFIED`, `PRICING_NOT_VERIFIED`,
+`RESERVATION_NOT_UNCERTAIN`, `BUDGET_DAILY_EXCEEDED`, `BUDGET_MONTHLY_EXCEEDED`,
 `BUDGET_JOB_EXCEEDED`, `BUDGET_STILL_INSUFFICIENT`, `BUDGET_NOT_CONFIGURED`, `PAID_CALLS_DISABLED`, `PRICING_MISSING`,
 `PROVIDER_NOT_CONFIGURED`, `PROVIDER_AUTH_ERROR`, `PROVIDER_TIMEOUT`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`,
 `PROVIDER_NETWORK_ERROR`, `AI_REFUSED`, `AI_TRUNCATED`, `AI_SCHEMA_INVALID`, `MAX_STEPS_EXCEEDED`,

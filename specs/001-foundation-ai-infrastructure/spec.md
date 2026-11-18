@@ -28,6 +28,13 @@ E0-01…E0-20, AI-01…AI-10)
 - Q (yêu cầu bổ sung của chủ sở hữu): Chọn model AI và xử lý khi Claude từ chối thế nào? → A: Claude là AI chính, OpenAI dự phòng; model cấu hình theo từng tác vụ, không hard-code model mặc định trong business logic; ưu tiên model hiệu quả chi phí phù hợp từng tác vụ (không bắt buộc Opus); khi Claude từ chối vì lý do chính sách, KHÔNG tự chuyển sang model/provider khác – ghi nhận trạng thái và lý do để kiểm tra.
 - Q (yêu cầu bổ sung – phát triển khi chưa có API key): Phát triển và kiểm thử E0 thế nào khi chủ sở hữu chỉ có Claude Pro, chưa có API key? → A: Ba provider sau một interface chung, chọn bằng cấu hình không sửa business logic: `AnthropicAPIProvider` (chính, vận hành), `OpenAIAPIProvider` (dự phòng), `MockAIProvider` (phát triển/kiểm thử khi chưa có key). E0 khởi động và kiểm thử đầy đủ (job queue, retry, checkpoint, logging, budget) bằng MockAIProvider với các kịch bản: thành công, timeout, rate limit, sai schema, lỗi provider, vượt ngân sách. Dữ liệu mock gắn nhãn rõ, không trình bày như nghiên cứu thật; MockAIProvider bị cấm ở production. Không dùng OAuth token, cookie, session hay Claude Code CLI để giả lập API; Claude Pro chỉ dùng để phát triển, phân tích thủ công, thử prompt – không phải provider, không có workflow 24/7 phụ thuộc Claude Pro. Không tự động gọi API có phí khi phát triển; chỉ gọi thật khi chủ sở hữu cho phép; khi có key chỉ cần cấu hình key + chọn provider; ngân sách giữ $3/ngày, $30/tháng, $2/job. Không báo cáo tích hợp Claude API là đã kiểm thử nếu chưa gọi API thật.
 
+### Session 2026-11-18 (phê duyệt plan có điều kiện)
+
+- Q: Điều kiện nào áp dụng cho model AI trước khi gọi API có phí? → A: Model ID, khả năng hỗ trợ và bảng giá phải được xác minh từ nguồn chính thức; chưa xác minh → chặn lời gọi có phí; không hard-code model ID hay giá trong business logic; cấu hình theo loại tác vụ; không tự nâng cấp/chuyển model khi chưa cấu hình.
+- Q: Rào chắn MockAIProvider cần chặt đến mức nào? → A: Kiểm tra ở cả tầng cấu hình (khởi động) và runtime; production cấu hình mock → từ chối khởi động; không thể chọn mock động trong production; mọi dữ liệu mock có `data_origin = MOCK`; không xuất hiện trong báo cáo nghiên cứu hay thống kê kinh doanh thực tế; usage/chi phí mock tách hoàn toàn khỏi chi phí thật; test dùng mock không được tính là đã kiểm thử API thật.
+- Q: Reservation ngân sách xử lý thế nào khi gọi thất bại hoặc chưa rõ kết quả? → A: Giữ chỗ nguyên tử trong database, an toàn khi nhiều worker; thành công → đối soát theo usage thực tế; thất bại → phân biệt "chắc chắn chưa phát sinh phí" (giải phóng) và "chưa xác định được chi phí" (giữ nguyên phần giữ chỗ, chờ đối soát); không tự động giải phóng toàn bộ khi chưa xác định; có cơ chế xử lý reservation bị treo; không thể vượt giới hạn ngày/tháng/job do race condition.
+- Q: Các giá trị mặc định vận hành có cố định không? → A: Tạm chấp thuận (phiên 12 giờ, khóa 15 phút sau 5 lần sai, backup 03:00 giữ 7 bản, CI GitHub Actions, PostgreSQL 17, bảng giá mock riêng không tính là chi phí thật) và tất cả phải thay đổi được bằng cấu hình.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân chính là **Chủ sở hữu** (người dùng duy nhất trong MVP). E0 không tạo ra kết quả nghiên cứu; nó cung
@@ -253,6 +260,11 @@ bản ghi.
   retry tự động; chủ sở hữu xem được trạng thái và lý do để kiểm tra.
 - AI dừng vì đạt giới hạn độ dài đầu ra → bước được đánh dấu "kết quả bị cắt", không lưu kết quả thiếu.
 - Rate limit (429) từ provider → chờ theo chỉ dẫn của provider rồi thử lại trong giới hạn.
+- Timeout sau khi yêu cầu đã gửi đi (không biết provider có xử lý hay không) → reservation chuyển `UNCERTAIN`, phần giữ
+  chỗ vẫn tính vào chi tiêu; lần thử lại tạo reservation mới; chủ sở hữu đối soát sau.
+- Worker chết giữa lời gọi → reservation treo được phát hiện và chuyển `RELEASED` (chưa gửi) hoặc `UNCERTAIN` (đã gửi).
+- Model trong profile chưa được xác minh hoặc giá chưa xác minh → chặn lời gọi có phí (`MODEL_NOT_VERIFIED` /
+  `PRICING_NOT_VERIFIED`), không tự chọn model khác.
 - Bảng giá thiếu model đang dùng → không cho chạy job tốn phí với model đó (không thể kiểm tra ngân sách).
 - Hai worker cùng nhận một job → chỉ một worker thực thi.
 - Đồng hồ hệ thống/múi giờ: ngân sách ngày/tháng và lịch dùng múi giờ cấu hình (mặc định `Asia/Ho_Chi_Minh`).
@@ -292,7 +304,12 @@ bản ghi.
   kích hoạt vượt ngân sách; (c) báo usage và chi phí giả lập theo bảng giá giả lập riêng; (d) gắn nhãn `MOCK` lên
   mọi kết quả, usage log, bước job và dữ liệu sinh ra; (e) chỉ được bật ở môi trường `development`/`test` – hệ thống
   MUST từ chối khởi động nếu bật ở `production`. Chi tiêu giả lập MUST được tính riêng, không cộng vào chi tiêu thật,
-  nhưng đi qua cùng cơ chế kiểm tra ngân sách. *(AI-14, Constitution I)*
+  nhưng đi qua cùng cơ chế kiểm tra ngân sách; (f) điều kiện sử dụng mock MUST được kiểm tra ở cả tầng cấu hình (khi
+  khởi động) và runtime (mỗi lần AI Gateway chọn provider, mỗi lần cập nhật Model Task Profile, mỗi tham số
+  `mock_scenario`); trong production MUST NOT có đường nào chọn mock động (API, tham số job, biến lúc chạy); (g) dữ liệu
+  mock MUST NOT xuất hiện trong báo cáo nghiên cứu, xếp hạng hay thống kê kinh doanh/chi phí thực tế (các truy vấn này
+  mặc định chỉ lấy `data_origin = REAL`); (h) kết quả test với mock MUST NOT được ghi nhận là đã kiểm thử provider thật.
+  *(AI-14, Constitution I)*
 - **FR-019**: Hệ thống MUST có công tắc "cho phép gọi API có phí", mặc định TẮT; khi tắt, mọi lời gọi tốn phí tới
   provider thật bị chặn trước khi gửi (job thất bại với mã `PAID_CALLS_DISABLED`). Kiểm tra kết nối không tính phí
   (FR-056) vẫn được phép. Test tự động MUST NOT gọi API có phí. *(AI-15, Constitution VI)*
@@ -316,6 +333,12 @@ bản ghi.
   do và giải thích (nếu có) vào usage log và bước job, MUST NOT tự chuyển sang model hoặc provider khác, và MUST NOT
   bật tính năng chuyển model tự động phía provider. Provider dự phòng (FR-011) chỉ áp dụng cho lỗi kỹ thuật được
   cấu hình rõ (ví dụ provider không khả dụng), không áp dụng cho refusal. *(AI-07, AI-11)*
+- **FR-019c**: Trước mọi lời gọi có phí, hệ thống MUST xác nhận model của tác vụ đã được **xác minh** (model ID tồn tại
+  theo nguồn chính thức của provider, hỗ trợ các khả năng tác vụ cần – structured output, tool calling, effort – có
+  ghi nguồn và thời điểm xác minh) và bảng giá của model đó đã được xác minh; nếu chưa, lời gọi MUST bị chặn với mã
+  `MODEL_NOT_VERIFIED` hoặc `PRICING_NOT_VERIFIED`. Model ID và giá MUST chỉ nằm trong cấu hình/dữ liệu, không trong
+  business logic. Hệ thống MUST NOT tự nâng cấp model (không dùng alias kiểu "latest"), MUST NOT tự chuyển model khi
+  chưa được cấu hình. *(AI-02, AI-17)*
 
 **Tool Registry & Agent**
 
@@ -363,11 +386,24 @@ bản ghi.
   đã dùng. *(Constitution VI)*
 - **FR-042**: Hệ thống MUST cho phép cấu hình ngân sách theo ngày, theo tháng và trần mặc định theo job (có thể
   ghi đè cho từng job trong giới hạn ngày/tháng); giá trị mặc định $3/ngày, $30/tháng, $2/job. *(E0-12)*
-- **FR-043**: Trước mỗi lời gọi tốn phí, hệ thống MUST kiểm tra chi phí ước tính tối đa so với phần còn lại của cả
-  ba ngân sách và MUST NOT gửi lời gọi nếu không đủ; kiểm tra MUST an toàn khi nhiều job chạy đồng thời. *(E0-12,
-  NFR-06)*
+- **FR-043**: Trước mỗi lời gọi tốn phí, hệ thống MUST giữ chỗ (reservation) chi phí ước tính tối đa so với phần còn
+  lại của cả ba ngân sách (ngày, tháng, job) và MUST NOT gửi lời gọi nếu không đủ. Việc kiểm tra và giữ chỗ MUST là một
+  thao tác nguyên tử trong database, an toàn khi nhiều worker/job chạy đồng thời, sao cho tổng (chi tiêu thực + giữ
+  chỗ đang mở + giữ chỗ chưa xác định) không bao giờ vượt bất kỳ giới hạn nào do race condition. *(E0-12, NFR-06)*
 - **FR-044**: Hệ thống MUST cung cấp tổng hợp chi phí theo ngày, tháng, job, model và cảnh báo khi đạt 80% ngân sách
-  ngày/tháng. *(E0-11, E4-15)*
+  ngày/tháng (ngưỡng cấu hình được); tổng hợp mặc định chỉ gồm chi phí thật (`REAL`), chi phí giả lập chỉ hiển thị khi
+  yêu cầu rõ và luôn tách riêng. *(E0-11, E4-15)*
+- **FR-047**: Sau mỗi lời gọi, reservation MUST được xử lý theo kết quả: (a) có usage thực tế → đối soát theo chi phí
+  thực tế (`SETTLED`), ghi nhận chênh lệch; (b) chắc chắn chưa phát sinh phí (lời gọi chưa rời hệ thống, hoặc nhận được
+  phản hồi lỗi mà chính sách tính phí đã xác minh của provider xác định là không tính phí) → giải phóng (`RELEASED`) kèm
+  lý do; (c) chưa xác định được chi phí (timeout sau khi đã gửi, mất kết nối giữa chừng, worker chết sau khi gửi, phản
+  hồi không đọc được usage, hoặc phản hồi lỗi khi chính sách tính phí chưa được xác minh) → chuyển `UNCERTAIN`, **giữ
+  nguyên toàn bộ phần đã giữ chỗ** trong chi tiêu cho tới khi được đối soát; hệ thống MUST NOT tự động giải phóng
+  reservation `UNCERTAIN`. Chủ sở hữu MUST có thể đối soát reservation `UNCERTAIN` bằng chi phí thực tế (ví dụ lấy từ
+  trang quản lý của provider) hoặc xác nhận không tính phí; mỗi lần đối soát được ghi audit log. *(E0-12, AI-18)*
+- **FR-048**: Hệ thống MUST phát hiện reservation bị treo (`ACTIVE` quá hạn, ví dụ do worker chết): nếu lời gọi chắc
+  chắn chưa được gửi → `RELEASED`; nếu đã gửi hoặc không chắc → `UNCERTAIN`. Tổng reservation `UNCERTAIN` MUST hiển thị
+  trong trạng thái ngân sách kèm cảnh báo. *(E0-12, AI-18)*
 - **FR-045**: Khi vượt ngân sách, job MUST chuyển `PAUSED_BUDGET`, chỉ tiếp tục (từ checkpoint) khi chủ sở hữu yêu
   cầu và ngân sách đủ; hệ thống MUST NOT tự tăng ngân sách hoặc tự đổi model/provider để tránh giới hạn. *(E0-12)*
 
@@ -381,7 +417,8 @@ bản ghi.
 - **FR-052**: Dashboard và API MUST yêu cầu xác thực, trừ trang đăng nhập/khởi tạo lần đầu và endpoint sức khỏe tối
   giản; mô hình người dùng là một chủ sở hữu duy nhất. *(E0-15)*
 - **FR-053**: Mật khẩu MUST được băm bằng thuật toán băm mật khẩu hiện đại; phiên đăng nhập hết hạn sau thời gian
-  không hoạt động cấu hình được (mặc định 12 giờ); chống đoán mật khẩu bằng khóa tạm. *(E0-15, Constitution X)*
+  không hoạt động cấu hình được (mặc định 12 giờ); chống đoán mật khẩu bằng khóa tạm (mặc định 15 phút sau 5 lần sai,
+  cả hai giá trị cấu hình được). *(E0-15, Constitution X)*
 - **FR-054**: Secret MUST NOT xuất hiện trong mã nguồn, git, log, response API hoặc giao diện (chỉ hiển thị dạng
   che). API key MUST chỉ được cung cấp qua file môi trường (`.env`) hoặc Docker secrets, MUST NOT lưu trong
   database; file `.env` thật MUST bị loại khỏi git (chỉ commit `.env.example`). *(E0-16, NFR-05)*
@@ -413,8 +450,8 @@ bản ghi.
   tương đồng với cấu hình production Linux. *(E0-17)*
 - **FR-072**: Hệ thống MUST có unit test và integration test chạy tự động không cần API key thật và không phát sinh
   chi phí; test với provider thật được tách riêng, chạy thủ công, có trần chi phí. *(E0-18, Constitution IX)*
-- **FR-073**: Hệ thống SHOULD hỗ trợ backup database theo lịch (giữ N bản) và quy trình khôi phục có tài liệu và có
-  kiểm thử. *(E0-19)*
+- **FR-073**: Hệ thống SHOULD hỗ trợ backup database theo lịch (mặc định 03:00, giữ 7 bản – cấu hình được) và quy trình
+  khôi phục có tài liệu và có kiểm thử. *(E0-19)*
 
 ### Key Entities *(include if feature involves data)*
 
@@ -432,6 +469,8 @@ bản ghi.
   chối do quyền hay không.
 - **AI Usage Log**: một lời gọi AI; provider, model, loại tác vụ, token vào/ra/cache, chi phí, phiên bản bảng giá,
   kết quả phân loại, thời gian.
+- **AI Model (catalog)**: model ID theo provider, trạng thái xác minh, nguồn và thời điểm xác minh, khả năng hỗ trợ
+  (structured output, tool calling, effort), giới hạn ngữ cảnh/đầu ra.
 - **Model Task Profile**: ánh xạ loại tác vụ → provider, model, effort, giới hạn token, số lần retry schema.
 - **Budget Reservation**: phần ngân sách được giữ chỗ cho lời gọi đang thực hiện; được quyết toán theo chi phí thực.
 - **Job Schedule**: lịch định kỳ; loại job, tham số, biểu thức lịch, múi giờ, bật/tắt, lần chạy trước/kế tiếp,
@@ -455,8 +494,11 @@ bản ghi.
 - **SC-003b**: Không cần API key, toàn bộ luồng E0 (khởi động, job, retry, checkpoint, lịch, ngân sách, logging, audit)
   chạy và kiểm thử được bằng MockAIProvider; 100% kịch bản giả lập ở FR-018 có test tự động pass; 0 lời gọi mạng tới
   provider thật trong toàn bộ test tự động.
-- **SC-004**: Trong 100% kịch bản kiểm thử vượt ngân sách (ngày, tháng, job, đồng thời), không có lời gọi tốn phí
-  nào được gửi khi ngân sách còn lại không đủ cho chi phí ước tính tối đa. *(AC-03)*
+- **SC-004**: Trong 100% kịch bản kiểm thử vượt ngân sách (ngày, tháng, job, và đồng thời với ít nhất 2 tiến trình
+  worker × 10 lời gọi tranh chấp), không có lời gọi tốn phí nào được gửi khi ngân sách còn lại không đủ cho chi phí ước
+  tính tối đa, và tổng chi tiêu + giữ chỗ không vượt giới hạn. *(AC-03)*
+- **SC-004b**: 100% kịch bản lỗi sau khi gửi (timeout, mất kết nối, worker chết) để lại reservation `UNCERTAIN` không bị
+  giải phóng tự động; 100% kịch bản lỗi trước khi gửi giải phóng reservation. *(FR-047, FR-048)*
 - **SC-005**: 100% kết quả AI sai schema trong kiểm thử bị từ chối và không được lưu. *(AI-03)*
 - **SC-006**: Job bị gián đoạn (worker dừng đột ngột) tiếp tục được từ checkpoint, không mất bước đã hoàn tất và
   không tạo bản ghi trùng, trong 100% kịch bản kiểm thử. *(E0-20, QA-10)*
