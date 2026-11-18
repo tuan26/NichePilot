@@ -327,18 +327,34 @@ async def cost_usage(
 
 
 async def _transition(
-    session: Any, job: Any, *, action: str, to: str, user: Any, meta: Any, extra_sql: str = ""
+    session: Any,
+    job: Any,
+    *,
+    action: str,
+    to: str,
+    user: Any,
+    meta: Any,
+    extra_sql: str = "",
+    reason_code: str | None = None,
+    reason_detail: dict[str, Any] | None = None,
 ) -> Any:
     check_transition(job["status"], to)
     row = (
         (
             await session.execute(
                 text(
-                    "UPDATE agent_jobs SET status = :to, status_reason_code = NULL, status_reason_detail = NULL"  # noqa: S608 – extra_sql là hằng số nội bộ
-                    f"{extra_sql}, finished_at = CASE WHEN :to = 'CANCELLED' THEN now() ELSE finished_at END,"
+                    "UPDATE agent_jobs SET status = :to, status_reason_code = :rc,"  # noqa: S608 – extra_sql là hằng số nội bộ
+                    f" status_reason_detail = CAST(:rd AS jsonb){extra_sql},"
+                    " finished_at = CASE WHEN :to = 'CANCELLED' THEN now() ELSE finished_at END,"
                     " updated_at = now() WHERE id = :j AND status = :src RETURNING *"
                 ),
-                {"j": job["id"], "to": to, "src": job["status"]},
+                {
+                    "j": job["id"],
+                    "to": to,
+                    "src": job["status"],
+                    "rc": reason_code,
+                    "rd": json.dumps(reason_detail) if reason_detail is not None else None,
+                },
             )
         )
         .mappings()
@@ -413,6 +429,10 @@ async def cancel_job(job_id: uuid.UUID, user: UserDep, session: SessionDep, meta
             user=user,
             meta=meta,
             extra_sql=", cancel_requested = true",
+            # I3: mọi lần hủy thành công đều ghi JOB_CANCELLED (giống đường RUNNING do runtime xử lý); giữ dấu vết trạng
+            # thái trước. Reservation UNCERTAIN (nếu có) KHÔNG bị giải phóng – vẫn chờ chủ sở hữu đối soát.
+            reason_code="JOB_CANCELLED",
+            reason_detail={"previous_status": job["status"], "previous_reason_code": job["status_reason_code"]},
         )
     return job_dict(row)
 
