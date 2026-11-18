@@ -34,6 +34,7 @@ ERROR_CATALOG: dict[str, ErrorSpec] = {
     "VALIDATION_ERROR": ErrorSpec(422, "Validation error"),
     "NOT_FOUND": ErrorSpec(404, "Not found"),
     "VERSION_CONFLICT": ErrorSpec(409, "Resource was modified concurrently"),
+    "SCHEDULE_NAME_EXISTS": ErrorSpec(409, "A schedule with this name already exists"),
     "INVALID_JOB_TRANSITION": ErrorSpec(409, "Invalid job state transition"),
     "MODEL_NOT_VERIFIED": ErrorSpec(409, "Model is not verified for paid calls"),
     "PRICING_NOT_VERIFIED": ErrorSpec(409, "Model pricing is not verified"),

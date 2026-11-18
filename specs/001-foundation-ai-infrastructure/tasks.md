@@ -228,14 +228,14 @@ audit, API ngân sách. Dựa trên `BudgetService` lõi (T038) và gateway (T07
 
 ### Tests cho User Story 5 ⚠️
 
-- [ ] T103 [P] [US5] Unit test tính thời điểm đến hạn bằng croniter theo múi giờ lịch, `misfire_policy` SKIP/RUN_ONCE, khoảng cách tối thiểu 5 phút trong `backend/tests/unit/jobs/test_schedule_calc.py` (FR-033)
-- [ ] T104 [P] [US5] Integration test scheduler tick: 2 worker cùng tick → đúng 1 job/thời điểm; lịch tắt → không job; khởi động lại sau thời điểm lỡ → chạy bù tối đa 1 lần trong `backend/tests/integration/test_scheduler_tick.py` (FR-033, FR-037, SC-007)
-- [ ] T105 [P] [US5] Contract test CRUD `/schedules`; bật lịch job tốn phí khi ngân sách = 0 → 422 `BUDGET_NOT_CONFIGURED` trong `backend/tests/contract/test_schedules_api.py` (FR-033, FR-034)
+- [X] T103 [P] [US5] Unit test tính thời điểm đến hạn bằng croniter theo múi giờ lịch, `misfire_policy` SKIP/RUN_ONCE, khoảng cách tối thiểu 5 phút trong `backend/tests/unit/jobs/test_schedule_calc.py` (FR-033)
+- [X] T104 [P] [US5] Integration test scheduler tick: 2 worker cùng tick → đúng 1 job/thời điểm; lịch tắt → không job; khởi động lại sau thời điểm lỡ → chạy bù tối đa 1 lần trong `backend/tests/integration/test_scheduler_tick.py` (FR-033, FR-037, SC-007)
+- [X] T105 [P] [US5] Contract test CRUD `/schedules`; bật lịch job tốn phí khi ngân sách = 0 → 422 `BUDGET_NOT_CONFIGURED` trong `backend/tests/contract/test_schedules_api.py` (FR-033, FR-034)
 
 ### Implementation cho User Story 5
 
-- [ ] T106 [US5] Scheduler tick (periodic mỗi phút, `idempotency_key = schedule:{id}:{scheduled_for}`, kiểm tra ngân sách đã cấu hình) trong `backend/src/nichepilot/jobs/scheduler.py` (FR-033, FR-034)
-- [ ] T107 [US5] Router `schedules` có audit trong `backend/src/nichepilot/api/v1/schedules.py` (FR-033, FR-051)
+- [X] T106 [US5] Scheduler tick (periodic mỗi phút, `idempotency_key = schedule:{id}:{scheduled_for}`, kiểm tra ngân sách đã cấu hình) trong `backend/src/nichepilot/jobs/scheduler.py` (FR-033, FR-034)
+- [X] T107 [US5] Router `schedules` có audit trong `backend/src/nichepilot/api/v1/schedules.py` (FR-033, FR-051)
 
 **Checkpoint**: Quickstart §7 đạt.
 

@@ -36,5 +36,7 @@ def build_services(settings: Settings, sessionmaker: async_sessionmaker[AsyncSes
     proc_app = build_procrastinate_app(settings.database_url.get_secret_value(), runtime.run)
     queue = ProcrastinateJobQueue(proc_app)
     runtime.requeue = queue.enqueue_run
-    register_maintenance(proc_app, gateway.budget, sessionmaker, queue, settings.job_stalled_after_s)
+    register_maintenance(
+        proc_app, gateway.budget, sessionmaker, queue, settings.job_stalled_after_s, settings.ai_provider_override
+    )
     return Services(settings, gateway, tools, agents, runtime, proc_app, queue)

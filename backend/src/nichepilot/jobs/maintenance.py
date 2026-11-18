@@ -1,6 +1,6 @@
 """Tác vụ bảo trì định kỳ chạy trong worker (T089, T100 – FR-036, FR-048, SC-006).
 
-Retention log ứng dụng được thêm ở US7.
+Gồm: quét reservation treo, khôi phục job mất heartbeat, scheduler tick (US5). Retention log ứng dụng ở US7.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from nichepilot.ai.budget import BudgetService
 from nichepilot.core.logging import get_logger
 from nichepilot.jobs.queue import TASK_NAME, JobQueue
+from nichepilot.jobs.scheduler import scheduler_tick
 
 MAINTENANCE_QUEUE = "maintenance"
 log = get_logger(__name__)
@@ -89,6 +90,7 @@ def register_maintenance(
     sessionmaker: async_sessionmaker[AsyncSession],
     queue: JobQueue,
     stalled_after_s: int,
+    provider_override: str | None = None,
 ) -> None:
     @app.periodic(cron="* * * * *", periodic_id="budget_sweep_stale")
     @app.task(name="budget_sweep_stale", queue=MAINTENANCE_QUEUE, pass_context=False)
@@ -102,3 +104,10 @@ def register_maintenance(
         await release_stalled_queue_jobs(app, stalled_after_s=stalled_after_s)
         await budget.sweep_stale()
         await recover_stalled_jobs(sessionmaker, queue.enqueue_run, stalled_after_s=stalled_after_s)
+
+    @app.periodic(cron="* * * * *", periodic_id="jobs_scheduler_tick")
+    @app.task(name="jobs_scheduler_tick", queue=MAINTENANCE_QUEUE, pass_context=False)
+    async def jobs_scheduler_tick(timestamp: int) -> None:
+        # Periodic Procrastinate đảm bảo mỗi phút chỉ defer 1 lần; tick vẫn an toàn khi chạy song song (SKIP LOCKED +
+        # idempotency_key) và tự chạy bù theo misfire_policy sau khi worker khởi động lại.
+        await scheduler_tick(sessionmaker, queue.enqueue_run, override=provider_override)

@@ -104,6 +104,7 @@
     "UNCERTAIN_RESERVATIONS_UNRESOLVED": "The job has unreconciled reservations.",
     "UNCERTAIN_RESERVATION_LIMIT": "The job reached the limit of reservations with unknown cost.",
     "VALIDATION_ERROR": "The input is invalid.",
-    "VERSION_CONFLICT": "The data was changed, please reload."
+    "VERSION_CONFLICT": "The data was changed, please reload.",
+    "SCHEDULE_NAME_EXISTS": "A schedule with this name already exists."
   }
 }
