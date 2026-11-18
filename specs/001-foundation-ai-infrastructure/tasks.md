@@ -101,24 +101,24 @@ nguyên tử. Không story nào bắt đầu trước khi xong phase này.
 
 ### Tests cho User Story 1 ⚠️
 
-- [ ] T042 [P] [US1] Contract test `GET /auth/setup-status`, `POST /auth/setup` (409 khi đã có user, 422 mật khẩu < 12) trong `backend/tests/contract/test_auth_setup.py` (FR-052)
-- [ ] T043 [P] [US1] Contract test `POST /auth/login`, `/logout`, `GET/PATCH /auth/me`, 401 khi chưa đăng nhập, CSRF thiếu/sai → `CSRF_INVALID` trong `backend/tests/contract/test_auth_session.py` (FR-052, FR-053)
-- [ ] T044 [P] [US1] Integration test khóa sau `auth.lockout_threshold` lần sai trong `auth.lockout_minutes`, hết hạn phiên theo `auth.session_idle_timeout_hours`, thu hồi phiên khi logout, audit `auth.*` trong `backend/tests/integration/test_auth_lockout.py` (FR-051, FR-053)
-- [ ] T045 [P] [US1] Contract test `GET /api/v1/system/status` (database, worker, providers chưa cấu hình ≠ lỗi, `paid_calls_enabled`, `provider_override`) trong `backend/tests/contract/test_system_status.py` (FR-002)
-- [ ] T046 [P] [US1] Vitest: mọi khóa của `frontend/src/i18n/locales/vi.json` có trong `en.json` và ngược lại; không chuỗi UI hard-code trong `frontend/tests/unit/i18n-keys.test.ts` (FR-060, SC-010)
-- [ ] T047 [P] [US1] Playwright E2E: khởi tạo tài khoản → trạng thái tiếng Việt → chuyển EN không tải lại → tải lại vẫn EN → đăng xuất → khóa sau 5 lần sai; thông báo lỗi theo ngôn ngữ, không lộ chi tiết kỹ thuật trong `frontend/tests/e2e/us1-auth-i18n.spec.ts` (FR-060, FR-061, US1 kịch bản 1–6)
+- [X] T042 [P] [US1] Contract test `GET /auth/setup-status`, `POST /auth/setup` (409 khi đã có user, 422 mật khẩu < 12) trong `backend/tests/contract/test_auth_setup.py` (FR-052)
+- [X] T043 [P] [US1] Contract test `POST /auth/login`, `/logout`, `GET/PATCH /auth/me`, 401 khi chưa đăng nhập, CSRF thiếu/sai → `CSRF_INVALID` trong `backend/tests/contract/test_auth_session.py` (FR-052, FR-053)
+- [X] T044 [P] [US1] Integration test khóa sau `auth.lockout_threshold` lần sai trong `auth.lockout_minutes`, hết hạn phiên theo `auth.session_idle_timeout_hours`, thu hồi phiên khi logout, audit `auth.*` trong `backend/tests/integration/test_auth_lockout.py` (FR-051, FR-053)
+- [X] T045 [P] [US1] Contract test `GET /api/v1/system/status` (database, worker, providers chưa cấu hình ≠ lỗi, `paid_calls_enabled`, `provider_override`) trong `backend/tests/contract/test_system_status.py` (FR-002)
+- [X] T046 [P] [US1] Vitest: mọi khóa của `frontend/src/i18n/locales/vi.json` có trong `en.json` và ngược lại; không chuỗi UI hard-code trong `frontend/tests/unit/i18n-keys.test.ts` (FR-060, SC-010)
+- [X] T047 [P] [US1] Playwright E2E: khởi tạo tài khoản → trạng thái tiếng Việt → chuyển EN không tải lại → tải lại vẫn EN → đăng xuất → khóa sau 5 lần sai; thông báo lỗi theo ngôn ngữ, không lộ chi tiết kỹ thuật trong `frontend/tests/e2e/us1-auth-i18n.spec.ts` (FR-060, FR-061, US1 kịch bản 1–6)
 
 ### Implementation cho User Story 1
 
-- [ ] T048 [US1] Dịch vụ xác thực: Argon2id, giới hạn 1 user, khóa tạm theo `auth.lockout_threshold`/`auth.lockout_minutes`, phiên server-side (lưu SHA-256 token), hết hạn theo `auth.session_idle_timeout_hours` trong `backend/src/nichepilot/modules/identity/service.py` (FR-052, FR-053)
-- [ ] T049 [US1] Dependency xác thực + CSRF double-submit (`np_session`, `np_csrf`, `X-CSRF-Token`) trong `backend/src/nichepilot/core/security.py` (FR-052)
-- [ ] T050 [US1] Router `auth` (setup-status, setup, login, logout, me GET/PATCH) có audit trong `backend/src/nichepilot/api/v1/auth.py` (FR-051, FR-052)
-- [ ] T051 [US1] Router `system/status`: DB, heartbeat worker (`procrastinate_workers`), provider (configured + `key_hint`), `paid_calls_enabled`, `provider_override` trong `backend/src/nichepilot/api/v1/system.py` (FR-002, FR-054)
-- [ ] T052 [P] [US1] i18n frontend: `frontend/src/i18n/index.ts` (vi mặc định, localStorage, đồng bộ `PATCH /auth/me`), `locales/vi.json`, `locales/en.json`, định dạng ngày/số qua `Intl` (FR-060, E4-06)
-- [ ] T053 [P] [US1] API client: CSRF header, ánh xạ `code` → thông báo i18n, 401 → trang đăng nhập trong `frontend/src/api/client.ts` (FR-061)
-- [ ] T054 [US1] Layout + router + `LanguageSwitcher` + `MockBadge` trong `frontend/src/app/` và `frontend/src/components/` (FR-060)
-- [ ] T055 [US1] Trang `SetupPage`, `LoginPage` (thông báo khóa kèm thời gian còn lại) trong `frontend/src/pages/` (US1 kịch bản 2–4)
-- [ ] T056 [US1] Trang `StatusPage` (thành phần, chế độ AI MOCK/REAL, "Gọi API có phí: TẮT/BẬT", cảnh báo dung lượng log, loading/error/empty states) trong `frontend/src/pages/StatusPage.tsx` (FR-002, FR-057, UI-05)
+- [X] T048 [US1] Dịch vụ xác thực: Argon2id, giới hạn 1 user, khóa tạm theo `auth.lockout_threshold`/`auth.lockout_minutes`, phiên server-side (lưu SHA-256 token), hết hạn theo `auth.session_idle_timeout_hours` trong `backend/src/nichepilot/modules/identity/service.py` (FR-052, FR-053)
+- [X] T049 [US1] Dependency xác thực + CSRF double-submit (`np_session`, `np_csrf`, `X-CSRF-Token`): tiện ích trong `backend/src/nichepilot/core/security.py`, dependency theo request trong `backend/src/nichepilot/api/deps.py` (giữ phân tầng: core không import modules) (FR-052)
+- [X] T050 [US1] Router `auth` (setup-status, setup, login, logout, me GET/PATCH) có audit trong `backend/src/nichepilot/api/v1/auth.py` (FR-051, FR-052)
+- [X] T051 [US1] Router `system/status`: DB, heartbeat worker (`procrastinate_workers`), provider (configured + `key_hint`), `paid_calls_enabled`, `provider_override` trong `backend/src/nichepilot/api/v1/system.py` (FR-002, FR-054)
+- [X] T052 [P] [US1] i18n frontend: `frontend/src/i18n/index.ts` (vi mặc định, localStorage, đồng bộ `PATCH /auth/me`), `locales/vi.json`, `locales/en.json`, định dạng ngày/số qua `Intl` (FR-060, E4-06)
+- [X] T053 [P] [US1] API client: CSRF header, ánh xạ `code` → thông báo i18n, 401 → trang đăng nhập trong `frontend/src/api/client.ts` (FR-061)
+- [X] T054 [US1] Layout + router + `LanguageSwitcher` + `MockBadge` trong `frontend/src/app/` và `frontend/src/components/` (FR-060)
+- [X] T055 [US1] Trang `SetupPage`, `LoginPage` (thông báo khóa kèm thời gian còn lại) trong `frontend/src/pages/` (US1 kịch bản 2–4)
+- [X] T056 [US1] Trang `StatusPage` (thành phần, chế độ AI MOCK/REAL, "Gọi API có phí: TẮT/BẬT", cảnh báo dung lượng log, loading/error/empty states) trong `frontend/src/pages/StatusPage.tsx` (FR-002, FR-057, UI-05)
 
 **Checkpoint**: Quickstart §1–§2 đạt.
 

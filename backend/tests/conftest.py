@@ -110,13 +110,19 @@ MUTABLE_TABLES = [
 
 @pytest.fixture
 async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
-    """Làm sạch bảng dữ liệu vận hành sau mỗi test (giữ seed). Chỉ dùng trong test."""
+    """Làm sạch dữ liệu vận hành sau mỗi test, GIỮ NGUYÊN seed (projects, settings, ai_models…). Chỉ dùng trong test.
+
+    Xóa bằng DELETE theo thứ tự khóa ngoại để hành động FK (ví dụ settings.updated_by SET NULL) chạy đúng;
+    không dùng TRUNCATE … CASCADE vì sẽ lan sang bảng seed.
+    """
     yield engine
     async with engine.begin() as conn:
-        # audit_logs có trigger append-only; chỉ test được phép tắt trigger để dọn dữ liệu.
+        result = await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+        existing = set(result.scalars())  # đọc trọn một lần
+        for table in MUTABLE_TABLES:
+            if table in existing and table != "audit_logs":
+                await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số
+        # audit_logs append-only: chỉ test được phép tắt trigger để dọn dữ liệu.
         await conn.execute(text("SET LOCAL session_replication_role = replica"))
-        existing = (await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))).scalars()
-        names = [t for t in MUTABLE_TABLES if t in set(existing)]
-        if names:
-            await conn.execute(text(f"TRUNCATE {', '.join(names)} CASCADE"))
+        await conn.execute(text("TRUNCATE audit_logs"))
         await conn.execute(text("TRUNCATE procrastinate_jobs CASCADE"))

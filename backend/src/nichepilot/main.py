@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 
 from nichepilot.api.v1 import api_router
-from nichepilot.core.config import detect_ignored_credentials, get_settings
+from nichepilot.core.config import Settings, detect_ignored_credentials, get_settings
 from nichepilot.core.db import dispose_db, init_db
 from nichepilot.core.errors import install_error_handlers
 from nichepilot.core.logging import bind_context, clear_context, configure_logging, get_logger
@@ -25,7 +25,8 @@ log = get_logger(__name__)
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings = get_settings()
+    settings: Settings = app.state.settings or get_settings()
+    app.state.settings = settings
     configure_logging(
         level=settings.log_level,
         fmt=settings.log_format,
@@ -43,7 +44,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         await dispose_db()
 
 
-def create_app(*, check_database: bool = True) -> FastAPI:
+def create_app(*, settings: Settings | None = None, check_database: bool = True) -> FastAPI:
     app = FastAPI(
         title="NichePilot API",
         version="0.1.0",
@@ -53,6 +54,7 @@ def create_app(*, check_database: bool = True) -> FastAPI:
         lifespan=_lifespan,
     )
     app.state.check_database = check_database
+    app.state.settings = settings
     install_error_handlers(app)
 
     @app.middleware("http")
