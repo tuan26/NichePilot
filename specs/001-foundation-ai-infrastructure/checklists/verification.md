@@ -126,3 +126,15 @@ với mọi cách chia prompt).
 detect-secrets 1.5.0, 42 finding / 16 file: 42 Confirmed false positive, 0 Potential secret, 0 Confirmed secret
 (chi tiết và cách xác minh: `docs/operations/security.md`). `.secrets.baseline` chỉ chứa các mục đã rà soát (`is_secret: false`,
 chỉ hash). Kiểm tra: `backend/scripts/check_secrets.py` (cục bộ PASS); canary sinh lúc chạy bị phát hiện (TC_SC008_12 PASS).
+
+### Bằng chứng CI (GitHub Actions)
+
+| Run | Commit | Nội dung | backend | frontend | traceability | secrets | e2e | smoke (prod + dev) |
+|---|---|---|---|---|---|---|---|---|
+| 44348170145 | `f171f56` | N1 – baseline detect-secrets | PASS | PASS | PASS | **PASS** | PASS | PASS |
+| 44349886271 | `955083a` | C3 – nguồn + ngày cho giá đã xác minh, migration 0008 | PASS | PASS | PASS | PASS | PASS | PASS |
+
+Canary secret (TC_SC008_12) chạy trong job `backend` của cả hai run và PASS (secret mới sinh lúc chạy bị phát hiện, script trả
+exit 1). Chưa đẩy một secret thật lên CI để quan sát job đỏ – cố ý không làm; cơ chế được chứng minh bằng canary.
+Cục bộ (`955083a`): backend 322 passed; ruff/format/mypy/import-linter sạch; truy vết strict exit 0; frontend 4 tests; image dựng
+lại → migration `0008_pricing_source_date`, smoke prod PASS (RAM nghỉ 361 MB), E2E 1 passed; log/stdout 0 secret; 0 usage REAL.
