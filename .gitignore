@@ -1,0 +1,30 @@
+# Secrets & local config
+.env
+.env.*
+!.env.example
+deploy/env/*.env
+!deploy/env/.env.example
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Backups & OS
+backups/
+*.dump
+.DS_Store
+Thumbs.db
