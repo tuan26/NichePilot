@@ -1,4 +1,4 @@
-"""Cấu hình khởi động (T024 – FR-018f, FR-019b, FR-054, FR-057).
+"""Cấu hình khởi động (T024 – FR-018(f), FR-019b, FR-054, FR-057).
 
 Thứ tự ưu tiên: Docker secret file (`/run/secrets/<tên>`) > biến môi trường > file `.env` > mặc định.
 Secret dùng `SecretStr`; không bao giờ đọc hồ sơ OAuth/CLI của người dùng (chỉ API key chính thức).

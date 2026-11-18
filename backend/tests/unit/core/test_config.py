@@ -1,4 +1,4 @@
-"""T012 – Cấu hình ứng dụng (FR-018f, FR-019b, FR-054, FR-057)."""
+"""T012 – Cấu hình ứng dụng (FR-018(f), FR-019b, FR-054, FR-057)."""
 
 from __future__ import annotations
 

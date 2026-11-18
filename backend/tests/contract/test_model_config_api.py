@@ -1,5 +1,5 @@
 """T109 – Contract test /model-profiles, /models, /models/{id}/verification, /model-pricing
-(FR-012, FR-019c, FR-041, FR-018f). Không gọi API thật; không tự đổi model của profile.
+(FR-012, FR-019c, FR-041, FR-018(f)). Không gọi API thật; không tự đổi model của profile.
 """
 
 from __future__ import annotations

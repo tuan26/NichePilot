@@ -1,4 +1,4 @@
-"""Bộ test live – gọi API THẬT (T126, SC-003, FR-018h). Chỉ chạy thủ công: `make test-live`.
+"""Bộ test live – gọi API THẬT (T126, SC-003, FR-018(h)). Chỉ chạy thủ công: `make test-live`.
 
 Từ chối chạy (skip với lý do BLOCKED – không bao giờ tính là PASS) nếu thiếu bất kỳ điều kiện nào:
 API key, `AI_PAID_CALLS_ENABLED=true`, `NICHEPILOT_LIVE_MAX_USD` > 0.

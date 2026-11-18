@@ -19,6 +19,8 @@ def _load() -> ModuleType:
     return mod
 
 
+P = "T" + "C"  # ghép lúc chạy để script truy vết không đếm chuỗi mẫu trong file này là test thật
+
 SPEC = """# Spec
 - **FR-001**: Hệ thống MUST làm A.
 - **FR-002**: Hệ thống MUST làm B,
@@ -35,9 +37,9 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     tests = tmp_path / "tests"
     (tests / "unit").mkdir(parents=True)
     (tests / "live").mkdir()
-    (tests / "unit" / "test_a.py").write_text("def test_TC_FR001_01(): ...\ndef test_TC_FR019c_02(): ...\n")
-    (tests / "unit" / "b.spec.ts").write_text("test('TC-FR073-01 backup', () => {})\n// TC-FR999-01\n")
-    (tests / "live" / "test_live.py").write_text("def test_TC_SC003_L1(): ...\ndef test_TC_FR002_L1(): ...\n")
+    (tests / "unit" / "test_a.py").write_text(f"def test_{P}_FR001_01(): ...\ndef test_{P}_FR019c_02(): ...\n")
+    (tests / "unit" / "b.spec.ts").write_text(f"test('{P}-FR073-01 backup', () => {{}})\n// {P}-FR999-01\n")
+    (tests / "live" / "test_live.py").write_text(f"def test_{P}_SC003_L1(): ...\ndef test_{P}_FR002_L1(): ...\n")
     return spec, tests
 
 
@@ -60,5 +62,22 @@ def test_TC_SC011_02_strict_fails_when_must_missing_auto_test(tmp_path: Path) ->
     out = tmp_path / "r.md"
     assert mod.main(["--spec", str(spec), "--tests", str(tests), "--strict", "--out", str(out)]) == 1
     assert "FR-002" in out.read_text(encoding="utf-8").split("chưa có test tự động", 1)[1]
-    (tests / "unit" / "test_c.py").write_text("def test_TC_FR002_01(): ...\n")
+    (tests / "unit" / "test_c.py").write_text(f"def test_{P}_FR002_01(): ...\n")
     assert mod.main(["--spec", str(spec), "--tests", str(tests), "--strict"]) == 0
+
+
+def test_TC_SC011_03_clause_ids_map_to_parent_requirement(tmp_path: Path) -> None:
+    """Mã có hậu tố chữ (mục f của FR-018) là mục của FR-018 (không phải yêu cầu riêng) → tính cho FR-018."""
+    mod = _load()
+    spec = tmp_path / "spec.md"
+    spec.write_text("- **FR-018**: Mock MUST: (f) kiểm tra cấu hình; (g) mặc định REAL.\n- **FR-019c**: MUST chặn.\n")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_x.py").write_text(
+        f"def test_{P}_FR018f_01(): ...\ndef test_{P}_FR018g_02(): ...\ndef test_{P}_FR019c_01(): ...\n"
+    )
+    reqs, unknown = mod.build(spec, [tests])
+    assert unknown == set()
+    assert len(reqs["FR-018"].auto_tests) == 2
+    assert any("FR-018(f)" in t for t in reqs["FR-018"].auto_tests)
+    assert len(reqs["FR-019c"].auto_tests) == 1  # FR-019c là bullet thật, không gộp vào FR-019

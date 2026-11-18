@@ -303,7 +303,7 @@ async def cost_usage(
     session: SessionDep,
     job_id: uuid.UUID | None = None,
     outcome: str | None = None,
-    data_origin: Literal["REAL", "MOCK"] = "REAL",  # FR-018g: mặc định chỉ chi phí thật
+    data_origin: Literal["REAL", "MOCK"] = "REAL",  # FR-018(g): mặc định chỉ chi phí thật
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:

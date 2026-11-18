@@ -5,6 +5,7 @@
 - Quét test case dạng `TC_<REQ>_<nn>` / `TC-<REQ>-<nn>` (ví dụ `TC_FR033_01` → FR-033)
   trong backend/frontend/deploy tests.
 - Tách test tự động (mock / không gọi API thật) và test live (gọi API thật, chỉ chạy thủ công).
+- Mã có hậu tố chữ không phải bullet riêng (ví dụ `TC_FR018f_04`) được tính cho mục (f) của FR-018.
 - `--strict`: thoát mã 1 nếu có FR mức Must chưa có test tự động nào.
 
 Chỉ dùng thư viện chuẩn: `python scripts/traceability_report.py [--strict] [--out report.md]`.
@@ -24,6 +25,7 @@ DEFAULT_TEST_DIRS = [ROOT / "backend" / "tests", ROOT / "frontend" / "tests", RO
 REQ_LINE = re.compile(r"^- \*\*((?:FR|SC)-\d+[a-z]?)\*\*:\s*(.*)$")
 TC_RE = re.compile(r"TC[_-](FR|SC)-?(\d{3}[a-z]?)[_-]([0-9A-Za-z]+)")
 TEST_SUFFIXES = {".py", ".ts", ".tsx", ".sh"}
+CLAUSE_RE = re.compile(r"^((?:FR|SC)-\d{3})([a-z])$")
 
 
 @dataclass
@@ -75,6 +77,11 @@ def build(spec: Path, dirs: list[Path]) -> tuple[dict[str, Requirement], set[str
     unknown: set[str] = set()
     for req, tc, is_live in scan_tests(dirs):
         r = reqs.get(req)
+        clause = CLAUSE_RE.match(req)
+        if r is None and clause and clause.group(1) in reqs:
+            # `FR-018(f)` = mục (f) của FR-018 (quy ước ghi trong spec: FR-018(f)), không phải yêu cầu riêng.
+            r = reqs[clause.group(1)]
+            tc = f"{tc} [{clause.group(1)}({clause.group(2)})]"
         if r is None:
             unknown.add(req)
             continue

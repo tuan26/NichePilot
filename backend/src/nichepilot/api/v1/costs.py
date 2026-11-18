@@ -1,4 +1,4 @@
-"""Router ngân sách & tổng hợp chi phí (T091 – FR-042, FR-044, FR-047, FR-049, FR-018g).
+"""Router ngân sách & tổng hợp chi phí (T091 – FR-042, FR-044, FR-047, FR-049, FR-018(g)).
 
 Chi phí giả lập (MOCK) luôn tách khỏi chi phí thật; tổng hợp mặc định chỉ lấy REAL.
 """
