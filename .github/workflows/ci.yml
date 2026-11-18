@@ -54,10 +54,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.32"
-      - name: detect-secrets (SC-008)
+      - name: detect-secrets so với baseline đã rà soát (SC-008, N1 – docs/operations/security.md)
+        working-directory: backend
         run: |
-          uvx --from detect-secrets==1.5.0 detect-secrets scan --exclude-files '(package-lock\.json|uv\.lock)$' > /tmp/scan.json
-          python3 -c "import json,sys; r=json.load(open('/tmp/scan.json'))['results']; print(r); sys.exit(1 if r else 0)"
+          uv sync --frozen
+          uv run python scripts/check_secrets.py
 
   smoke:
     # SC-001/SC-002/FR-074: healthy ≤ 5 phút, RAM nghỉ ≤ 3 GB, hot reload ở chế độ dev (mock, không gọi API có phí)

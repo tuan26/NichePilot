@@ -10,7 +10,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = ROOT / "deploy" / "env" / ".env.example"
 CONFIG_DOC = ROOT / "specs" / "001-foundation-ai-infrastructure" / "contracts" / "configuration.md"
-OPS_DOCS = ["README.md", "windows-setup.md", "troubleshooting.md", "backup-restore.md", "enable-real-api.md"]
+OPS_DOCS = [
+    "README.md",
+    "windows-setup.md",
+    "troubleshooting.md",
+    "backup-restore.md",
+    "enable-real-api.md",
+    "security.md",
+]
 
 
 def _env_vars() -> set[str]:

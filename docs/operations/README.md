@@ -8,6 +8,7 @@ Desktop/WSL2). Phạm vi: E0 – nền tảng & hạ tầng AI. Chưa có chức
 | [windows-setup.md](windows-setup.md) | Cài đặt trên Windows 10/11 bằng Docker Desktop + WSL2 |
 | [troubleshooting.md](troubleshooting.md) | Xử lý sự cố thường gặp (CRLF, cổng, RAM WSL, đồng hồ lệch, ổ đĩa log đầy…) |
 | [backup-restore.md](backup-restore.md) | Backup theo lịch, backup thủ công, khôi phục và kiểm thử khôi phục |
+| [security.md](security.md) | Quét secret (detect-secrets), baseline có kiểm soát |
 | [enable-real-api.md](enable-real-api.md) | Chuyển từ MockAIProvider sang API thật – chỉ khi chủ sở hữu cho phép |
 
 ## Khởi động nhanh (Linux)
