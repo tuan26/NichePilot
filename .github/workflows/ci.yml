@@ -1,0 +1,82 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+      - run: uv sync --frozen
+      - name: Lint & format
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy
+      - name: Import boundaries (FR-001, FR-025)
+        run: uv run lint-imports
+      - name: Unit, contract, integration tests (không gọi API có phí – marker live bị loại)
+        run: uv run pytest -m "not live"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+      - name: detect-secrets (SC-008)
+        run: |
+          uvx --from detect-secrets==1.5.0 detect-secrets scan --exclude-files '(package-lock\.json|uv\.lock)$' > /tmp/scan.json
+          python3 -c "import json,sys; r=json.load(open('/tmp/scan.json'))['results']; print(r); sys.exit(1 if r else 0)"
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Start stack (mock provider, paid calls disabled)
+        run: |
+          cp deploy/env/.env.example deploy/env/.env
+          make up
+      - name: Playwright E2E
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm run test:e2e -- --pass-with-no-tests --trace off
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env logs

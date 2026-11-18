@@ -199,6 +199,8 @@ react-i18next 18 + i18next-browser-languagedetector 8, TanStack Query 5, React R
 TypeScript 7.0 (Apache-2.0). Vitest 5 (unit), Playwright 1.65 (E2E). Ngôn ngữ: `vi` mặc định, lưu `localStorage` và đồng
 bộ `users.ui_locale` khi đăng nhập. Script CI so sánh khóa `vi.json`/`en.json` (SC-010).
 
+**Ghi nhận khi triển khai (2026-11-18)**: template chính thức `create-vite` 9.3.4 dùng TypeScript 7.0 + **oxlint** (MIT) thay ESLint; `typescript-eslint` 8.73 chỉ hỗ trợ TypeScript < 6.1 nên dự án dùng oxlint, giữ TypeScript 7. Host `ui.shadcn.com` bị chặn bởi network policy của môi trường phát triển → component shadcn được viết theo mẫu chính thức (MIT) với `clsx`, `tailwind-merge`, `class-variance-authority`.
+
 **Rủi ro**: TypeScript 7 (bản native) còn mới; nếu plugin ESLint/Vite chưa tương thích khi triển khai thì pin TypeScript
 6.x – không ảnh hưởng thiết kế.
 

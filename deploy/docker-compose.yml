@@ -1,0 +1,81 @@
+# NichePilot – Docker Compose (Linux server và Windows Docker Desktop/WSL2).
+# Khởi động: make up
+name: nichepilot
+
+x-backend: &backend
+  build:
+    context: ../backend
+    target: runtime
+  image: nichepilot-backend:local
+  env_file: ./env/.env
+  restart: unless-stopped
+  volumes:
+    - logs:/var/log/nichepilot
+  logging:
+    # Stdout chỉ là bản sao để xem nhanh; bản lưu chính là file log theo ngày trong volume `logs` (FR-057)
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    env_file: ./env/.env
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 1g
+    cpus: 1.0
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 256m
+
+  api:
+    <<: *backend
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    cpus: 1.0
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "nichepilot.worker"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    mem_limit: 1g
+    cpus: 1.0
+
+  web:
+    build:
+      context: ../frontend
+      target: runtime
+    image: nichepilot-web:local
+    restart: unless-stopped
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 128m
+    cpus: 0.5
+
+volumes:
+  pgdata:
+  logs:

@@ -1,0 +1,40 @@
+# Override cho phát triển: hot-reload backend/worker và Vite HMR (FR-074).
+# Dùng: make dev
+services:
+  migrate:
+    build: { context: ../backend, target: dev }
+    image: nichepilot-backend:dev
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/alembic:/app/alembic
+  api:
+    build: { context: ../backend, target: dev }
+    image: nichepilot-backend:dev
+    command: ["uvicorn", "nichepilot.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/alembic:/app/alembic
+      - logs:/var/log/nichepilot
+    ports:
+      - "127.0.0.1:8000:8000"
+  worker:
+    build: { context: ../backend, target: dev }
+    image: nichepilot-backend:dev
+    command: ["watchfiles", "--filter", "python", "python -m nichepilot.worker", "/app/src"]
+    volumes:
+      - ../backend/src:/app/src
+      - logs:/var/log/nichepilot
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 8080"]
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8000
+    volumes:
+      - ../frontend:/app
+      - web_node_modules:/app/node_modules
+    ports:
+      - "8080:8080"
+
+volumes:
+  web_node_modules:

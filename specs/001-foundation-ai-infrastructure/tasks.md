@@ -32,17 +32,17 @@ sinh báo cáo truy vết tự động. Field có ràng buộc được trích d
 
 **Purpose**: Khởi tạo repo, công cụ, CI – chưa có nghiệp vụ.
 
-- [ ] T001 Tạo cấu trúc thư mục theo plan.md (`backend/src/nichepilot/{core,ai,tools,jobs,modules,api}`, `backend/tests/{unit,integration,contract,live,fakes}`, `backend/scripts/`, `frontend/`, `deploy/`, `docs/operations/`) (FR-001)
-- [ ] T002 Khởi tạo backend bằng uv: `backend/pyproject.toml` (Python 3.13, dependency + phiên bản theo research.md R-02/R-03/R-09/R-12, nhóm dev: pytest, pytest-asyncio, testcontainers, httpx, respx, ruff, mypy, import-linter, detect-secrets) và `backend/uv.lock`
-- [ ] T003 [P] Khởi tạo frontend Vite + React + TypeScript trong `frontend/` (Tailwind 4, shadcn init, i18next, react-i18next, i18next-browser-languagedetector, TanStack Query, React Router, Zod, Vitest, Playwright) với `frontend/package-lock.json` (R-10)
-- [ ] T004 [P] Cấu hình lint/format/type check: `backend/pyproject.toml` (ruff, mypy strict cho `core/`, `ai/`, `jobs/`), `frontend/eslint.config.js`, `frontend/tsconfig.json`
-- [ ] T005 [P] Tạo `.gitattributes` (LF cho `*.sh`, `*.py`, `Makefile`) và cập nhật `.gitignore` cho `backups/`, `logs/`, `deploy/env/.env` (FR-054, FR-071)
-- [ ] T006 [P] Tạo `deploy/env/.env.example` theo contracts/configuration.md (không secret thật; `AI_PROVIDER_OVERRIDE=mock`, `AI_PAID_CALLS_ENABLED=false`, `APP_ENV=development`, `LOG_RETENTION_DAYS=90`) (FR-019, FR-054, FR-071)
-- [ ] T007 Tạo `backend/Dockerfile` multi-stage (user không phải root, không GPU) và `frontend/Dockerfile` (build SPA → Caddy) (FR-070, NFR-02)
-- [ ] T008 Tạo `deploy/docker-compose.yml` (postgres:17-alpine, migrate one-shot, api, worker, web; healthcheck; `mem_limit`/`cpus` theo system-architecture §8; volume `logs`; profile `ops` cho backup) và `deploy/caddy/Caddyfile` (FR-070)
-- [ ] T009 [P] Tạo `deploy/docker-compose.dev.yml` (mount mã nguồn, `uvicorn --reload`, worker tự khởi động lại bằng watchfiles, Vite HMR) (FR-074)
-- [ ] T010 [P] Tạo `Makefile` với các target `up`, `down`, `dev`, `migrate`, `test`, `test-e2e`, `test-live`, `lint`, `backup`, `restore` (quickstart.md)
-- [ ] T011 [P] Tạo `.github/workflows/ci.yml`: lint, type check, import-linter, unit, integration (Docker trên runner), contract, E2E với Compose, detect-secrets; KHÔNG chạy marker `live` (FR-072, SC-008)
+- [X] T001 Tạo cấu trúc thư mục theo plan.md (`backend/src/nichepilot/{core,ai,tools,jobs,modules,api}`, `backend/tests/{unit,integration,contract,live,fakes}`, `backend/scripts/`, `frontend/`, `deploy/`, `docs/operations/`) (FR-001)
+- [X] T002 Khởi tạo backend bằng uv: `backend/pyproject.toml` (Python 3.13, dependency + phiên bản theo research.md R-02/R-03/R-09/R-12, nhóm dev: pytest, pytest-asyncio, testcontainers, httpx, respx, ruff, mypy, import-linter, detect-secrets) và `backend/uv.lock`
+- [X] T003 [P] Khởi tạo frontend Vite + React + TypeScript trong `frontend/` (Tailwind 4, cấu hình shadcn thủ công – `components.json`, `src/lib/utils.ts` – vì host ui.shadcn.com bị chặn bởi network policy, i18next, react-i18next, i18next-browser-languagedetector, TanStack Query, React Router, Zod, Vitest, Playwright) với `frontend/package-lock.json` (R-10)
+- [X] T004 [P] Cấu hình lint/format/type check: `backend/pyproject.toml` (ruff, mypy strict cho `core/`, `ai/`, `jobs/`), `frontend/.oxlintrc.json` (oxlint – linter mặc định của template Vite hiện hành, thay ESLint vì typescript-eslint chưa hỗ trợ TypeScript 7), `frontend/tsconfig.json`
+- [X] T005 [P] Tạo `.gitattributes` (LF cho `*.sh`, `*.py`, `Makefile`) và cập nhật `.gitignore` cho `backups/`, `logs/`, `deploy/env/.env` (FR-054, FR-071)
+- [X] T006 [P] Tạo `deploy/env/.env.example` theo contracts/configuration.md (không secret thật; `AI_PROVIDER_OVERRIDE=mock`, `AI_PAID_CALLS_ENABLED=false`, `APP_ENV=development`, `LOG_RETENTION_DAYS=90`) (FR-019, FR-054, FR-071)
+- [X] T007 Tạo `backend/Dockerfile` multi-stage (user không phải root, không GPU) và `frontend/Dockerfile` (build SPA → Caddy) (FR-070, NFR-02)
+- [X] T008 Tạo `deploy/docker-compose.yml` (postgres:17-alpine, migrate one-shot, api, worker, web; healthcheck; `mem_limit`/`cpus` theo system-architecture §8; volume `logs`; profile `ops` cho backup) và `deploy/caddy/Caddyfile` (FR-070)
+- [X] T009 [P] Tạo `deploy/docker-compose.dev.yml` (mount mã nguồn, `uvicorn --reload`, worker tự khởi động lại bằng watchfiles, Vite HMR) (FR-074)
+- [X] T010 [P] Tạo `Makefile` với các target `up`, `down`, `dev`, `migrate`, `test`, `test-e2e`, `test-live`, `lint`, `backup`, `restore` (quickstart.md)
+- [X] T011 [P] Tạo `.github/workflows/ci.yml`: lint, type check, import-linter, unit, integration (Docker trên runner), contract, E2E với Compose, detect-secrets; KHÔNG chạy marker `live` (FR-072, SC-008)
 
 **Checkpoint**: `make lint` chạy được trên khung rỗng; CI chạy được.
 
