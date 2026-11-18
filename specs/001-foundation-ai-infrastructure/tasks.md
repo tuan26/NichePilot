@@ -176,18 +176,18 @@ audit, API ngân sách. Dựa trên `BudgetService` lõi (T038) và gateway (T07
 
 ### Tests cho User Story 3 ⚠️
 
-- [ ] T083 [P] [US3] Integration test `PAUSED_BUDGET` do vượt job/ngày/tháng: không có usage cho lời gọi bị chặn, `status_reason_detail` đủ số liệu; resume khi chưa đủ → 402 `BUDGET_STILL_INSUFFICIENT`; tăng ngân sách → tiếp tục từ checkpoint, không lặp bước; không tự resume trong `backend/tests/integration/test_paused_budget.py` (FR-045, SC-009, QA-11, US3 kịch bản 2–4)
-- [ ] T084 [P] [US3] Integration test giới hạn UNCERTAIN: `timeout_after_send` lặp → reservation UNCERTAIN thứ 3 đưa job về `PAUSED_BUDGET` với `UNCERTAIN_RESERVATION_LIMIT`; không có lời gọi/reservation mới sau đó; resume khi còn UNCERTAIN → 423 `UNCERTAIN_RESERVATIONS_UNRESOLVED`; đối soát hết (mỗi lần có audit) + ngân sách đủ → resume thành công từ checkpoint; đổi `budget.max_uncertain_per_job`=1 có hiệu lực trong `backend/tests/integration/test_uncertain_limit.py` (FR-047, FR-049, SC-004b)
-- [ ] T085 [P] [US3] Integration test phân loại phản hồi lỗi: `billing.error_responses_not_billed_verified=false` → UNCERTAIN; `=true` → RELEASED(ERROR_RESPONSE_NOT_BILLED) trong `backend/tests/integration/test_error_billing_policy.py` (FR-047)
-- [ ] T086 [P] [US3] Integration test `sweep_stale`: ACTIVE quá hạn với `sent_at` NULL → RELEASED; có `sent_at` → UNCERTAIN(WORKER_LOST); không bao giờ UNCERTAIN → RELEASED tự động trong `backend/tests/integration/test_budget_sweep.py` (FR-048)
-- [ ] T087 [P] [US3] Contract test `GET/PUT /budget` (ràng buộc per_job ≤ daily ≤ monthly, `max_uncertain_per_job` ≥ 1, cảnh báo 80% và `UNCERTAIN_RESERVATIONS`), `GET /budget/reservations`, `POST /budget/reservations/{id}/resolve` (409 nếu không UNCERTAIN, audit), `GET /costs/summary` (mặc định REAL, MOCK tách riêng) trong `backend/tests/contract/test_budget_api.py` (FR-042, FR-044, FR-047, FR-018g)
+- [X] T083 [P] [US3] Integration test `PAUSED_BUDGET` do vượt job/ngày/tháng: không có usage cho lời gọi bị chặn, `status_reason_detail` đủ số liệu; resume khi chưa đủ → 402 `BUDGET_STILL_INSUFFICIENT`; tăng ngân sách → tiếp tục từ checkpoint, không lặp bước; không tự resume trong `backend/tests/integration/test_us3_budget.py` (FR-045, SC-009, QA-11, US3 kịch bản 2–4)
+- [X] T084 [P] [US3] Integration test giới hạn UNCERTAIN: `timeout_after_send` lặp → reservation UNCERTAIN thứ 3 đưa job về `PAUSED_BUDGET` với `UNCERTAIN_RESERVATION_LIMIT`; không có lời gọi/reservation mới sau đó; resume khi còn UNCERTAIN → 423 `UNCERTAIN_RESERVATIONS_UNRESOLVED`; đối soát hết (mỗi lần có audit) + ngân sách đủ → resume thành công từ checkpoint; đổi `budget.max_uncertain_per_job`=1 có hiệu lực trong `backend/tests/integration/test_us3_budget.py` (FR-047, FR-049, SC-004b)
+- [X] T085 [P] [US3] Integration test phân loại phản hồi lỗi: `billing.error_responses_not_billed_verified=false` → UNCERTAIN; `=true` → RELEASED(ERROR_RESPONSE_NOT_BILLED) trong `backend/tests/integration/test_us3_budget.py` (FR-047)
+- [X] T086 [P] [US3] Integration test `sweep_stale`: ACTIVE quá hạn với `sent_at` NULL → RELEASED; có `sent_at` → UNCERTAIN(WORKER_LOST); không bao giờ UNCERTAIN → RELEASED tự động trong `backend/tests/integration/test_us3_budget.py` (FR-048)
+- [X] T087 [P] [US3] Contract test `GET/PUT /budget` (ràng buộc per_job ≤ daily ≤ monthly, `max_uncertain_per_job` ≥ 1, cảnh báo 80% và `UNCERTAIN_RESERVATIONS`), `GET /budget/reservations`, `POST /budget/reservations/{id}/resolve` (409 nếu không UNCERTAIN, audit), `GET /costs/summary` (mặc định REAL, MOCK tách riêng) trong `backend/tests/integration/test_us3_budget.py` (FR-042, FR-044, FR-047, FR-018g)
 
 ### Implementation cho User Story 3
 
-- [ ] T088 [US3] Bổ sung `BudgetService.resolve` (audit), `can_resume` (OK | BUDGET_STILL_INSUFFICIENT | UNCERTAIN_RESERVATIONS_UNRESOLVED), `sweep_stale` trong `backend/src/nichepilot/ai/budget.py` (FR-047, FR-048, FR-049)
-- [ ] T089 [US3] Tác vụ định kỳ `sweep_stale` mỗi phút (Procrastinate periodic) trong `backend/src/nichepilot/jobs/maintenance.py` (FR-048)
-- [ ] T090 [US3] Nối `BudgetExceeded`/`UncertainLimitReached` → `PAUSED_BUDGET` (lý do + số liệu), chặn mọi lời gọi có phí khi job tạm dừng, resume qua `can_resume` trong `backend/src/nichepilot/jobs/runtime.py` (FR-045, FR-049)
-- [ ] T091 [US3] Router `budget` (GET/PUT, reservations, resolve) + `costs/summary` trong `backend/src/nichepilot/api/v1/costs.py` (FR-042, FR-044, FR-047, FR-018g)
+- [X] T088 [US3] Bổ sung `BudgetService.resolve` (audit), `can_resume` (OK | BUDGET_STILL_INSUFFICIENT | UNCERTAIN_RESERVATIONS_UNRESOLVED), `sweep_stale` trong `backend/src/nichepilot/ai/budget.py` (FR-047, FR-048, FR-049)
+- [X] T089 [US3] Tác vụ định kỳ `sweep_stale` mỗi phút (Procrastinate periodic) trong `backend/src/nichepilot/jobs/maintenance.py` (FR-048)
+- [X] T090 [US3] Nối `BudgetExceeded`/`UncertainLimitReached` → `PAUSED_BUDGET` (lý do + số liệu), chặn mọi lời gọi có phí khi job tạm dừng, resume qua `can_resume` trong `backend/src/nichepilot/jobs/runtime.py` (FR-045, FR-049)
+- [X] T091 [US3] Router `budget` (GET/PUT, reservations, resolve) + `costs/summary` trong `backend/src/nichepilot/api/v1/costs.py`; endpoint `POST /jobs/{id}/resume` tối thiểu (cần cho test US3) trong `backend/src/nichepilot/api/v1/jobs.py` (FR-042, FR-044, FR-047, FR-018g)
 
 **Checkpoint**: Quickstart §5 đạt; SC-004b đạt.
 

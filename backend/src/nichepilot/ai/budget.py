@@ -368,3 +368,114 @@ class BudgetService:
                 )
             ).scalar_one()
         return LedgerStatus(origin, limits, day, month, int(count), unc_day, unc_month)
+
+    # ------------------------------------------------------------------ US3: đối soát, tiếp tục, reservation treo
+    async def resolve(
+        self,
+        reservation_id: uuid.UUID,
+        actual_usd: Decimal,
+        note: str,
+        user_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> None:
+        """Chủ sở hữu đối soát reservation UNCERTAIN bằng chi phí thực tế (FR-047) – ghi audit cùng transaction."""
+        if actual_usd < ZERO:
+            raise ValueError("actual_usd phải >= 0")
+        from nichepilot.modules.audit.service import record_audit
+
+        async with self._sessionmaker() as session, session.begin():
+            row = (
+                await session.execute(
+                    text(
+                        "UPDATE budget_reservations SET status = 'RESOLVED', actual_usd = :a, resolution_note = :n,"
+                        " resolved_by = :u, resolved_at = now(), updated_at = now()"
+                        " WHERE id = :id AND status = 'UNCERTAIN' RETURNING job_id, amount_usd, uncertain_reason"
+                    ),
+                    {"id": reservation_id, "a": actual_usd, "n": note, "u": user_id},
+                )
+            ).first()
+            if row is None:
+                raise ReservationStateError(f"Reservation {reservation_id} không ở trạng thái UNCERTAIN")
+            await record_audit(
+                session,
+                action="budget.reservation_resolved",
+                actor_type="USER",
+                actor_id=user_id,
+                entity_type="budget_reservation",
+                entity_id=reservation_id,
+                before={"status": "UNCERTAIN", "amount_usd": str(row.amount_usd), "reason": row.uncertain_reason},
+                after={"status": "RESOLVED", "actual_usd": str(actual_usd), "note": note},
+                request_id=request_id,
+            )
+
+    async def can_resume(self, job_id: uuid.UUID, next_call_estimate: Decimal = Decimal("0.000001")) -> str:
+        """OK | UNCERTAIN_RESERVATIONS_UNRESOLVED | BUDGET_STILL_INSUFFICIENT (FR-045, FR-049)."""
+        async with self._sessionmaker() as session:
+            jrow = (
+                await session.execute(
+                    text("SELECT data_origin, status_reason_code, status_reason_detail FROM agent_jobs WHERE id = :j"),
+                    {"j": job_id},
+                )
+            ).one()
+            uncertain = (
+                await session.execute(
+                    text("SELECT COUNT(*) FROM budget_reservations WHERE job_id = :j AND status = 'UNCERTAIN'"),
+                    {"j": job_id},
+                )
+            ).scalar_one()
+        if jrow.status_reason_code == "UNCERTAIN_RESERVATION_LIMIT" and int(uncertain) > 0:
+            return "UNCERTAIN_RESERVATIONS_UNRESOLVED"
+        detail = jrow.status_reason_detail or {}
+        if detail.get("requested_usd"):
+            # Phải đủ ngân sách cho đúng lời gọi đã bị chặn, không chỉ một khoản tối thiểu.
+            next_call_estimate = max(next_call_estimate, Decimal(str(detail["requested_usd"])))
+        try:
+            async with self._sessionmaker() as session:
+                limits = await self.load_limits(session)
+                w = period_windows(self._clock(), limits.timezone)
+                day, _ = await self._scope(session, jrow.data_origin, w.day_start, w.day_end)
+                month, _ = await self._scope(session, jrow.data_origin, w.month_start, w.month_end)
+                j = (await session.execute(_JOB_SQL, {"j": job_id})).one()
+            evaluate_reservation(
+                amount=next_call_estimate,
+                daily_limit=limits.daily,
+                monthly_limit=limits.monthly,
+                job_limit=Decimal(j.job_limit),
+                day=day,
+                month=month,
+                job=ScopeUsage(Decimal(j.spent), Decimal(j.held)),
+                job_uncertain_count=int(j.uncertain_count),
+                max_uncertain_per_job=limits.max_uncertain_per_job,
+                job_id=job_id,
+            )
+        except BudgetExceededError:
+            return "BUDGET_STILL_INSUFFICIENT"
+        except UncertainLimitReachedError:
+            return "UNCERTAIN_RESERVATIONS_UNRESOLVED"
+        return "OK"
+
+    async def sweep_stale(self) -> dict[str, int]:
+        """Reservation ACTIVE quá hạn (ví dụ worker chết): chưa gửi → RELEASED; đã gửi → UNCERTAIN(WORKER_LOST).
+        Không bao giờ chạm vào reservation UNCERTAIN (FR-048)."""
+        async with self._sessionmaker() as session, session.begin():
+            released = (
+                await session.execute(
+                    text(
+                        "UPDATE budget_reservations SET status = 'RELEASED', release_reason = 'NOT_SENT',"
+                        " updated_at = now()"
+                        " WHERE status = 'ACTIVE' AND expires_at < now() AND sent_at IS NULL RETURNING id"
+                    )
+                )
+            ).all()
+            uncertain = (
+                await session.execute(
+                    text(
+                        "UPDATE budget_reservations SET status = 'UNCERTAIN', uncertain_reason = 'WORKER_LOST',"
+                        " updated_at = now() WHERE status = 'ACTIVE' AND expires_at < now() AND sent_at IS NOT NULL"
+                        " RETURNING id"
+                    )
+                )
+            ).all()
+        if released or uncertain:
+            log.warning("budget.sweep_stale", released=len(released), uncertain=len(uncertain))
+        return {"released": len(released), "uncertain": len(uncertain)}

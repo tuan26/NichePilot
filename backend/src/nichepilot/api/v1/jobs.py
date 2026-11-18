@@ -320,3 +320,47 @@ async def cost_usage(
         .all()
     )
     return {"page": page, "page_size": page_size, "total": total, "items": [usage_dict(u) for u in rows]}
+
+
+@router.post("/jobs/{job_id}/resume", status_code=status.HTTP_202_ACCEPTED)
+async def resume_job(
+    job_id: uuid.UUID, request: Request, user: UserDep, session: SessionDep, meta: MetaDep
+) -> dict[str, Any]:
+    """Tiếp tục job PAUSED / PAUSED_BUDGET từ checkpoint (FR-045, FR-049). Không bao giờ tự resume."""
+    svc = services(request)
+    job = await _get_job(session, job_id)
+    if job["status"] not in ("PAUSED", "PAUSED_BUDGET"):
+        raise AppError("INVALID_JOB_TRANSITION", params={"from": job["status"], "action": "resume"})
+    if job["status"] == "PAUSED_BUDGET":
+        check = await svc.gateway.budget.can_resume(job_id)
+        if check != "OK":
+            raise AppError(check)
+    row = (
+        (
+            await session.execute(
+                text(
+                    "UPDATE agent_jobs SET status = 'QUEUED', pause_requested = false, status_reason_code = NULL,"
+                    " status_reason_detail = NULL, updated_at = now() WHERE id = :j AND status = :st RETURNING *"
+                ),
+                {"j": job_id, "st": job["status"]},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:
+        raise AppError("INVALID_JOB_TRANSITION", params={"action": "resume"})
+    await record_audit(
+        session,
+        action="job.resumed",
+        actor_type="USER",
+        actor_id=user.id,
+        entity_type="agent_job",
+        entity_id=job_id,
+        before={"status": job["status"]},
+        after={"status": "QUEUED"},
+        request_id=meta.request_id,
+    )
+    await session.commit()
+    await svc.job_queue.enqueue_run(job_id)
+    return job_dict(row)

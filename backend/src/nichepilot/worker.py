@@ -11,6 +11,7 @@ import asyncio
 from nichepilot.core.config import detect_ignored_credentials, get_settings
 from nichepilot.core.db import dispose_db, init_db
 from nichepilot.core.logging import configure_logging, get_logger
+from nichepilot.jobs.maintenance import MAINTENANCE_QUEUE
 from nichepilot.jobs.queue import JOB_QUEUE_NAME
 from nichepilot.services import build_services
 
@@ -33,7 +34,9 @@ async def main() -> None:
     try:
         async with services.procrastinate_app.open_async():
             await services.procrastinate_app.run_worker_async(
-                queues=[JOB_QUEUE_NAME], concurrency=settings.worker_concurrency, name="nichepilot-worker"
+                queues=[JOB_QUEUE_NAME, MAINTENANCE_QUEUE],
+                concurrency=settings.worker_concurrency,
+                name="nichepilot-worker",
             )
     finally:
         await dispose_db()
