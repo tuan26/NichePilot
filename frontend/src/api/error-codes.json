@@ -1,0 +1,154 @@
+{
+  "AI_REFUSED": {
+    "status": 422,
+    "title": "The AI provider refused the request"
+  },
+  "AI_SCHEMA_INVALID": {
+    "status": 422,
+    "title": "The AI output did not match the schema"
+  },
+  "AI_TRUNCATED": {
+    "status": 422,
+    "title": "The AI output was truncated"
+  },
+  "ALREADY_SETUP": {
+    "status": 409,
+    "title": "Owner account already exists"
+  },
+  "AUTH_INVALID_CREDENTIALS": {
+    "status": 401,
+    "title": "Invalid username or password"
+  },
+  "AUTH_LOCKED": {
+    "status": 423,
+    "title": "Account temporarily locked"
+  },
+  "AUTH_REQUIRED": {
+    "status": 401,
+    "title": "Authentication required"
+  },
+  "BUDGET_DAILY_EXCEEDED": {
+    "status": 402,
+    "title": "Daily AI budget exceeded"
+  },
+  "BUDGET_JOB_EXCEEDED": {
+    "status": 402,
+    "title": "Job AI budget exceeded"
+  },
+  "BUDGET_MONTHLY_EXCEEDED": {
+    "status": 402,
+    "title": "Monthly AI budget exceeded"
+  },
+  "BUDGET_NOT_CONFIGURED": {
+    "status": 422,
+    "title": "Budget is not configured"
+  },
+  "BUDGET_STILL_INSUFFICIENT": {
+    "status": 402,
+    "title": "Budget is still insufficient"
+  },
+  "CSRF_INVALID": {
+    "status": 403,
+    "title": "Missing or invalid CSRF token"
+  },
+  "INTERNAL_ERROR": {
+    "status": 500,
+    "title": "Internal error"
+  },
+  "INVALID_JOB_TRANSITION": {
+    "status": 409,
+    "title": "Invalid job state transition"
+  },
+  "JOB_TIMEOUT": {
+    "status": 504,
+    "title": "Job timed out"
+  },
+  "MAX_AI_CALLS_EXCEEDED": {
+    "status": 409,
+    "title": "Maximum AI calls exceeded"
+  },
+  "MAX_STEPS_EXCEEDED": {
+    "status": 409,
+    "title": "Maximum agent steps exceeded"
+  },
+  "MOCK_NOT_ALLOWED": {
+    "status": 409,
+    "title": "Mock provider is not allowed in production"
+  },
+  "MODEL_NOT_VERIFIED": {
+    "status": 409,
+    "title": "Model is not verified for paid calls"
+  },
+  "NOT_FOUND": {
+    "status": 404,
+    "title": "Not found"
+  },
+  "PAID_CALLS_DISABLED": {
+    "status": 409,
+    "title": "Paid API calls are disabled"
+  },
+  "PRICING_MISSING": {
+    "status": 409,
+    "title": "No pricing for model"
+  },
+  "PRICING_NOT_VERIFIED": {
+    "status": 409,
+    "title": "Model pricing is not verified"
+  },
+  "PROVIDER_AUTH_ERROR": {
+    "status": 502,
+    "title": "Provider rejected the credentials"
+  },
+  "PROVIDER_NETWORK_ERROR": {
+    "status": 502,
+    "title": "Network error reaching provider"
+  },
+  "PROVIDER_NOT_CONFIGURED": {
+    "status": 409,
+    "title": "Provider is not configured"
+  },
+  "PROVIDER_RATE_LIMITED": {
+    "status": 429,
+    "title": "Provider rate limited the request"
+  },
+  "PROVIDER_TIMEOUT": {
+    "status": 504,
+    "title": "Provider timed out"
+  },
+  "PROVIDER_UNAVAILABLE": {
+    "status": 502,
+    "title": "Provider unavailable"
+  },
+  "RESERVATION_NOT_UNCERTAIN": {
+    "status": 409,
+    "title": "Reservation is not in UNCERTAIN state"
+  },
+  "SERVICE_UNAVAILABLE": {
+    "status": 503,
+    "title": "Service temporarily unavailable"
+  },
+  "TOOL_EXTERNAL_EFFECT_DISABLED": {
+    "status": 403,
+    "title": "Tools with external effects are disabled"
+  },
+  "TOOL_NOT_PERMITTED": {
+    "status": 403,
+    "title": "Tool not permitted for this agent"
+  },
+  "UNCERTAIN_RESERVATIONS_UNRESOLVED": {
+    "status": 423,
+    "title": "Job has unresolved uncertain reservations"
+  },
+  "UNCERTAIN_RESERVATION_LIMIT": {
+    "status": 409,
+    "title": "Job reached the uncertain reservation limit"
+  },
+  "VALIDATION_ERROR": {
+    "status": 422,
+    "title": "Validation error"
+  },
+  "VERSION_CONFLICT": {
+    "status": 409,
+    "title": "Resource was modified concurrently"
+  }
+}

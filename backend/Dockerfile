@@ -1,24 +1,37 @@
 # syntax=docker/dockerfile:1
+# Build tùy chọn sau proxy có CA riêng (ví dụ proxy doanh nghiệp):
+#   docker build --secret id=extra_ca,src=/path/ca-bundle.crt ...
+# CA chỉ được dùng trong các bước tải gói, KHÔNG được ghi vào image.
 FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -s /run/secrets/extra_ca ]; then export PIP_CERT=/run/secrets/extra_ca; fi; \
+    pip install --no-cache-dir uv==0.11.32
 WORKDIR /app
 
 FROM base AS deps
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
+    uv sync --frozen --no-dev --no-install-project
 
 FROM deps AS dev
-RUN uv sync --frozen --no-install-project
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
+    uv sync --frozen --no-install-project
 COPY . .
-RUN uv sync --frozen
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
+    uv sync --frozen
 ENV PATH="/app/.venv/bin:$PATH"
 
 FROM deps AS runtime
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
-RUN uv sync --frozen --no-dev \
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
+    uv sync --frozen --no-dev \
     && groupadd --system app && useradd --system --gid app --home /app app \
     && mkdir -p /var/log/nichepilot && chown app:app /var/log/nichepilot
 ENV PATH="/app/.venv/bin:$PATH"

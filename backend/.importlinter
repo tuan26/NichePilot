@@ -1,0 +1,31 @@
+[importlinter]
+root_package = nichepilot
+include_external_packages = False
+
+# FR-001: phân tầng modular monolith – tầng dưới không được import tầng trên.
+[importlinter:contract:layers]
+name = Phân tầng: api > jobs > (ai, tools, modules) > core
+type = layers
+layers =
+    nichepilot.api
+    nichepilot.jobs
+    nichepilot.ai : nichepilot.tools : nichepilot.modules
+    nichepilot.core
+
+# FR-025: agent chỉ dùng AI Gateway, Tool Registry và Job Runtime dùng chung – không gọi provider trực tiếp.
+[importlinter:contract:agents-no-providers]
+name = Agent không import provider AI trực tiếp
+type = forbidden
+source_modules =
+    nichepilot.jobs.agents
+forbidden_modules =
+    nichepilot.ai.providers
+allow_indirect_imports = True
+
+# Module nghiệp vụ độc lập nhau: identity và evidence không phụ thuộc lẫn nhau.
+[importlinter:contract:modules-independent]
+name = Module identity và evidence độc lập
+type = independence
+modules =
+    nichepilot.modules.identity
+    nichepilot.modules.evidence
