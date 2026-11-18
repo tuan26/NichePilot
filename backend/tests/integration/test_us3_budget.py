@@ -71,7 +71,9 @@ async def test_TC_FR045_01_paused_budget_then_resume_from_checkpoint(db: AsyncEn
         assert steps[2]["attempt"] == 2
 
 
-async def test_TC_FR049_03_uncertain_limit_pauses_and_requires_reconciliation(db: AsyncEngine, migrated_db: str) -> None:
+async def test_TC_FR049_03_uncertain_limit_pauses_and_requires_reconciliation(
+    db: AsyncEngine, migrated_db: str
+) -> None:
     async with api_client(migrated_db) as client:
         await setup_owner(client)
         job = await _create(client, params={"mock_scenario": "timeout_after_send"})
@@ -127,13 +129,24 @@ async def test_TC_FR047_06_error_response_policy(db: AsyncEngine, migrated_db: s
         await set_setting(db, "billing.error_responses_not_billed_verified", '{"mock": false}')
         job = await _create(client, params={"mock_scenario": "provider_error"})
         assert job["status_reason_code"] == "UNCERTAIN_RESERVATION_LIMIT"
-        assert await _count(db, "SELECT COUNT(*) FROM budget_reservations WHERE uncertain_reason = 'ERROR_BILLING_UNVERIFIED'") == 3
+        assert (
+            await _count(
+                db, "SELECT COUNT(*) FROM budget_reservations WHERE uncertain_reason = 'ERROR_BILLING_UNVERIFIED'"
+            )
+            == 3
+        )
         await set_setting(db, "billing.error_responses_not_billed_verified", '{"mock": true}')
         job2 = await _create(client, params={"mock_scenario": "provider_error"})
-        assert job2["status_reason_code"] == "PROVIDER_UNAVAILABLE"
-        assert await _count(
-            db, "SELECT COUNT(*) FROM budget_reservations WHERE job_id = :j AND release_reason = 'ERROR_RESPONSE_NOT_BILLED'", j=job2["id"]
-        ) == 3
+        assert job2["status_reason_code"] == "PROVIDER_UNAVAILABLE" and job2["attempt"] == 3
+        # US4: lỗi tạm thời được retry tự động (3 lượt job × 3 lần thử ở gateway) → 9 reservation được giải phóng
+        assert (
+            await _count(
+                db,
+                "SELECT COUNT(*) FROM budget_reservations WHERE job_id = :j AND release_reason = 'ERROR_RESPONSE_NOT_BILLED'",
+                j=job2["id"],
+            )
+            == 9
+        )
     _ = sm
 
 
@@ -150,8 +163,15 @@ async def test_TC_FR048_01_sweep_stale(db: AsyncEngine) -> None:
         await conn.execute(text("UPDATE budget_reservations SET expires_at = now() - interval '1 second'"))
     assert await svc.sweep_stale() == {"released": 1, "uncertain": 1}
     async with db.connect() as conn:
-        rows = dict((await conn.execute(text(
-            "SELECT id, status || ':' || COALESCE(release_reason, uncertain_reason) FROM budget_reservations"))).all())
+        rows = dict(
+            (
+                await conn.execute(
+                    text(
+                        "SELECT id, status || ':' || COALESCE(release_reason, uncertain_reason) FROM budget_reservations"
+                    )
+                )
+            ).all()
+        )
     assert rows[not_sent.id] == "RELEASED:NOT_SENT"
     assert rows[sent.id] == "UNCERTAIN:WORKER_LOST"
     assert rows[unc.id] == "UNCERTAIN:TIMEOUT_AFTER_SEND"  # không bao giờ tự giải phóng UNCERTAIN
@@ -163,14 +183,23 @@ async def test_TC_FR042_02_budget_api_validation_and_summary(db: AsyncEngine, mi
         await setup_owner(client)
         b = (await client.get("/api/v1/budget")).json()
         assert b["limits"]["daily_usd"] == "3.000000" and b["limits"]["max_uncertain_per_job"] == 3
-        bad = await client.put("/api/v1/budget", json={"daily_usd": "1", "monthly_usd": "30", "per_job_default_usd": "2"},
-                               headers=csrf_headers(client))
+        bad = await client.put(
+            "/api/v1/budget",
+            json={"daily_usd": "1", "monthly_usd": "30", "per_job_default_usd": "2"},
+            headers=csrf_headers(client),
+        )
         assert bad.status_code == 422
-        bad2 = await client.put("/api/v1/budget", json={"daily_usd": "3", "monthly_usd": "30", "per_job_default_usd": "2",
-                                                        "max_uncertain_per_job": 0}, headers=csrf_headers(client))
+        bad2 = await client.put(
+            "/api/v1/budget",
+            json={"daily_usd": "3", "monthly_usd": "30", "per_job_default_usd": "2", "max_uncertain_per_job": 0},
+            headers=csrf_headers(client),
+        )
         assert bad2.status_code == 422
-        ok = await client.put("/api/v1/budget", json={"daily_usd": "0.001", "monthly_usd": "30", "per_job_default_usd": "0.001",
-                                                      "warning_threshold": 0.4}, headers=csrf_headers(client))
+        ok = await client.put(
+            "/api/v1/budget",
+            json={"daily_usd": "0.001", "monthly_usd": "30", "per_job_default_usd": "0.001", "warning_threshold": 0.4},
+            headers=csrf_headers(client),
+        )
         assert ok.status_code == 200 and ok.json()["limits"]["daily_usd"] == "0.001000"
         assert await _count(db, "SELECT COUNT(*) FROM audit_logs WHERE action = 'budget.limits_updated'") == 1
         await _create(client)  # chạm ngân sách ngày (sổ MOCK)

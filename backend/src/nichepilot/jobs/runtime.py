@@ -7,7 +7,7 @@ checkpoint sau mỗi bước, chuyển trạng thái job. Agent chỉ dùng AI G
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -26,6 +26,10 @@ from nichepilot.core.logging import bind_context, get_logger
 from nichepilot.tools.registry import ToolContext, ToolDeniedError, ToolRegistry
 
 log = get_logger(__name__)
+RETRYABLE_CODES = frozenset(
+    {"PROVIDER_TIMEOUT", "PROVIDER_RATE_LIMITED", "PROVIDER_UNAVAILABLE", "PROVIDER_NETWORK_ERROR"}
+)
+Requeue = Callable[[uuid.UUID, int], Awaitable[object]]
 StepType = Literal["AI_CALL", "TOOL_CALL", "LOGIC"]
 RUNNABLE = ("QUEUED", "RETRY_SCHEDULED")
 
@@ -168,12 +172,17 @@ class JobRuntime:
         tools: ToolRegistry,
         agents: dict[str, Agent],
         settings: Settings,
+        *,
+        requeue: Requeue | None = None,
+        heartbeat_interval_s: float = 15.0,
     ) -> None:
         self.sessionmaker = sessionmaker
         self.gateway = gateway
         self.tools = tools
         self.agents = agents
         self.settings = settings
+        self.requeue = requeue  # hàng đợi để retry tự động (None = không retry tự động)
+        self.heartbeat_interval_s = heartbeat_interval_s
 
     async def _exec(self, sql: str, **params: Any) -> Any:
         async with self.sessionmaker() as s, s.begin():
@@ -259,7 +268,6 @@ class JobRuntime:
 
     async def run(self, job_id: uuid.UUID) -> str | None:
         import asyncio
-        import json
 
         job = await self._claim(job_id)
         if job is None:
@@ -282,6 +290,35 @@ class JobRuntime:
         )
         state: dict[str, Any] = dict(job["checkpoint"] or {})
         seq = int(job["last_completed_seq"]) + 1
+        heartbeat = asyncio.create_task(self._heartbeat(job_id))
+        try:
+            return await self._loop(job, agent, ctx, state, seq)
+        finally:
+            heartbeat.cancel()
+
+    async def _heartbeat(self, job_id: uuid.UUID) -> None:
+        """Heartbeat nền khi job RUNNING – để phân biệt bước chạy lâu với worker đã chết (SC-006)."""
+        import asyncio
+
+        while True:
+            await asyncio.sleep(self.heartbeat_interval_s)
+            await self._exec(
+                "UPDATE agent_jobs SET heartbeat_at = now() WHERE id = :j AND status = 'RUNNING'", j=job_id
+            )
+
+    async def _has_uncertain(self, job_id: uuid.UUID) -> bool:
+        result = await self._exec(
+            "SELECT COUNT(*) FROM budget_reservations WHERE job_id = :j AND status = 'UNCERTAIN'", j=job_id
+        )
+        return int(result.scalar_one()) > 0
+
+    async def _loop(
+        self, job: dict[str, Any], agent: Agent, ctx: JobContext, state: dict[str, Any], seq: int
+    ) -> str | None:
+        import asyncio
+        import json
+
+        job_id = ctx.job_id
         step_id: uuid.UUID | None = None
         try:
             async with asyncio.timeout(int(job["timeout_s"])):
@@ -289,9 +326,17 @@ class JobRuntime:
                     if seq > int(job["max_steps"]):
                         await self._finish(job_id, "FAILED", "MAX_STEPS_EXCEEDED")
                         return "FAILED"
-                    if await ctx.is_cancelled():
+                    flags = (
+                        await self._exec(
+                            "SELECT cancel_requested, pause_requested FROM agent_jobs WHERE id = :j", j=job_id
+                        )
+                    ).one()
+                    if flags.cancel_requested:
                         await self._finish(job_id, "CANCELLED", "JOB_CANCELLED")
                         return "CANCELLED"
+                    if flags.pause_requested:
+                        await self._finish(job_id, "PAUSED")
+                        return "PAUSED"
                     step_id = await self._start_step(job_id, seq, job["data_origin"])
                     ctx.step_id, ctx.seq, ctx.step_cost, ctx.step_origin = step_id, seq, Decimal(0), None
                     outcome = await agent.run_step(seq, state, ctx)
@@ -333,6 +378,15 @@ class JobRuntime:
         except ToolDeniedError as exc:
             return await self._fail(job_id, step_id, ctx, "FAILED", exc.code, {"tool": exc.tool})
         except AppError as exc:
+            if (
+                exc.code in RETRYABLE_CODES
+                and self.requeue is not None
+                and int(job["attempt"]) < int(job["max_attempts"])
+                and not await self._has_uncertain(job_id)  # không gọi lại API khi chi phí chưa xác định
+            ):
+                status = await self._fail(job_id, step_id, ctx, "RETRY_SCHEDULED", exc.code, exc.params or None)
+                await self.requeue(job_id, self.settings.job_retry_delay_s)
+                return status
             step_status = {"AI_REFUSED": "REFUSED", "AI_TRUNCATED": "TRUNCATED"}.get(exc.code, "FAILED")
             return await self._fail(
                 job_id, step_id, ctx, "FAILED", exc.code, exc.params or None, step_status=step_status

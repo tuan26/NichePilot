@@ -17,7 +17,7 @@ JOB_QUEUE_NAME = "agent_jobs"
 
 
 class JobQueue(Protocol):
-    async def enqueue_run(self, job_id: uuid.UUID) -> int | None: ...
+    async def enqueue_run(self, job_id: uuid.UUID, delay_s: int = 0) -> int | None: ...
 
 
 def conninfo_from_url(url: str) -> str:
@@ -43,10 +43,13 @@ class ProcrastinateJobQueue:
     def __init__(self, app: procrastinate.App) -> None:
         self.app = app
 
-    async def enqueue_run(self, job_id: uuid.UUID) -> int | None:
+    async def enqueue_run(self, job_id: uuid.UUID, delay_s: int = 0) -> int | None:
         lock = f"agent_job:{job_id}"
         task = self.app.tasks[TASK_NAME]
+        options: dict[str, object] = {"queueing_lock": lock, "lock": lock}
+        if delay_s > 0:
+            options["schedule_in"] = {"seconds": delay_s}
         try:
-            return await task.configure(queueing_lock=lock, lock=lock).defer_async(job_id=str(job_id))
+            return await task.configure(**options).defer_async(job_id=str(job_id))  # type: ignore[arg-type]
         except procrastinate.exceptions.AlreadyEnqueued:
             return None  # đã có lượt chờ chạy cho job này – không tạo trùng

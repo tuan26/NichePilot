@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 
+from sqlalchemy import text
+
 from nichepilot.core.config import detect_ignored_credentials, get_settings
 from nichepilot.core.db import dispose_db, init_db
 from nichepilot.core.logging import configure_logging, get_logger
@@ -16,6 +18,11 @@ from nichepilot.jobs.queue import JOB_QUEUE_NAME
 from nichepilot.services import build_services
 
 log = get_logger(__name__)
+
+
+def effective_concurrency(*, env_cap: int, configured: int) -> int:
+    """Số job đồng thời = min(WORKER_CONCURRENCY, setting worker.max_concurrent_jobs), tối thiểu 1 (FR-038)."""
+    return max(1, min(env_cap, configured))
 
 
 async def main() -> None:
@@ -30,12 +37,17 @@ async def main() -> None:
         log.warning("ignored credential variable", variable=name)
     sessionmaker = init_db(settings.database_url.get_secret_value())
     services = build_services(settings, sessionmaker)
-    log.info("worker started", app_env=settings.app_env, concurrency=settings.worker_concurrency)
+    async with sessionmaker() as session:
+        configured = (
+            await session.execute(text("SELECT value FROM settings WHERE key = 'worker.max_concurrent_jobs'"))
+        ).scalar_one()
+    concurrency = effective_concurrency(env_cap=settings.worker_concurrency, configured=int(configured))
+    log.info("worker started", app_env=settings.app_env, concurrency=concurrency)
     try:
         async with services.procrastinate_app.open_async():
             await services.procrastinate_app.run_worker_async(
                 queues=[JOB_QUEUE_NAME, MAINTENANCE_QUEUE],
-                concurrency=settings.worker_concurrency,
+                concurrency=concurrency,
                 name="nichepilot-worker",
             )
     finally:

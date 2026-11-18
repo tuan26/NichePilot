@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     mock_ai_default_scenario: str = "success"
 
     worker_concurrency: int = Field(default=1, ge=1, le=8)
+    job_retry_delay_s: int = Field(default=30, ge=0)
+    job_stalled_after_s: int = Field(default=120, ge=30)
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_format: Literal["json", "console"] = "json"

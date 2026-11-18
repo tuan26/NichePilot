@@ -22,6 +22,7 @@ def make_settings(db_url: str, **overrides: Any) -> Settings:
         "app_env": "test",
         "ai_provider_override": "mock",
         "log_format": "json",
+        "job_retry_delay_s": 0,
     }
     values.update(overrides)
     return Settings(_env_file=None, _secrets_dir=None, **values)

@@ -201,20 +201,20 @@ audit, API ngân sách. Dựa trên `BudgetService` lõi (T038) và gateway (T07
 
 ### Tests cho User Story 4 ⚠️
 
-- [ ] T092 [P] [US4] Unit test `JobStateMachine`: mọi chuyển hợp lệ theo data-model.md §7, chuyển không hợp lệ → `INVALID_JOB_TRANSITION` trong `backend/tests/unit/jobs/test_state_machine.py` (FR-030)
-- [ ] T093 [P] [US4] Integration test cancel giữa chừng (không thêm lời gọi AI; kết quả về sau khi hủy bị bỏ qua nhưng chi phí vẫn ghi) và pause → resume từ bước kế trong `backend/tests/integration/test_job_cancel_pause.py` (FR-032, QA-09, SC-009)
-- [ ] T094 [P] [US4] Integration test retry thủ công job FAILED từ `last_completed_seq`; `fail_n_then_success` qua retry tự động; không có `seq` trùng trong `backend/tests/integration/test_job_retry_checkpoint.py` (FR-035, FR-036, QA-10, SC-009)
-- [ ] T095 [P] [US4] Integration test worker chết: kill worker khi RUNNING → ≤ 5 phút job về `RETRY_SCHEDULED` rồi hoàn tất từ checkpoint; reservation dở thành UNCERTAIN/RELEASED đúng quy tắc trong `backend/tests/integration/test_worker_crash.py` (FR-036, FR-048, SC-006)
-- [ ] T096 [P] [US4] Integration test idempotency (khóa trùng → trả job cũ) và concurrency (`worker.max_concurrent_jobs`=1; một job không bị 2 worker thực thi) trong `backend/tests/integration/test_job_idempotency.py` (FR-037, FR-038, QA-10)
-- [ ] T097 [P] [US4] Contract test `POST /jobs/{id}/pause|resume|cancel|retry` và 409 trong `backend/tests/contract/test_job_actions.py` (FR-032)
+- [X] T092 [P] [US4] Unit test `JobStateMachine`: mọi chuyển hợp lệ theo data-model.md §7, chuyển không hợp lệ → `INVALID_JOB_TRANSITION` trong `backend/tests/unit/jobs/test_state_machine.py` (FR-030)
+- [X] T093 [P] [US4] Integration test cancel giữa chừng (không thêm lời gọi AI; kết quả về sau khi hủy bị bỏ qua nhưng chi phí vẫn ghi) và pause → resume từ bước kế trong `backend/tests/integration/test_us4_lifecycle.py` (FR-032, QA-09, SC-009)
+- [X] T094 [P] [US4] Integration test retry thủ công job FAILED từ `last_completed_seq`; `fail_n_then_success` qua retry tự động; không có `seq` trùng trong `backend/tests/integration/test_us4_lifecycle.py` (FR-035, FR-036, QA-10, SC-009)
+- [X] T095 [P] [US4] Integration test worker chết: kill worker khi RUNNING → ≤ 5 phút job về `RETRY_SCHEDULED` rồi hoàn tất từ checkpoint; reservation dở thành UNCERTAIN/RELEASED đúng quy tắc trong `backend/tests/integration/test_us4_lifecycle.py` (FR-036, FR-048, SC-006)
+- [X] T096 [P] [US4] Integration test idempotency (khóa trùng → trả job cũ) và concurrency (`worker.max_concurrent_jobs`=1; một job không bị 2 worker thực thi) trong `backend/tests/integration/test_us4_lifecycle.py` (FR-037, FR-038, QA-10)
+- [X] T097 [P] [US4] Contract test `POST /jobs/{id}/pause|resume|cancel|retry` và 409 trong `backend/tests/integration/test_us4_lifecycle.py` (FR-032)
 
 ### Implementation cho User Story 4
 
-- [ ] T098 [US4] `JobStateMachine` trong `backend/src/nichepilot/jobs/state_machine.py` (FR-030)
-- [ ] T099 [US4] Mở rộng Job Runtime: checkpoint sau mỗi bước, kiểm tra pause/cancel giữa bước và trước lời gọi ngoài, heartbeat, retry tự động theo `max_attempts` với backoff + jitter trong `backend/src/nichepilot/jobs/runtime.py` (FR-035, FR-036)
-- [ ] T100 [US4] Phát hiện lượt thực thi stalled → `RETRY_SCHEDULED` + enqueue lại trong `backend/src/nichepilot/jobs/maintenance.py` (FR-036, SC-006)
-- [ ] T101 [US4] Giới hạn concurrency (`WORKER_CONCURRENCY`, `worker.max_concurrent_jobs`) trong `backend/src/nichepilot/worker.py` (FR-038)
-- [ ] T102 [US4] Endpoint pause/resume/cancel/retry có audit trong `backend/src/nichepilot/api/v1/jobs.py` (FR-032, FR-051)
+- [X] T098 [US4] `JobStateMachine` trong `backend/src/nichepilot/jobs/state_machine.py` (FR-030)
+- [X] T099 [US4] Mở rộng Job Runtime: checkpoint sau mỗi bước, kiểm tra pause/cancel giữa bước và trước lời gọi ngoài, heartbeat, retry tự động theo `max_attempts` với backoff + jitter trong `backend/src/nichepilot/jobs/runtime.py` (FR-035, FR-036)
+- [X] T100 [US4] Phát hiện lượt thực thi stalled → `RETRY_SCHEDULED` + enqueue lại trong `backend/src/nichepilot/jobs/maintenance.py` (FR-036, SC-006)
+- [X] T101 [US4] Giới hạn concurrency (`WORKER_CONCURRENCY`, `worker.max_concurrent_jobs`) trong `backend/src/nichepilot/worker.py` (FR-038)
+- [X] T102 [US4] Endpoint pause/resume/cancel/retry có audit trong `backend/src/nichepilot/api/v1/jobs.py` (FR-032, FR-051)
 
 **Checkpoint**: Quickstart §6 đạt.
 

@@ -14,6 +14,7 @@ from sqlalchemy import text
 from nichepilot.ai.providers.mock import validate_scenario
 from nichepilot.api.deps import MetaDep, SessionDep, SettingsDep, UserDep
 from nichepilot.core.errors import AppError
+from nichepilot.jobs.state_machine import check_transition
 from nichepilot.modules.audit.service import record_audit
 from nichepilot.modules.settings.service import get_default_project, get_setting_values
 from nichepilot.services import Services
@@ -320,6 +321,126 @@ async def cost_usage(
         .all()
     )
     return {"page": page, "page_size": page_size, "total": total, "items": [usage_dict(u) for u in rows]}
+
+
+async def _transition(
+    session: Any, job: Any, *, action: str, to: str, user: Any, meta: Any, extra_sql: str = ""
+) -> Any:
+    check_transition(job["status"], to)
+    row = (
+        (
+            await session.execute(
+                text(
+                    "UPDATE agent_jobs SET status = :to, status_reason_code = NULL, status_reason_detail = NULL"  # noqa: S608 – extra_sql là hằng số nội bộ
+                    f"{extra_sql}, finished_at = CASE WHEN :to = 'CANCELLED' THEN now() ELSE finished_at END,"
+                    " updated_at = now() WHERE id = :j AND status = :src RETURNING *"
+                ),
+                {"j": job["id"], "to": to, "src": job["status"]},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:  # trạng thái vừa bị worker thay đổi → từ chối thay vì ghi đè
+        raise AppError("INVALID_JOB_TRANSITION", params={"from": job["status"], "to": to})
+    await record_audit(
+        session,
+        action=f"job.{action}",
+        actor_type="USER",
+        actor_id=user.id,
+        entity_type="agent_job",
+        entity_id=job["id"],
+        before={"status": job["status"]},
+        after={"status": to},
+        request_id=meta.request_id,
+    )
+    return row
+
+
+async def _request_flag(session: Any, job: Any, *, flag: str, action: str, user: Any, meta: Any) -> Any:
+    row = (
+        (
+            await session.execute(
+                text(
+                    f"UPDATE agent_jobs SET {flag} = true, updated_at = now()"  # noqa: S608 – tên cột là hằng số
+                    " WHERE id = :j AND status = 'RUNNING' RETURNING *"
+                ),
+                {"j": job["id"]},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if row is None:
+        raise AppError("INVALID_JOB_TRANSITION", params={"from": job["status"], "action": action})
+    await record_audit(
+        session,
+        action=f"job.{action}_requested",
+        actor_type="USER",
+        actor_id=user.id,
+        entity_type="agent_job",
+        entity_id=job["id"],
+        after={flag: True},
+        request_id=meta.request_id,
+    )
+    return row
+
+
+@router.post("/jobs/{job_id}/pause", status_code=status.HTTP_202_ACCEPTED)
+async def pause_job(job_id: uuid.UUID, user: UserDep, session: SessionDep, meta: MetaDep) -> dict[str, Any]:
+    """Tạm dừng job đang chạy sau bước hiện tại (FR-032)."""
+    job = await _get_job(session, job_id)
+    if job["status"] != "RUNNING":
+        raise AppError("INVALID_JOB_TRANSITION", params={"from": job["status"], "to": "PAUSED"})
+    return job_dict(await _request_flag(session, job, flag="pause_requested", action="pause", user=user, meta=meta))
+
+
+@router.post("/jobs/{job_id}/cancel", status_code=status.HTTP_202_ACCEPTED)
+async def cancel_job(job_id: uuid.UUID, user: UserDep, session: SessionDep, meta: MetaDep) -> dict[str, Any]:
+    """Hủy job: chưa chạy → CANCELLED ngay; đang chạy → dừng trước bước/lời gọi ngoài kế tiếp (FR-032, QA-09)."""
+    job = await _get_job(session, job_id)
+    if job["status"] == "RUNNING":
+        row = await _request_flag(session, job, flag="cancel_requested", action="cancel", user=user, meta=meta)
+    else:
+        row = await _transition(
+            session,
+            job,
+            action="cancelled",
+            to="CANCELLED",
+            user=user,
+            meta=meta,
+            extra_sql=", cancel_requested = true",
+        )
+    return job_dict(row)
+
+
+@router.post("/jobs/{job_id}/retry", status_code=status.HTTP_202_ACCEPTED)
+async def retry_job(
+    job_id: uuid.UUID, request: Request, user: UserDep, session: SessionDep, meta: MetaDep
+) -> dict[str, Any]:
+    """Chạy lại job FAILED từ checkpoint. Từ chối nếu còn lời gọi chưa xác định chi phí (không gọi lại API có phí)."""
+    job = await _get_job(session, job_id)
+    if job["status"] != "FAILED":
+        raise AppError("INVALID_JOB_TRANSITION", params={"from": job["status"], "to": "QUEUED"})
+    uncertain = (
+        await session.execute(
+            text("SELECT COUNT(*) FROM budget_reservations WHERE job_id = :j AND status = 'UNCERTAIN'"), {"j": job_id}
+        )
+    ).scalar_one()
+    if uncertain:
+        raise AppError("UNCERTAIN_RESERVATIONS_UNRESOLVED")
+    row = await _transition(
+        session,
+        job,
+        action="retried",
+        to="QUEUED",
+        user=user,
+        meta=meta,
+        extra_sql=", attempt = 0, cancel_requested = false, pause_requested = false",
+    )
+    await session.commit()
+    await services(request).job_queue.enqueue_run(job_id)
+    return job_dict(row)
 
 
 @router.post("/jobs/{job_id}/resume", status_code=status.HTTP_202_ACCEPTED)

@@ -423,7 +423,10 @@ class BudgetService:
                     {"j": job_id},
                 )
             ).scalar_one()
-        if jrow.status_reason_code == "UNCERTAIN_RESERVATION_LIMIT" and int(uncertain) > 0:
+        if (
+            jrow.status_reason_code in ("UNCERTAIN_RESERVATION_LIMIT", "UNCERTAIN_RESERVATIONS_UNRESOLVED")
+            and int(uncertain) > 0
+        ):
             return "UNCERTAIN_RESERVATIONS_UNRESOLVED"
         detail = jrow.status_reason_detail or {}
         if detail.get("requested_usd"):
