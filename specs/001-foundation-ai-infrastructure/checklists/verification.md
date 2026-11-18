@@ -57,7 +57,7 @@ Commit kiểm chứng: `4d13bed` (nhánh `claude/inspiring-wright-06dzhw`). Mọ
 | Frontend | `npx vitest run`, `npm run typecheck`, `npm run lint` | PASS | 4 tests |
 | Smoke prod | `SMOKE_NO_BUILD=1 deploy/tests/smoke.sh prod` (image build từ `4d13bed`, 14:31Z) | PASS | healthy 22 s; RAM nghỉ 324 MB |
 | E2E Playwright | `npx playwright test` trên stack prod | PASS | 1 passed |
-| Smoke dev (hot reload) | `SMOKE_NO_BUILD=1 SMOKE_EXTRA_COMPOSE=<override cục bộ> deploy/tests/smoke.sh dev` (14:29Z) | PASS (có điều kiện) | reload api=1 worker=1 web=1. Cần override cục bộ (không commit) cho container web dùng mạng host + CA/proxy của môi trường này |
+| Smoke dev (hot reload) | `SMOKE_NO_BUILD=1 SMOKE_EXTRA_COMPOSE=<override cục bộ> deploy/tests/smoke.sh dev` (14:29Z) | PASS (có điều kiện) | reload api=1 worker=1 web=1. Cần override cục bộ (không commit) cho web dùng mạng host + CA/proxy; chạy KHÔNG build nên không phát hiện lỗi kế thừa `build:` – lỗi đó chỉ lộ trên CI (run 17) và đã sửa ở `7c4afc7` |
 | C1 – mất DB 20 s khi đang có job RUNNING | script HTTP trên stack prod | PASS | worker RestartCount=1; 4/4 job SUCCEEDED; không `seq` trùng; job đang chạy có 2 lượt `job.started` (lượt đầu + phục hồi attempt 2), job khác 1 lượt → không thực thi trùng |
 | Secret trong log | grep `sk-ant-`/`sk-proj-`/`Bearer `/mật khẩu owner/mật khẩu DB trong stdout và `/var/log/nichepilot` | PASS | 0 kết quả |
 
@@ -73,7 +73,12 @@ Lần chạy smoke prod 14:29Z trước đó dùng image CŨ (build mới bị D
 | 12, 16 | `ffeac4c`, `4d13bed` | secrets (detect-secrets) | FAIL – dương tính giả (xem N1 trong báo cáo); ngoài phạm vi đợt sửa này |
 | 16 (44324814680) | `4d13bed` | backend, frontend, traceability, e2e | PASS |
 | 16 | `4d13bed` | smoke – bước "Smoke prod" | PASS |
-| 16 | `4d13bed` | smoke – bước "Smoke dev" | NOT RUN (đang chạy lúc ghi 14:40Z – cập nhật khi có kết quả) |
+| 16 | `4d13bed` | smoke – bước "Smoke dev" | FAIL – web dev lặp `sh: npm: not found` (xác định ở run 17) |
+| 17 (44326619845) | `de9d104` | smoke – bước "Smoke dev" (có chẩn đoán) | FAIL – nguyên nhân: override dev kế thừa `build:` Caddy, `up --build` gắn nhãn đè node:22-alpine |
+| 18 (44328603640) | `7c4afc7` | backend, frontend, traceability, e2e | PASS |
+| 18 | `7c4afc7` | smoke – "Smoke prod" (14:51:08–14:53:10Z) | PASS |
+| 18 | `7c4afc7` | smoke – "Smoke dev" (14:53:11–14:54:08Z) | **PASS** – `reload api=1 worker=1 web=1`, `PASS dev` |
+| 18 | `7c4afc7` | secrets | FAIL – dương tính giả detect-secrets (N1, ngoài phạm vi) |
 
 ### Windows 10/11
 
