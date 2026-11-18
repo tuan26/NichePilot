@@ -2,10 +2,10 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phiên bản | 0.1.0 (Đề xuất – chờ xác nhận) |
+| Phiên bản | 0.2.0 (Đã xác nhận các quyết định E0 ngày 2026-11-18) |
 | Ngày | 2026-11-18 |
-| Tuân thủ | Constitution v1.0.0 |
-| Trạng thái | Các mục đánh dấu **[CHỜ XÁC NHẬN]** phụ thuộc câu hỏi Clarify của E0 |
+| Tuân thủ | Constitution v1.1.0 |
+| Trạng thái | Quyết định Q1–Q5 đã được chủ sở hữu xác nhận; chi tiết kỹ thuật E0 ở `specs/001-foundation-ai-infrastructure/plan.md` |
 
 Tài liệu này là đề xuất cấp hệ thống. Chi tiết kỹ thuật chính thức cho từng feature sẽ nằm trong
 `specs/<feature>/plan.md` (cùng `research.md`, `data-model.md`, `contracts/`) do `/speckit-plan` tạo.
@@ -99,8 +99,13 @@ nichepilot/
 
 - Interface `LLMProvider` với các thao tác: sinh văn bản có structured output, vòng tool calling, đếm token
   ước tính, chuẩn hóa usage (input/output/cache tokens) và lỗi (timeout, rate limit, auth, schema, refusal).
-- `ClaudeProvider` dùng SDK chính thức `anthropic` (Python), Messages API.
-- `OpenAIProvider` cùng interface; chỉ được dùng khi `fallback_provider` được cấu hình rõ ràng (AI-07).
+- `AnthropicAPIProvider` dùng SDK chính thức `anthropic` (Python), Messages API – provider chính khi vận hành.
+- `OpenAIAPIProvider` cùng interface; chỉ được dùng khi `fallback_provider` được cấu hình rõ ràng (AI-07).
+- `MockAIProvider` cùng interface, không gọi mạng, kịch bản giả lập cấu hình được, mọi dữ liệu gắn nhãn `MOCK`;
+  chỉ chạy ở `development`/`test`, hệ thống từ chối khởi động nếu bật ở `production` (AI-14).
+- Công tắc `AI_PAID_CALLS_ENABLED` mặc định `false`: chặn mọi lời gọi có phí tới provider thật cho tới khi chủ sở hữu
+  cho phép (AI-15). Chỉ xác thực bằng API key chính thức; không dùng OAuth/cookie/session/Claude Code CLI (AI-16).
+- Claude Pro + Claude Code là công cụ phát triển của chủ sở hữu, không phải provider của hệ thống.
 - **Không dùng Claude Managed Agents** cho MVP: yêu cầu self-host, provider dự phòng OpenAI, kiểm soát
   ngân sách trước từng lời gọi và checkpoint trong PostgreSQL khiến vòng lặp tự quản lý phù hợp hơn.
 - **Vòng lặp agent tự viết (manual loop)** thay vì Tool Runner của SDK: cần chèn kiểm tra ngân sách, kiểm tra
@@ -108,15 +113,17 @@ nichepilot/
 
 ### 4.2 Lưu ý API Claude hiện hành (đã kiểm tra với tài liệu SDK, 11/2026)
 
-- Model mặc định đề xuất: `claude-opus-5-5`; cấu hình được theo tác vụ (ví dụ `claude-sonnet-5-5`,
-  `claude-haiku-5-5` cho tác vụ đơn giản – **chủ sở hữu quyết định**, hệ thống không tự hạ model).
+- Model gán theo **loại tác vụ** trong cấu hình (Model Task Profile), không hard-code trong business logic; bộ mặc
+  định ưu tiên hiệu quả chi phí (ví dụ `claude-haiku-5-5` cho tác vụ đơn giản, `claude-sonnet-5-5` cho phân tích
+  thông thường, `claude-opus-5-5` chỉ cho tác vụ suy luận phức tạp). Hệ thống không tự đổi model lúc chạy.
 - Opus 5.5: thinking không tắt được; điều chỉnh độ sâu/chi phí bằng `output_config.effort`
   (`low`…`max`, mặc định `medium`) → cấu hình effort theo tác vụ.
 - Forced `tool_choice` (`any`/`tool`) bị từ chối trên Opus 5.5/Sonnet 5.5 → dùng structured outputs
   (`output_config.format` / `messages.parse()` với Pydantic) khi cần JSON, `tool_choice: auto` + `strict: true`
   cho tool.
 - Phải xử lý `stop_reason`: `refusal` (kèm `stop_details`), `max_tokens`, `pause_turn`, `tool_use`.
-  Server-side fallback khi refusal (beta) là tùy chọn cấu hình, mặc định đề xuất bật, ghi rõ trong usage log.
+  **Refusal: không chuyển model/provider tự động** (không dùng server-side fallback); ghi trạng thái `REFUSED`,
+  loại lý do và giải thích vào usage log để chủ sở hữu kiểm tra (quyết định của chủ sở hữu 2026-11-18).
 - Không dùng assistant prefill; không dùng `temperature`/`top_p` (bị loại bỏ trên model mới).
 - Prompt caching cho system prompt/tool definitions ổn định để giảm chi phí; theo dõi
   `cache_read_input_tokens`.
@@ -128,7 +135,8 @@ nichepilot/
 1. Bảng giá model lưu trong cấu hình có phiên bản (không hard-code rải rác).
 2. **Trước mỗi lời gọi:** ước tính chi phí tối đa (token vào ước tính × giá vào + `max_tokens` × giá ra) và
    *đặt chỗ* (reservation) trên ngân sách job/ngày/tháng; không đủ → từ chối gọi, job chuyển
-   `PAUSED_BUDGET` (hoặc `FAILED`, theo câu trả lời Clarify).
+   `PAUSED_BUDGET`, tiếp tục từ checkpoint khi chủ sở hữu điều chỉnh ngân sách. Mặc định $3/ngày, $30/tháng,
+   $2/job. Không tự tăng ngân sách, không tự đổi model.
 3. **Sau mỗi lời gọi:** ghi `ai_usage_logs` với usage thực tế, giải phóng phần đặt chỗ dư.
 4. Kiểm tra ngân sách dùng khóa/transaction trong PostgreSQL để nhiều worker không cùng vượt ngân sách.
 
@@ -141,8 +149,9 @@ nichepilot/
 - Idempotency: job có `idempotency_key` (ví dụ: loại job + tham số + chu kỳ lịch); chạy lại không tạo bản ghi
   trùng (QA-10).
 - Hủy: cờ hủy được kiểm tra giữa các bước và trước mỗi lời gọi ngoài.
-- **Hàng đợi [CHỜ XÁC NHẬN – Q4]:** đề xuất dùng PostgreSQL làm hàng đợi (`SELECT … FOR UPDATE SKIP LOCKED`,
-  qua thư viện Procrastinate hoặc tự viết tối giản) → không cần Redis, tiết kiệm RAM.
+- **Hàng đợi (đã xác nhận):** PostgreSQL làm hàng đợi; đánh giá Procrastinate trước, nếu không phù hợp thì tự viết
+  tối giản bằng `SELECT … FOR UPDATE SKIP LOCKED`. Không dùng Redis/Valkey trong E0 (kết quả đánh giá: xem
+  `specs/001-foundation-ai-infrastructure/research.md`).
 - Scheduler chạy trong `worker`, lịch dạng cron lưu trong database, bật/tắt được, không chạy job tốn phí khi
   chưa cấu hình ngân sách (AUT-04).
 - Concurrency mặc định: 1–2 job đồng thời (cấu hình được).
@@ -151,8 +160,8 @@ nichepilot/
 
 - Dashboard single-owner: đăng nhập username/password, mật khẩu Argon2id, session cookie HttpOnly +
   SameSite + CSRF token, khóa tạm khi đăng nhập sai nhiều lần.
-- Secrets: [CHỜ XÁC NHẬN – Q2] đề xuất lưu trong file env/Docker secrets, Dashboard chỉ hiển thị trạng thái đã
-  cấu hình (masked) và nút kiểm tra kết nối.
+- Secrets (đã xác nhận): chỉ trong `.env`/Docker secrets, không lưu database, không hiển thị giá trị, không ghi log;
+  có API kiểm tra kết nối provider; `.env` thật không được commit.
 - Audit log cho đăng nhập, thay đổi cấu hình/ngân sách, tạo/hủy job, phê duyệt.
 - Lọc secret khỏi log (processor redaction) và khỏi prompt gửi LLM.
 - Nội dung web là dữ liệu không tin cậy: bọc trong delimiter, chỉ dẫn hệ thống nêu rõ không thực thi chỉ thị
@@ -177,8 +186,8 @@ nichepilot/
 | `searxng` | searxng/searxng | `research` (bật từ E1) | 512 MB |
 | crawler/browser | Crawl4AI / Playwright | `crawl` (bật khi E1/E2 cần) | 2 GB |
 
-- Dev trên Windows: [CHỜ XÁC NHẬN – Q5] đề xuất chạy toàn bộ trong Docker Desktop (WSL2), mã nguồn nằm trong
-  filesystem WSL để tránh chậm I/O; hot-reload qua `docker-compose.dev.yml`.
+- Dev trên Windows (đã xác nhận): chạy toàn bộ trong Docker Desktop (WSL2), mã nguồn nằm trong filesystem WSL để
+  tránh chậm I/O; hot-reload qua `docker-compose.dev.yml`; tương đồng Linux production.
 - Backup: `pg_dump` định dạng custom theo lịch + lệnh restore có tài liệu (E0-19).
 
 ## 9. Kiểm thử
@@ -222,4 +231,5 @@ nichepilot/
 
 ## 11. Quyết định kiến trúc chờ xác nhận
 
-Xem mục "Clarifications" của `specs/001-foundation-ai-infrastructure/spec.md` và báo cáo câu hỏi Clarify.
+Không còn quyết định cấp hệ thống nào chờ xác nhận cho E0. Các quyết định đã chốt nằm ở mục "Clarifications" của
+`specs/001-foundation-ai-infrastructure/spec.md`; quyết định kỹ thuật chi tiết ở `research.md` của E0.

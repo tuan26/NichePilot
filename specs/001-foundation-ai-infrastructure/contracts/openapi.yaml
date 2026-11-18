@@ -1,0 +1,952 @@
+openapi: 3.1.0
+info:
+  title: NichePilot API – E0 Foundation
+  version: 0.1.0
+  description: |
+    Hợp đồng REST API của E0 (Foundation & AI Infrastructure).
+    - Mọi endpoint dưới /api/v1 yêu cầu phiên đăng nhập (cookie `np_session`), trừ khi ghi `security: []`.
+    - Request thay đổi dữ liệu (POST/PUT/PATCH/DELETE) phải gửi header `X-CSRF-Token` bằng giá trị cookie `np_csrf`.
+    - Lỗi trả về dạng `application/problem+json` (RFC 9457) với `code` ổn định; frontend dịch `code` sang VI/EN.
+    - Mọi bản ghi kết quả AI/tool có `data_origin` (REAL | MOCK); MOCK phải được hiển thị là dữ liệu giả lập.
+    - Không endpoint nào trả giá trị API key/secret.
+servers:
+  - url: /
+tags:
+  - name: system
+  - name: auth
+  - name: jobs
+  - name: schedules
+  - name: costs
+  - name: settings
+  - name: providers
+  - name: audit
+  - name: tools
+
+security:
+  - sessionCookie: []
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Liveness tối giản (công khai, không lộ chi tiết)
+      security: []
+      responses:
+        "200":
+          description: Tiến trình API đang chạy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [ok] }
+
+  /api/v1/system/status:
+    get:
+      tags: [system]
+      summary: Trạng thái chi tiết các thành phần (FR-002)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/auth/setup-status:
+    get:
+      tags: [auth]
+      summary: Cho biết đã có tài khoản chủ sở hữu chưa
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [setup_required]
+                properties:
+                  setup_required: { type: boolean }
+
+  /api/v1/auth/setup:
+    post:
+      tags: [auth]
+      summary: Tạo tài khoản chủ sở hữu lần đầu (chỉ khi chưa có user)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetupRequest" }
+      responses:
+        "201":
+          description: Đã tạo và đăng nhập (đặt cookie np_session, np_csrf)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Đăng nhập
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Thành công (đặt cookie np_session, np_csrf)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "423":
+          description: Tài khoản bị khóa tạm (code AUTH_LOCKED, kèm locked_until)
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Đăng xuất (thu hồi phiên)
+      responses:
+        "204": { description: Đã đăng xuất }
+
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      summary: Thông tin người dùng hiện tại
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [auth]
+      summary: Cập nhật ngôn ngữ giao diện (E4-04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ui_locale]
+              properties:
+                ui_locale: { $ref: "#/components/schemas/UiLocale" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+
+  /api/v1/job-types:
+    get:
+      tags: [jobs]
+      summary: Danh sách loại job đã đăng ký và schema tham số
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/JobType" }
+
+  /api/v1/jobs:
+    get:
+      tags: [jobs]
+      summary: Danh sách job (lọc, phân trang)
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/JobStatus" } }
+        - { name: job_type, in: query, schema: { type: string } }
+        - { name: data_origin, in: query, schema: { $ref: "#/components/schemas/DataOrigin" } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Job" }
+    post:
+      tags: [jobs]
+      summary: Tạo job thủ công (FR-032). Trùng idempotency_key → trả job hiện có (200).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateJobRequest" }
+      responses:
+        "201":
+          description: Đã tạo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "200":
+          description: Job cùng idempotency_key đã tồn tại
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/jobs/{job_id}:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    get:
+      tags: [jobs]
+      summary: Chi tiết job
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/jobs/{job_id}/steps:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    get:
+      tags: [jobs]
+      summary: Các bước của job (kèm lần gọi tool và AI)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/JobStep" }
+
+  /api/v1/jobs/{job_id}/pause:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    post:
+      tags: [jobs]
+      summary: Yêu cầu tạm dừng sau bước hiện tại
+      responses:
+        "202": { description: Đã ghi nhận, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /api/v1/jobs/{job_id}/resume:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    post:
+      tags: [jobs]
+      summary: Tiếp tục job PAUSED / PAUSED_BUDGET từ checkpoint (FR-045)
+      responses:
+        "202": { description: Đã xếp hàng, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+        "402":
+          description: Ngân sách vẫn chưa đủ (code BUDGET_STILL_INSUFFICIENT); job giữ PAUSED_BUDGET
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /api/v1/jobs/{job_id}/cancel:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    post:
+      tags: [jobs]
+      summary: Hủy job (dừng trước bước/lời gọi ngoài kế tiếp)
+      responses:
+        "202": { description: Đã ghi nhận, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /api/v1/jobs/{job_id}/retry:
+    parameters: [{ $ref: "#/components/parameters/JobId" }]
+    post:
+      tags: [jobs]
+      summary: Chạy lại job FAILED từ checkpoint
+      responses:
+        "202": { description: Đã xếp hàng, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        "409": { $ref: "#/components/responses/InvalidTransition" }
+
+  /api/v1/schedules:
+    get:
+      tags: [schedules]
+      summary: Danh sách lịch
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Schedule" }
+    post:
+      tags: [schedules]
+      summary: Tạo lịch (từ chối job tốn phí khi chưa cấu hình ngân sách – FR-034)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleInput" }
+      responses:
+        "201": { description: Đã tạo, content: { application/json: { schema: { $ref: "#/components/schemas/Schedule" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/schedules/{schedule_id}:
+    parameters:
+      - { name: schedule_id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [schedules]
+      summary: Chi tiết lịch
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Schedule" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [schedules]
+      summary: Sửa / bật / tắt lịch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleInput" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Schedule" } } } }
+    delete:
+      tags: [schedules]
+      summary: Xóa lịch (không xóa job đã tạo)
+      responses:
+        "204": { description: Đã xóa }
+
+  /api/v1/budget:
+    get:
+      tags: [costs]
+      summary: Hạn mức, chi tiêu, phần còn lại và cảnh báo (tách REAL/MOCK)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BudgetStatus" } } } }
+    put:
+      tags: [costs]
+      summary: Cập nhật hạn mức ngân sách (audit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BudgetLimits" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/BudgetStatus" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/costs/summary:
+    get:
+      tags: [costs]
+      summary: Tổng hợp chi phí theo kỳ, nhóm theo model/job/ngày (FR-044)
+      parameters:
+        - { name: period, in: query, required: true, schema: { type: string, enum: [day, month] } }
+        - { name: date, in: query, schema: { type: string, format: date }, description: "Ngày/tháng tham chiếu theo múi giờ hệ thống; mặc định hôm nay" }
+        - { name: data_origin, in: query, schema: { $ref: "#/components/schemas/DataOrigin" } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CostSummary" } } } }
+
+  /api/v1/costs/usage:
+    get:
+      tags: [costs]
+      summary: Danh sách bản ghi lời gọi AI
+      parameters:
+        - { name: job_id, in: query, schema: { type: string, format: uuid } }
+        - { name: outcome, in: query, schema: { $ref: "#/components/schemas/AiOutcome" } }
+        - { name: data_origin, in: query, schema: { $ref: "#/components/schemas/DataOrigin" } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/AiUsage" }
+
+  /api/v1/settings:
+    get:
+      tags: [settings]
+      summary: Cấu hình không bí mật (FR-055)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Setting" }
+    patch:
+      tags: [settings]
+      summary: Cập nhật một hoặc nhiều cấu hình (optimistic locking theo version)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required: [key, value, version]
+                properties:
+                  key: { type: string }
+                  value: {}
+                  version: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Setting" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/projects/default:
+    get:
+      tags: [settings]
+      summary: Project mặc định (thị trường, ngôn ngữ nghiên cứu, ngôn ngữ nội dung)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+    patch:
+      tags: [settings]
+      summary: Cập nhật thị trường/ngôn ngữ của project mặc định (BR-10)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectUpdate" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+
+  /api/v1/model-profiles:
+    get:
+      tags: [settings]
+      summary: Model theo loại tác vụ
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ModelTaskProfile" }
+
+  /api/v1/model-profiles/{task_type}:
+    put:
+      tags: [settings]
+      summary: Cập nhật profile (model phải có giá đã xác minh nếu provider có phí)
+      parameters:
+        - { name: task_type, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModelTaskProfile" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ModelTaskProfile" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/model-pricing:
+    get:
+      tags: [settings]
+      summary: Bảng giá hiện hành và lịch sử
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ModelPricing" }
+    post:
+      tags: [settings]
+      summary: Thêm phiên bản giá mới (không sửa bản cũ)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModelPricing" }
+      responses:
+        "201": { description: Đã thêm, content: { application/json: { schema: { $ref: "#/components/schemas/ModelPricing" } } } }
+
+  /api/v1/providers:
+    get:
+      tags: [providers]
+      summary: Trạng thái provider (không trả giá trị key)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProviderStatus" }
+
+  /api/v1/providers/{provider}/test-connection:
+    post:
+      tags: [providers]
+      summary: Kiểm tra kết nối không tính phí (FR-056), ghi audit
+      parameters:
+        - { name: provider, in: path, required: true, schema: { $ref: "#/components/schemas/ProviderName" } }
+      responses:
+        "200":
+          description: Kết quả kiểm tra
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [provider, result, checked_at]
+                properties:
+                  provider: { $ref: "#/components/schemas/ProviderName" }
+                  result: { type: string, enum: [OK, INVALID_KEY, NETWORK_ERROR, NOT_CONFIGURED, PROVIDER_ERROR, MOCK] }
+                  checked_at: { type: string, format: date-time }
+
+  /api/v1/audit-logs:
+    get:
+      tags: [audit]
+      summary: Tra cứu audit log (chỉ đọc)
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entity_type, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/AuditLog" }
+
+  /api/v1/tools:
+    get:
+      tags: [tools]
+      summary: Danh sách tool trong Tool Registry (chỉ đọc)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ToolInfo" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: np_session
+
+  parameters:
+    JobId: { name: job_id, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    PageSize: { name: page_size, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+
+  responses:
+    Unauthorized:
+      description: Chưa đăng nhập / sai thông tin (code AUTH_REQUIRED | AUTH_INVALID_CREDENTIALS)
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    NotFound:
+      description: Không tìm thấy (code NOT_FOUND)
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Conflict:
+      description: Xung đột (code ALREADY_SETUP | VERSION_CONFLICT)
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    InvalidTransition:
+      description: Chuyển trạng thái job không hợp lệ (code INVALID_JOB_TRANSITION)
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    ValidationError:
+      description: Dữ liệu không hợp lệ (code VALIDATION_ERROR, kèm errors[])
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string }
+        title: { type: string, description: "Mô tả ngắn tiếng Anh (frontend hiển thị bản dịch theo code)" }
+        status: { type: integer }
+        code: { type: string, description: "Mã lỗi ổn định, ví dụ BUDGET_DAILY_EXCEEDED" }
+        detail: { type: string }
+        request_id: { type: string }
+        params: { type: object, additionalProperties: true, description: "Tham số để nội suy thông báo i18n" }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              code: { type: string }
+
+    PageMeta:
+      type: object
+      required: [page, page_size, total]
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+
+    UiLocale: { type: string, enum: [vi, en] }
+    DataOrigin: { type: string, enum: [REAL, MOCK] }
+    ProviderName: { type: string, enum: [anthropic, openai, mock] }
+    Money: { type: string, pattern: "^-?\\d+(\\.\\d{1,6})?$", description: "USD dạng chuỗi thập phân để tránh sai số float" }
+
+    JobStatus:
+      type: string
+      enum: [QUEUED, RUNNING, PAUSED, PAUSED_BUDGET, RETRY_SCHEDULED, SUCCEEDED, FAILED, CANCELLED]
+
+    AiOutcome:
+      type: string
+      enum: [SUCCESS, SCHEMA_INVALID, TIMEOUT, RATE_LIMITED, AUTH_ERROR, NETWORK_ERROR, PROVIDER_ERROR, BAD_REQUEST, REFUSED, TRUNCATED]
+
+    SystemStatus:
+      type: object
+      required: [app_env, database, worker, providers, paid_calls_enabled, version]
+      properties:
+        version: { type: string }
+        app_env: { type: string, enum: [development, test, production] }
+        database: { type: string, enum: [OK, UNAVAILABLE] }
+        worker: { type: string, enum: [OK, STALE, NOT_RUNNING] }
+        schema_revision: { type: string }
+        paid_calls_enabled: { type: boolean }
+        provider_override: { type: [string, "null"] }
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/ProviderStatus" }
+
+    ProviderStatus:
+      type: object
+      required: [provider, configured]
+      properties:
+        provider: { $ref: "#/components/schemas/ProviderName" }
+        configured: { type: boolean }
+        key_hint: { type: [string, "null"], description: "Tối đa 4 ký tự cuối, ví dụ …ab12; null nếu chưa cấu hình hoặc mock" }
+        last_check: { type: [string, "null"], enum: [OK, INVALID_KEY, NETWORK_ERROR, NOT_CONFIGURED, PROVIDER_ERROR, MOCK, null] }
+        last_checked_at: { type: [string, "null"], format: date-time }
+
+    SetupRequest:
+      type: object
+      required: [username, password, ui_locale]
+      properties:
+        username: { type: string, pattern: "^[a-z0-9._-]{3,64}$" }
+        password: { type: string, minLength: 12, format: password }
+        ui_locale: { $ref: "#/components/schemas/UiLocale" }
+
+    Me:
+      type: object
+      required: [id, username, ui_locale]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        ui_locale: { $ref: "#/components/schemas/UiLocale" }
+        last_login_at: { type: [string, "null"], format: date-time }
+
+    JobType:
+      type: object
+      required: [job_type, description, params_schema, paid]
+      properties:
+        job_type: { type: string, example: system.diagnostic }
+        description: { type: string }
+        params_schema: { type: object, description: JSON Schema tham số }
+        paid: { type: boolean, description: "Có thể phát sinh chi phí AI thật" }
+
+    CreateJobRequest:
+      type: object
+      required: [job_type]
+      properties:
+        job_type: { type: string }
+        params: { type: object, additionalProperties: true, description: "Với provider mock có thể gồm mock_scenario" }
+        idempotency_key: { type: string, maxLength: 200 }
+        budget_limit_usd: { $ref: "#/components/schemas/Money" }
+
+    Job:
+      type: object
+      required: [id, job_type, status, trigger, data_origin, created_at, cost_accumulated_usd, budget_limit_usd]
+      properties:
+        id: { type: string, format: uuid }
+        job_type: { type: string }
+        params: { type: object }
+        status: { $ref: "#/components/schemas/JobStatus" }
+        trigger: { type: string, enum: [MANUAL, SCHEDULE, RETRY] }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        schedule_id: { type: [string, "null"], format: uuid }
+        budget_limit_usd: { $ref: "#/components/schemas/Money" }
+        cost_accumulated_usd: { $ref: "#/components/schemas/Money" }
+        step_count: { type: integer }
+        ai_call_count: { type: integer }
+        last_completed_seq: { type: integer }
+        attempt: { type: integer }
+        status_reason_code: { type: [string, "null"] }
+        status_reason_detail: { type: [object, "null"] }
+        result: { type: [object, "null"] }
+        created_at: { type: string, format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+
+    JobStep:
+      type: object
+      required: [id, seq, step_type, name, status, data_origin]
+      properties:
+        id: { type: string, format: uuid }
+        seq: { type: integer }
+        step_type: { type: string, enum: [AI_CALL, TOOL_CALL, LOGIC] }
+        name: { type: string }
+        status: { type: string, enum: [RUNNING, SUCCEEDED, FAILED, REFUSED, TRUNCATED, SKIPPED, BLOCKED] }
+        attempt: { type: integer }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        output: { type: [object, "null"] }
+        error_code: { type: [string, "null"] }
+        error_message: { type: [string, "null"] }
+        cost_usd: { $ref: "#/components/schemas/Money" }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        tool_executions:
+          type: array
+          items:
+            type: object
+            properties:
+              tool_name: { type: string }
+              status: { type: string, enum: [SUCCEEDED, FAILED, DENIED, TIMEOUT] }
+              denial_reason: { type: [string, "null"] }
+              duration_ms: { type: integer }
+        ai_usage:
+          type: array
+          items: { $ref: "#/components/schemas/AiUsage" }
+
+    AiUsage:
+      type: object
+      required: [id, provider, model, task_type, outcome, data_origin, cost_usd, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: [string, "null"], format: uuid }
+        provider: { $ref: "#/components/schemas/ProviderName" }
+        model: { type: string }
+        task_type: { type: string }
+        outcome: { $ref: "#/components/schemas/AiOutcome" }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        is_fallback: { type: boolean }
+        refusal_category: { type: [string, "null"] }
+        refusal_explanation: { type: [string, "null"] }
+        input_tokens: { type: integer }
+        output_tokens: { type: integer }
+        cache_read_tokens: { type: integer }
+        cache_write_tokens: { type: integer }
+        cost_usd: { $ref: "#/components/schemas/Money" }
+        latency_ms: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    BudgetLimits:
+      type: object
+      required: [daily_usd, monthly_usd, per_job_default_usd]
+      properties:
+        daily_usd: { $ref: "#/components/schemas/Money" }
+        monthly_usd: { $ref: "#/components/schemas/Money" }
+        per_job_default_usd: { $ref: "#/components/schemas/Money" }
+        warning_threshold: { type: number, minimum: 0.1, maximum: 1.0, default: 0.8 }
+
+    BudgetStatus:
+      type: object
+      required: [limits, timezone, real, mock]
+      properties:
+        limits: { $ref: "#/components/schemas/BudgetLimits" }
+        timezone: { type: string }
+        real: { $ref: "#/components/schemas/BudgetLedger" }
+        mock: { $ref: "#/components/schemas/BudgetLedger" }
+
+    BudgetLedger:
+      type: object
+      required: [spent_today_usd, reserved_today_usd, remaining_today_usd, spent_month_usd, reserved_month_usd, remaining_month_usd, warnings]
+      properties:
+        spent_today_usd: { $ref: "#/components/schemas/Money" }
+        reserved_today_usd: { $ref: "#/components/schemas/Money" }
+        remaining_today_usd: { $ref: "#/components/schemas/Money" }
+        spent_month_usd: { $ref: "#/components/schemas/Money" }
+        reserved_month_usd: { $ref: "#/components/schemas/Money" }
+        remaining_month_usd: { $ref: "#/components/schemas/Money" }
+        warnings:
+          type: array
+          items: { type: string, enum: [DAILY_80, MONTHLY_80, DAILY_EXHAUSTED, MONTHLY_EXHAUSTED] }
+
+    CostSummary:
+      type: object
+      required: [period, from, to, total_usd, by_model, by_job_type]
+      properties:
+        period: { type: string, enum: [day, month] }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        total_usd: { $ref: "#/components/schemas/Money" }
+        call_count: { type: integer }
+        by_model:
+          type: array
+          items:
+            type: object
+            properties:
+              provider: { type: string }
+              model: { type: string }
+              cost_usd: { $ref: "#/components/schemas/Money" }
+              input_tokens: { type: integer }
+              output_tokens: { type: integer }
+        by_job_type:
+          type: array
+          items:
+            type: object
+            properties:
+              job_type: { type: string }
+              cost_usd: { $ref: "#/components/schemas/Money" }
+              job_count: { type: integer }
+        by_day:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              cost_usd: { $ref: "#/components/schemas/Money" }
+
+    Setting:
+      type: object
+      required: [key, value, version]
+      properties:
+        key: { type: string }
+        value: {}
+        version: { type: integer }
+        updated_at: { type: string, format: date-time }
+
+    Project:
+      type: object
+      required: [id, slug, name, target_market, research_language, content_language]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        target_market: { type: string, pattern: "^[A-Z]{2}$", example: US }
+        research_language: { type: string, example: auto }
+        content_language: { type: string, example: en }
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        target_market: { type: string, pattern: "^[A-Z]{2}$" }
+        research_language: { type: string }
+        content_language: { type: string }
+
+    ModelTaskProfile:
+      type: object
+      required: [task_type, provider, model, max_output_tokens, timeout_s, schema_retry_max, enabled]
+      properties:
+        task_type: { type: string }
+        provider: { $ref: "#/components/schemas/ProviderName" }
+        model: { type: string }
+        effort: { type: [string, "null"], enum: [low, medium, high, xhigh, max, null] }
+        max_output_tokens: { type: integer, minimum: 1, maximum: 128000 }
+        timeout_s: { type: integer, minimum: 5, maximum: 900 }
+        schema_retry_max: { type: integer, minimum: 0, maximum: 5 }
+        fallback_provider: { type: [string, "null"], enum: [anthropic, openai, null] }
+        fallback_model: { type: [string, "null"] }
+        fallback_on:
+          type: array
+          items: { type: string, enum: [PROVIDER_UNAVAILABLE] }
+        enabled: { type: boolean }
+
+    ModelPricing:
+      type: object
+      required: [provider, model, input_per_mtok, output_per_mtok, effective_from, source_note, verified]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        provider: { $ref: "#/components/schemas/ProviderName" }
+        model: { type: string }
+        version: { type: integer, readOnly: true }
+        effective_from: { type: string, format: date-time }
+        input_per_mtok: { $ref: "#/components/schemas/Money" }
+        output_per_mtok: { $ref: "#/components/schemas/Money" }
+        cache_read_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+        cache_write_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+        long_context_threshold_tokens: { type: [integer, "null"] }
+        long_input_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+        long_output_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+        source_note: { type: string }
+        verified: { type: boolean }
+
+    Schedule:
+      allOf:
+        - $ref: "#/components/schemas/ScheduleInput"
+        - type: object
+          required: [id, last_run_at, next_run_at]
+          properties:
+            id: { type: string, format: uuid }
+            last_run_at: { type: [string, "null"], format: date-time }
+            next_run_at: { type: [string, "null"], format: date-time }
+
+    ScheduleInput:
+      type: object
+      required: [name, job_type, cron_expr, enabled]
+      properties:
+        name: { type: string }
+        job_type: { type: string }
+        params: { type: object }
+        cron_expr: { type: string, example: "0 2 * * *" }
+        timezone: { type: string, example: Asia/Ho_Chi_Minh }
+        enabled: { type: boolean }
+        misfire_policy: { type: string, enum: [SKIP, RUN_ONCE], default: RUN_ONCE }
+        budget_limit_usd: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+
+    AuditLog:
+      type: object
+      required: [id, actor_type, action, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        actor_type: { type: string, enum: [USER, SYSTEM] }
+        actor_id: { type: [string, "null"], format: uuid }
+        action: { type: string }
+        entity_type: { type: [string, "null"] }
+        entity_id: { type: [string, "null"], format: uuid }
+        before: { type: [object, "null"] }
+        after: { type: [object, "null"] }
+        request_id: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    ToolInfo:
+      type: object
+      required: [name, version, description, external_effect, enabled]
+      properties:
+        name: { type: string }
+        version: { type: string }
+        description: { type: string }
+        external_effect: { type: boolean }
+        enabled: { type: boolean, description: "Tool có tác động bên ngoài luôn false trong MVP" }
+        timeout_s: { type: integer }
+        input_schema: { type: object }
+        output_schema: { type: object }

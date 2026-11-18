@@ -2,9 +2,9 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phiên bản | 0.1.0 (Draft – chờ xác nhận) |
+| Phiên bản | 0.3.0 (cập nhật theo quyết định Clarify E0 và yêu cầu phát triển không phí API, 2026-11-18) |
 | Ngày tạo | 2026-11-18 |
-| Tuân thủ | `.specify/memory/constitution.md` v1.0.0 |
+| Tuân thủ | `.specify/memory/constitution.md` v1.1.0 |
 | Phạm vi | Toàn bộ E0–E8, NFR, quy tắc nghiệp vụ, tiêu chí nghiệm thu MVP, lộ trình |
 | Nguồn | Tài liệu "YÊU CẦU PHÁT TRIỂN DỰ ÁN NICHEPILOT" do chủ sở hữu cung cấp |
 
@@ -111,7 +111,7 @@ Mục tiêu: nền tảng kỹ thuật để các AI Agent và module hoạt đ�
 | ID | Yêu cầu | Ưu tiên | KT |
 |---|---|---|---|
 | AI-01 | Claude API là provider mặc định; không dùng model local | Must | U |
-| AI-02 | Cấu hình model theo loại tác vụ (task type → provider + model + tham số) | Must | U |
+| AI-02 | Cấu hình model theo loại tác vụ (task type → provider + model + tham số); không hard-code model trong business logic; mặc định ưu tiên model hiệu quả chi phí phù hợp từng tác vụ | Must | U |
 | AI-03 | Hỗ trợ structured output có schema validation; output sai schema bị từ chối và thử lại có giới hạn | Must | U, I |
 | AI-04 | Hỗ trợ tool calling qua Tool Registry, kiểm tra quyền tool theo agent | Must | U, I |
 | AI-05 | Giới hạn số bước agent và số lần gọi API cho mỗi job; không vòng lặp vô hạn | Must | U |
@@ -120,6 +120,12 @@ Mục tiêu: nền tảng kỹ thuật để các AI Agent và module hoạt đ�
 | AI-08 | Mỗi Agent khai báo: input/output schema, tool permissions, timeout, token budget, retry policy, error handling, logging, acceptance criteria | Must | U |
 | AI-09 | Dùng chung AI Provider, Tool Registry và Job Runtime cho mọi agent (không bắt buộc mỗi agent một service) | Must | I |
 | AI-10 | Nội dung web thu thập được xử lý như dữ liệu không tin cậy (chống prompt injection) | Must | U, S |
+| AI-11 | Khi AI từ chối vì lý do chính sách: ghi trạng thái `REFUSED` + lý do, không tự chuyển model/provider, không tự retry | Must | U |
+| AI-12 | Vượt ngân sách: job `PAUSED_BUDGET`, tiếp tục từ checkpoint khi chủ sở hữu điều chỉnh; không tự tăng ngân sách hay đổi model; mặc định $3/ngày, $30/tháng, $2/job | Must | U, I |
+| AI-13 | API key chỉ qua `.env`/Docker secrets, không lưu database; có kiểm tra kết nối provider | Must | U, S |
+| AI-14 | Ba provider sau interface chung, chọn bằng cấu hình: `AnthropicAPIProvider` (chính), `OpenAIAPIProvider` (dự phòng), `MockAIProvider` (dev/test: kịch bản thành công, timeout, rate limit, sai schema, lỗi provider, vượt ngân sách…; dữ liệu gắn nhãn `MOCK`; cấm ở production) | Must | U, I |
+| AI-15 | Công tắc cho phép gọi API có phí, mặc định tắt; không tự động gọi API có phí khi phát triển/test; chỉ gọi thật khi chủ sở hữu cho phép | Must | U, I |
+| AI-16 | Chỉ xác thực provider bằng API key chính thức; không dùng OAuth token, cookie, session, Claude Code CLI hay tài khoản thuê bao cá nhân (Claude Pro) làm backend; không có workflow tự động phụ thuộc Claude Pro | Must | U, S |
 
 ### 3.2 E1 — Autonomous Niche Discovery (MVP) — *module quan trọng nhất*
 

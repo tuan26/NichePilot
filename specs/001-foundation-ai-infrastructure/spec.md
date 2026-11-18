@@ -14,12 +14,28 @@ ngân sách ngày/tháng/job, structured logging, audit log, xác thực Dashboa
 Docker Compose, unit/integration test, backup/restore, checkpoint/resume." (Nguồn: Master Requirements §3.1,
 E0-01…E0-20, AI-01…AI-10)
 
+**Status cập nhật**: Clarified (2026-11-18) – sẵn sàng cho `/speckit-plan`
+
+## Clarifications
+
+### Session 2026-11-18
+
+- Q: Khi chi phí ước tính của lời gọi AI kế tiếp vượt ngân sách, job xử lý thế nào và ngân sách mặc định là bao nhiêu? → A: Job chuyển `PAUSED_BUDGET`, tiếp tục từ checkpoint sau khi chủ sở hữu điều chỉnh ngân sách; mặc định $3/ngày, $30/tháng, $2/job, cấu hình được; hệ thống không tự tăng ngân sách và không tự chuyển model để vượt giới hạn.
+- Q: API key được lưu và cập nhật ở đâu? → A: Chỉ trong file `.env` hoặc Docker secrets; không lưu trong database; không hiển thị giá trị trên Dashboard, không ghi log; có chức năng kiểm tra kết nối API; không commit `.env` chứa thông tin nhạy cảm.
+- Q: E0 triển khai những trang giao diện nào? → A: Chỉ khung Dashboard song ngữ VI/EN: khởi tạo tài khoản, đăng nhập, trang trạng thái, chuyển ngôn ngữ. Agent Jobs, chi phí AI, Settings chỉ cung cấp qua API trong E0; giao diện đầy đủ ở E4.
+- Q: Hàng đợi job và scheduler dùng hạ tầng nào? → A: PostgreSQL làm hàng đợi; đánh giá Procrastinate trước, nếu không phù hợp thì tự triển khai tối giản bằng `SELECT … FOR UPDATE SKIP LOCKED`; không thêm Redis/Valkey trong E0; phải hỗ trợ retry, timeout, checkpoint, idempotency, chống xử lý trùng.
+- Q: Môi trường phát triển trên Windows chạy thế nào? → A: Docker Desktop + WSL2, mã nguồn trong filesystem WSL, có hot-reload, tương đồng Linux production; có hướng dẫn cài đặt, khởi động, kiểm tra và xử lý lỗi cho Windows 10/11.
+- Q (yêu cầu bổ sung của chủ sở hữu): Chọn model AI và xử lý khi Claude từ chối thế nào? → A: Claude là AI chính, OpenAI dự phòng; model cấu hình theo từng tác vụ, không hard-code model mặc định trong business logic; ưu tiên model hiệu quả chi phí phù hợp từng tác vụ (không bắt buộc Opus); khi Claude từ chối vì lý do chính sách, KHÔNG tự chuyển sang model/provider khác – ghi nhận trạng thái và lý do để kiểm tra.
+- Q (yêu cầu bổ sung – phát triển khi chưa có API key): Phát triển và kiểm thử E0 thế nào khi chủ sở hữu chỉ có Claude Pro, chưa có API key? → A: Ba provider sau một interface chung, chọn bằng cấu hình không sửa business logic: `AnthropicAPIProvider` (chính, vận hành), `OpenAIAPIProvider` (dự phòng), `MockAIProvider` (phát triển/kiểm thử khi chưa có key). E0 khởi động và kiểm thử đầy đủ (job queue, retry, checkpoint, logging, budget) bằng MockAIProvider với các kịch bản: thành công, timeout, rate limit, sai schema, lỗi provider, vượt ngân sách. Dữ liệu mock gắn nhãn rõ, không trình bày như nghiên cứu thật; MockAIProvider bị cấm ở production. Không dùng OAuth token, cookie, session hay Claude Code CLI để giả lập API; Claude Pro chỉ dùng để phát triển, phân tích thủ công, thử prompt – không phải provider, không có workflow 24/7 phụ thuộc Claude Pro. Không tự động gọi API có phí khi phát triển; chỉ gọi thật khi chủ sở hữu cho phép; khi có key chỉ cần cấu hình key + chọn provider; ngân sách giữ $3/ngày, $30/tháng, $2/job. Không báo cáo tích hợp Claude API là đã kiểm thử nếu chưa gọi API thật.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân chính là **Chủ sở hữu** (người dùng duy nhất trong MVP). E0 không tạo ra kết quả nghiên cứu; nó cung
-cấp nền tảng mà E1–E4 dựa vào. Để kiểm chứng nền tảng bằng hoạt động thực tế (không dùng dữ liệu giả), E0 có
-đúng **một loại job tích hợp sẵn: "Job chẩn đoán AI"** – gửi một yêu cầu nhỏ tới AI provider, yêu cầu kết quả có
-cấu trúc, gọi một tool nội bộ vô hại, rồi ghi nhận usage và chi phí.
+cấp nền tảng mà E1–E4 dựa vào. Để kiểm chứng nền tảng, E0 có đúng **một loại job tích hợp sẵn: "Job chẩn đoán
+AI"** – gửi một yêu cầu nhỏ tới AI provider đang được cấu hình, yêu cầu kết quả có cấu trúc, gọi một tool nội bộ
+vô hại, rồi ghi nhận usage và chi phí. Khi chưa có API key, job chạy với **MockAIProvider** (kết quả và chi phí
+được gắn nhãn giả lập); khi có key và chủ sở hữu cho phép gọi có phí, cùng job đó chạy với provider thật mà không
+sửa mã.
 
 ### User Story 1 - Khởi động hệ thống và đăng nhập an toàn (Priority: P1)
 
@@ -58,8 +74,9 @@ vào/ra, chi phí ước tính, thời gian xử lý.
 **Why this priority**: Mọi agent E1–E3 phụ thuộc vào lớp AI này (AC-02); cấu trúc và validation là điều kiện của
 nguyên tắc Evidence-First.
 
-**Independent Test**: Với API key hợp lệ và ngân sách đã cấu hình, chạy job chẩn đoán và kiểm tra kết quả, bản
-ghi usage, chi phí. Với test tự động: dùng test double mô phỏng provider (được đánh dấu rõ là giả lập).
+**Independent Test**: Không cần API key: chọn MockAIProvider, chạy job chẩn đoán với từng kịch bản giả lập và kiểm
+tra kết quả, bản ghi usage (nhãn `MOCK`), chi phí giả lập. Có API key + được phép gọi có phí: chạy lại cùng job với
+provider thật (kiểm thử tích hợp thủ công, chỉ khi chủ sở hữu cho phép).
 
 **Acceptance Scenarios**:
 
@@ -78,6 +95,16 @@ ghi usage, chi phí. Với test tự động: dùng test double mô phỏng prov
    chuyển sang provider dự phòng và ghi rõ việc chuyển đổi.
 7. **Given** agent đạt số bước tối đa hoặc số lời gọi AI tối đa của job, **When** muốn tiếp tục, **Then** job
    dừng với lý do "vượt giới hạn bước/lời gọi".
+8. **Given** chưa có API key và provider được cấu hình là MockAIProvider, **When** chạy job chẩn đoán với kịch bản
+   "thành công", **Then** job thành công, kết quả và usage được gắn nhãn `MOCK`, giao diện/API hiển thị rõ là giả
+   lập, và không có lời gọi mạng nào tới provider thật.
+9. **Given** MockAIProvider được cấu hình kịch bản timeout / rate limit / sai schema / lỗi provider / refusal /
+   kết quả bị cắt / vượt ngân sách, **When** chạy job chẩn đoán, **Then** hệ thống xử lý đúng như với provider thật
+   (retry, trạng thái, log, ngân sách) theo kịch bản tương ứng.
+10. **Given** công tắc cho phép gọi API có phí đang tắt (mặc định), **When** job cần gọi provider thật, **Then** lời
+   gọi bị chặn trước khi gửi với lý do "chưa được phép gọi API có phí" và không phát sinh chi phí.
+11. **Given** môi trường là `production` và cấu hình chọn MockAIProvider, **When** khởi động hệ thống, **Then** hệ
+   thống từ chối khởi động với thông báo rõ ràng.
 
 ---
 
@@ -96,13 +123,17 @@ nhận lời gọi bị chặn trước khi gửi khi ngân sách không đủ.
 1. **Given** chưa cấu hình ngân sách, **When** chủ sở hữu tạo lịch cho job tốn phí, **Then** hệ thống từ chối
    và yêu cầu cấu hình ngân sách trước.
 2. **Given** chi phí ước tính tối đa của lời gọi tiếp theo vượt phần ngân sách còn lại (ngày, tháng hoặc job),
-   **When** agent chuẩn bị gọi AI, **Then** lời gọi không được gửi và job chuyển sang trạng thái
-   [NEEDS CLARIFICATION: Khi vượt ngân sách, job nên tạm dừng chờ chủ sở hữu (có thể tiếp tục sau khi tăng ngân
-   sách) hay thất bại hẳn? Và giá trị ngân sách mặc định ngày/tháng/job là bao nhiêu USD?].
-3. **Given** hai job chạy đồng thời, **When** cả hai cùng gần chạm ngân sách, **Then** tổng chi tiêu thực tế
+   **When** agent chuẩn bị gọi AI, **Then** lời gọi không được gửi, job chuyển sang trạng thái `PAUSED_BUDGET` kèm lý do (ngân sách nào bị chạm,
+   chi phí ước tính, phần còn lại), và hệ thống không tự tăng ngân sách hay tự đổi sang model rẻ hơn.
+3. **Given** job đang `PAUSED_BUDGET`, **When** chủ sở hữu tăng ngân sách (hoặc sang ngày/tháng mới có đủ hạn
+   mức) và yêu cầu tiếp tục, **Then** job tiếp tục từ checkpoint, không lặp lại bước đã hoàn tất. Job
+   `PAUSED_BUDGET` không tự chạy lại khi chưa có yêu cầu tiếp tục của chủ sở hữu.
+4. **Given** cài đặt mới, **When** chưa thay đổi cấu hình, **Then** ngân sách mặc định là $3/ngày, $30/tháng,
+   $2/job; cả ba giá trị cấu hình được.
+5. **Given** hai job chạy đồng thời, **When** cả hai cùng gần chạm ngân sách, **Then** tổng chi tiêu thực tế
    không vượt ngân sách quá chi phí của một lời gọi đang dở dang.
-4. **Given** chi tiêu đạt 80% ngân sách ngày hoặc tháng, **When** xem Dashboard, **Then** thấy cảnh báo.
-5. **Given** sang ngày/tháng mới (theo múi giờ cấu hình), **When** kiểm tra ngân sách, **Then** hạn mức ngày/
+6. **Given** chi tiêu đạt 80% ngân sách ngày hoặc tháng, **When** xem Dashboard, **Then** thấy cảnh báo.
+7. **Given** sang ngày/tháng mới (theo múi giờ cấu hình), **When** kiểm tra ngân sách, **Then** hạn mức ngày/
    tháng được tính lại từ đầu.
 
 ---
@@ -174,9 +205,12 @@ secret), xác nhận secret không xuất hiện trong response, log và giao di
    mới.
 3. **Given** cấu hình mới không hợp lệ (ví dụ ngân sách âm, model không có trong bảng giá), **When** lưu, **Then**
    bị từ chối với thông báo lỗi bằng ngôn ngữ giao diện hiện tại.
-4. **Given** cách lưu API key [NEEDS CLARIFICATION: API key được quản lý chỉ qua file môi trường/Docker secrets
-   (Dashboard chỉ xem trạng thái) hay được nhập và lưu mã hóa trong database qua Dashboard?], **When** cập nhật
-   API key, **Then** key mới có hiệu lực cho các lời gọi tiếp theo mà không cần sửa mã nguồn.
+4. **Given** API key chỉ được quản lý trong `.env`/Docker secrets, **When** chủ sở hữu thay key và khởi động lại
+   thành phần liên quan theo hướng dẫn, **Then** key mới có hiệu lực mà không cần sửa mã nguồn, và database không
+   chứa bất kỳ API key nào.
+5. **Given** API key đã cấu hình, **When** chủ sở hữu gọi chức năng kiểm tra kết nối provider, **Then** nhận kết
+   quả "kết nối được / key không hợp lệ / không có mạng / chưa cấu hình" mà không phát sinh chi phí đáng kể (dùng
+   thao tác không tính phí hoặc chi phí tối thiểu, được ghi nhận) và không lộ giá trị key.
 
 ---
 
@@ -214,8 +248,9 @@ bản ghi.
 - **QA-14** Không có internet → kiểm tra sức khỏe báo provider "không kết nối được"; job thất bại sau retry với lý
   do "lỗi mạng"; phần còn lại của hệ thống (đăng nhập, xem dữ liệu) vẫn hoạt động.
 - **QA-15** API key sai/hết hạn → thất bại ngay, không retry, thông báo rõ.
-- AI provider từ chối trả lời (refusal) → bước được đánh dấu "bị từ chối" kèm loại lý do; không coi là thành
-  công; không retry vô hạn.
+- AI provider từ chối trả lời vì lý do chính sách (refusal) → bước được đánh dấu `REFUSED` kèm loại lý do và
+  giải thích do provider trả về; không coi là thành công; KHÔNG tự chuyển sang model hoặc provider khác; không
+  retry tự động; chủ sở hữu xem được trạng thái và lý do để kiểm tra.
 - AI dừng vì đạt giới hạn độ dài đầu ra → bước được đánh dấu "kết quả bị cắt", không lưu kết quả thiếu.
 - Rate limit (429) từ provider → chờ theo chỉ dẫn của provider rồi thử lại trong giới hạn.
 - Bảng giá thiếu model đang dùng → không cho chạy job tốn phí với model đó (không thể kiểm tra ngân sách).
@@ -249,10 +284,25 @@ bản ghi.
 
 - **FR-010**: Hệ thống MUST tích hợp Claude API làm provider mặc định và MUST NOT dùng model chạy local. *(E0-05,
   AI-01)*
-- **FR-011**: Hệ thống MUST định nghĩa một interface provider chung để có thể thêm OpenAI API làm provider dự phòng
-  mà không thay đổi logic nghiệp vụ; adapter OpenAI chỉ được dùng khi được cấu hình rõ ràng. *(E0-06, AI-07)*
+- **FR-011**: Hệ thống MUST định nghĩa một interface provider chung với ba triển khai: `AnthropicAPIProvider`
+  (chính), `OpenAIAPIProvider` (dự phòng, chỉ dùng khi được cấu hình rõ ràng) và `MockAIProvider` (phát triển/kiểm
+  thử); chuyển provider chỉ bằng cấu hình, không sửa business logic. *(E0-06, AI-07, AI-14)*
+- **FR-018**: `MockAIProvider` MUST: (a) không gọi mạng; (b) trả kết quả xác định theo kịch bản cấu hình được –
+  thành công, timeout, rate limit, sai schema, lỗi provider, lỗi xác thực, refusal, kết quả bị cắt, và usage lớn để
+  kích hoạt vượt ngân sách; (c) báo usage và chi phí giả lập theo bảng giá giả lập riêng; (d) gắn nhãn `MOCK` lên
+  mọi kết quả, usage log, bước job và dữ liệu sinh ra; (e) chỉ được bật ở môi trường `development`/`test` – hệ thống
+  MUST từ chối khởi động nếu bật ở `production`. Chi tiêu giả lập MUST được tính riêng, không cộng vào chi tiêu thật,
+  nhưng đi qua cùng cơ chế kiểm tra ngân sách. *(AI-14, Constitution I)*
+- **FR-019**: Hệ thống MUST có công tắc "cho phép gọi API có phí", mặc định TẮT; khi tắt, mọi lời gọi tốn phí tới
+  provider thật bị chặn trước khi gửi (job thất bại với mã `PAID_CALLS_DISABLED`). Kiểm tra kết nối không tính phí
+  (FR-056) vẫn được phép. Test tự động MUST NOT gọi API có phí. *(AI-15, Constitution VI)*
+- **FR-019b**: Provider thật MUST chỉ xác thực bằng API key chính thức được cấu hình cho hệ thống; MUST NOT dùng OAuth
+  token, cookie, session của tài khoản người dùng, thông tin đăng nhập Claude Code/CLI hay hồ sơ đăng nhập trên máy để
+  gọi API. *(AI-16)*
 - **FR-012**: Hệ thống MUST cho phép cấu hình theo từng loại tác vụ: provider, model, mức độ suy luận/effort, giới
-  hạn token đầu ra. *(AI-02)*
+  hạn token đầu ra. Business logic MUST NOT hard-code tên model; agent chỉ tham chiếu loại tác vụ và nhận model từ
+  cấu hình. Cấu hình mặc định MUST chọn model hiệu quả chi phí phù hợp từng loại tác vụ (không bắt buộc model mạnh
+  nhất cho mọi tác vụ). *(AI-02)*
 - **FR-013**: Hệ thống MUST hỗ trợ yêu cầu kết quả có cấu trúc và kiểm tra kết quả theo schema trước khi trả cho
   agent; kết quả không hợp lệ MUST NOT được lưu. *(AI-03, NFR-15)*
 - **FR-014**: Hệ thống MUST phân loại kết quả/lỗi của provider thành: thành công, sai schema, timeout, rate limit,
@@ -262,6 +312,10 @@ bản ghi.
   gửi dữ liệu cần thiết cho tác vụ. *(AI-06)*
 - **FR-016**: Hệ thống MUST đánh dấu nội dung đến từ tool/web là dữ liệu không tin cậy khi đưa vào ngữ cảnh AI và
   MUST NOT để nội dung đó thay đổi quyền tool hay giới hạn của agent. *(AI-10)*
+- **FR-017**: Khi provider từ chối trả lời vì lý do chính sách, hệ thống MUST ghi nhận trạng thái `REFUSED`, loại lý
+  do và giải thích (nếu có) vào usage log và bước job, MUST NOT tự chuyển sang model hoặc provider khác, và MUST NOT
+  bật tính năng chuyển model tự động phía provider. Provider dự phòng (FR-011) chỉ áp dụng cho lỗi kỹ thuật được
+  cấu hình rõ (ví dụ provider không khả dụng), không áp dụng cho refusal. *(AI-07, AI-11)*
 
 **Tool Registry & Agent**
 
@@ -283,7 +337,7 @@ bản ghi.
 **Job Runtime & Scheduler**
 
 - **FR-030**: Hệ thống MUST quản lý vòng đời job với các trạng thái tối thiểu: `QUEUED`, `RUNNING`, `PAUSED`,
-  `PAUSED_BUDGET` (nếu Clarify chọn tạm dừng khi vượt ngân sách), `RETRY_SCHEDULED`, `SUCCEEDED`, `FAILED`,
+  `PAUSED_BUDGET`, `RETRY_SCHEDULED`, `SUCCEEDED`, `FAILED`,
   `CANCELLED`; chỉ cho phép các chuyển trạng thái hợp lệ. *(E0-08)*
 - **FR-031**: Hệ thống MUST ghi lại từng bước của job (thời gian, đầu vào tóm tắt, kết quả, lỗi, chi phí) và từng
   lần thực thi tool. *(E0-08)*
@@ -308,12 +362,14 @@ bản ghi.
 - **FR-041**: Bảng giá model MUST cấu hình được và có phiên bản; chi phí của mỗi lời gọi lưu kèm phiên bản bảng giá
   đã dùng. *(Constitution VI)*
 - **FR-042**: Hệ thống MUST cho phép cấu hình ngân sách theo ngày, theo tháng và trần mặc định theo job (có thể
-  ghi đè cho từng job trong giới hạn ngày/tháng). *(E0-12)*
+  ghi đè cho từng job trong giới hạn ngày/tháng); giá trị mặc định $3/ngày, $30/tháng, $2/job. *(E0-12)*
 - **FR-043**: Trước mỗi lời gọi tốn phí, hệ thống MUST kiểm tra chi phí ước tính tối đa so với phần còn lại của cả
   ba ngân sách và MUST NOT gửi lời gọi nếu không đủ; kiểm tra MUST an toàn khi nhiều job chạy đồng thời. *(E0-12,
   NFR-06)*
 - **FR-044**: Hệ thống MUST cung cấp tổng hợp chi phí theo ngày, tháng, job, model và cảnh báo khi đạt 80% ngân sách
   ngày/tháng. *(E0-11, E4-15)*
+- **FR-045**: Khi vượt ngân sách, job MUST chuyển `PAUSED_BUDGET`, chỉ tiếp tục (từ checkpoint) khi chủ sở hữu yêu
+  cầu và ngân sách đủ; hệ thống MUST NOT tự tăng ngân sách hoặc tự đổi model/provider để tránh giới hạn. *(E0-12)*
 
 **Logging, audit, bảo mật, cấu hình**
 
@@ -327,8 +383,11 @@ bản ghi.
 - **FR-053**: Mật khẩu MUST được băm bằng thuật toán băm mật khẩu hiện đại; phiên đăng nhập hết hạn sau thời gian
   không hoạt động cấu hình được (mặc định 12 giờ); chống đoán mật khẩu bằng khóa tạm. *(E0-15, Constitution X)*
 - **FR-054**: Secret MUST NOT xuất hiện trong mã nguồn, git, log, response API hoặc giao diện (chỉ hiển thị dạng
-  che). Cách lưu và cập nhật API key: [NEEDS CLARIFICATION: xem User Story 6 – file môi trường/Docker secrets hay
-  lưu mã hóa trong database qua Dashboard]. *(E0-16, NFR-05)*
+  che). API key MUST chỉ được cung cấp qua file môi trường (`.env`) hoặc Docker secrets, MUST NOT lưu trong
+  database; file `.env` thật MUST bị loại khỏi git (chỉ commit `.env.example`). *(E0-16, NFR-05)*
+- **FR-056**: Hệ thống MUST cung cấp chức năng kiểm tra kết nối cho từng provider đã cấu hình, trả về trạng thái
+  (kết nối được / key không hợp lệ / không có mạng / chưa cấu hình) mà không lộ giá trị key; mỗi lần kiểm tra được
+  ghi audit log. *(E0-16)*
 - **FR-055**: Hệ thống MUST cho phép xem và cập nhật cấu hình không bí mật: provider/model theo tác vụ, ngân sách,
   giới hạn agent, múi giờ, thị trường mặc định (Mỹ), ngôn ngữ nội dung mặc định (tiếng Anh), ngôn ngữ nghiên cứu
   (theo thị trường), ngôn ngữ giao diện mặc định (tiếng Việt); các cấu hình ngôn ngữ độc lập nhau; cấu hình được
@@ -337,9 +396,9 @@ bản ghi.
 **Giao diện trong phạm vi E0**
 
 - **FR-060**: E0 MUST cung cấp khung giao diện song ngữ: trang khởi tạo tài khoản, đăng nhập, trạng thái hệ thống,
-  bộ chuyển VI/EN (mặc định tiếng Việt, ghi nhớ lựa chọn) và hạ tầng dịch thuật dùng cho E4. Phạm vi các trang
-  khác trong E0: [NEEDS CLARIFICATION: E0 có cần thêm trang Agent Jobs / chi phí AI / cấu hình cơ bản hay chỉ cung
-  cấp API cho các chức năng này và để giao diện cho E4?]. *(E0-01, E4-01…E4-05)*
+  bộ chuyển VI/EN (mặc định tiếng Việt, ghi nhớ lựa chọn) và hạ tầng dịch thuật dùng cho E4. Agent Jobs, chi phí
+  AI và cấu hình (Settings) chỉ được cung cấp qua API trong E0; E0 MUST NOT xây giao diện quản lý cho các chức năng
+  này (thuộc E4-12, E4-13, E4-15). *(E0-01, E4-01…E4-05)*
 - **FR-061**: Mọi thông báo lỗi trả về giao diện MUST thân thiện, theo ngôn ngữ giao diện, không lộ chi tiết kỹ
   thuật (stack trace, câu lệnh, secret). *(UI-02, E4-05)*
 
@@ -348,7 +407,10 @@ bản ghi.
 - **FR-070**: Toàn bộ hệ thống MUST khởi động bằng một lệnh Docker Compose trên Windows 10/11 (Docker Desktop/WSL2)
   và Linux, với giới hạn tài nguyên cho từng thành phần và thành phần tùy chọn tách theo profile. *(E0-17, NFR-10)*
 - **FR-071**: Hệ thống MUST có file cấu hình mẫu với giá trị mặc định an toàn và hướng dẫn vận hành tiếng Việt
-  (cài đặt, cấu hình, khởi động, nâng cấp, backup/restore, xử lý sự cố). *(AC-20, NFR-13)*
+  (cài đặt, cấu hình, khởi động, nâng cấp, backup/restore, xử lý sự cố), gồm hướng dẫn riêng cho Windows 10/11 với
+  Docker Desktop + WSL2 (mã nguồn đặt trong filesystem WSL). *(AC-20, NFR-13)*
+- **FR-074**: Môi trường phát triển MUST hỗ trợ hot-reload cho backend và frontend khi chạy trong Docker và giữ
+  tương đồng với cấu hình production Linux. *(E0-17)*
 - **FR-072**: Hệ thống MUST có unit test và integration test chạy tự động không cần API key thật và không phát sinh
   chi phí; test với provider thật được tách riêng, chạy thủ công, có trần chi phí. *(E0-18, Constitution IX)*
 - **FR-073**: Hệ thống SHOULD hỗ trợ backup database theo lịch (giữ N bản) và quy trình khôi phục có tài liệu và có
@@ -370,6 +432,7 @@ bản ghi.
   chối do quyền hay không.
 - **AI Usage Log**: một lời gọi AI; provider, model, loại tác vụ, token vào/ra/cache, chi phí, phiên bản bảng giá,
   kết quả phân loại, thời gian.
+- **Model Task Profile**: ánh xạ loại tác vụ → provider, model, effort, giới hạn token, số lần retry schema.
 - **Budget Reservation**: phần ngân sách được giữ chỗ cho lời gọi đang thực hiện; được quyết toán theo chi phí thực.
 - **Job Schedule**: lịch định kỳ; loại job, tham số, biểu thức lịch, múi giờ, bật/tắt, lần chạy trước/kế tiếp,
   chính sách chạy bù.
@@ -386,7 +449,12 @@ bản ghi.
   (4 core, 15 GB RAM, không GPU) trong vòng 30 phút kể từ khi có mã nguồn, với một lệnh khởi động. *(AC-01)*
 - **SC-002**: Ở trạng thái nghỉ, toàn bộ thành phần bắt buộc của E0 dùng tổng cộng không quá 3 GB RAM. *(NFR-01)*
 - **SC-003**: Job chẩn đoán AI với provider thật hoàn tất thành công và hiển thị token và chi phí; chi phí ghi nhận
-  lệch không quá 1% so với tính toán thủ công từ usage và bảng giá. *(AC-02, E0-11)*
+  lệch không quá 1% so với tính toán thủ công từ usage và bảng giá. *(AC-02, E0-11)* – **Chỉ kiểm chứng được khi chủ
+  sở hữu cung cấp API key và cho phép gọi có phí; trước đó tiêu chí này ghi trạng thái "chưa kiểm chứng", không được
+  báo cáo là đạt.**
+- **SC-003b**: Không cần API key, toàn bộ luồng E0 (khởi động, job, retry, checkpoint, lịch, ngân sách, logging, audit)
+  chạy và kiểm thử được bằng MockAIProvider; 100% kịch bản giả lập ở FR-018 có test tự động pass; 0 lời gọi mạng tới
+  provider thật trong toàn bộ test tự động.
 - **SC-004**: Trong 100% kịch bản kiểm thử vượt ngân sách (ngày, tháng, job, đồng thời), không có lời gọi tốn phí
   nào được gửi khi ngân sách còn lại không đủ cho chi phí ước tính tối đa. *(AC-03)*
 - **SC-005**: 100% kết quả AI sai schema trong kiểm thử bị từ chối và không được lưu. *(AI-03)*
@@ -408,15 +476,16 @@ bản ghi.
 - MVP có đúng một người dùng (chủ sở hữu) với toàn quyền; không có phân quyền nhiều vai trò.
 - E0 không chứa logic nghiên cứu thị trường; Job chẩn đoán AI là loại job duy nhất, chỉ để kiểm chứng nền tảng.
   Agent nghiên cứu thực tế thuộc E1–E3.
-- Adapter OpenAI: E0 cung cấp interface và adapter, có test bằng test double; việc kiểm thử với OpenAI thật chỉ thực
-  hiện khi chủ sở hữu cung cấp key.
+- Chủ sở hữu hiện dùng Claude Pro qua Claude Code để phát triển và chưa có API key; Claude Pro không phải provider của
+  hệ thống. Adapter Anthropic và OpenAI được kiểm thử ở mức HTTP giả lập (không gọi mạng) trong E0; kiểm thử với API
+  thật chỉ thực hiện khi chủ sở hữu cung cấp key và cho phép rõ ràng.
 - Tìm kiếm web (SearXNG), crawl, browser automation không thuộc E0; được đưa vào ở E1 qua Tool Registry.
 - Luồng phê duyệt (approval request) chưa triển khai trong E0 vì MVP không có hành động bên ngoài; chỉ đảm bảo thiết
   kế không chặn việc bổ sung sau.
 - Múi giờ mặc định cho ngân sách và lịch: `Asia/Ho_Chi_Minh`; tiền tệ ngân sách: USD (theo đơn vị giá của provider).
 - Bảng giá model ban đầu được nhập từ giá công bố của provider tại thời điểm triển khai và chủ sở hữu có thể cập nhật.
-- Model mặc định cho mọi loại tác vụ là model Claude mạnh nhất hiện hành do chủ sở hữu chấp thuận; chủ sở hữu có thể
-  chọn model rẻ hơn cho tác vụ đơn giản – hệ thống không tự hạ model.
+- Model được gán theo loại tác vụ trong cấu hình; bộ mặc định ưu tiên hiệu quả chi phí (model nhỏ cho tác vụ đơn giản,
+  model mạnh hơn cho phân tích phức tạp) và chủ sở hữu thay đổi được; hệ thống không tự đổi model lúc chạy.
 - Truy cập Dashboard chủ yếu từ máy cục bộ hoặc mạng nội bộ; công khai ra internet cần reverse proxy có HTTPS (ngoài
   phạm vi E0, có ghi trong hướng dẫn).
 - Thời gian giữ log và audit log: mặc định 90 ngày cho log ứng dụng, không tự xóa audit log trong MVP.

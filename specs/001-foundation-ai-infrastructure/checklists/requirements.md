@@ -15,8 +15,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain — **còn 3 marker** (hành vi + giá trị mặc định khi vượt ngân sách;
-      cách lưu API key; phạm vi giao diện trong E0) → xử lý ở `/speckit-clarify`
+- [x] No [NEEDS CLARIFICATION] markers remain — *3 marker đã được giải quyết ở Session 2026-11-18*
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -47,10 +46,12 @@
 | E0-08 | FR-030, FR-031 | E0-18 | FR-072 |
 | E0-09 | FR-032, FR-033 | E0-19 | FR-073 |
 | E0-10 | FR-014, FR-035 | E0-20 | FR-036 |
-| AI-01…AI-10 | FR-010…FR-016, FR-021…FR-025 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
+| AI-01…AI-16 | FR-010…FR-019b, FR-021…FR-025, FR-045, FR-054, FR-056 | AUT-03/04/05 | FR-032, FR-034, FR-037 |
 | DATA-01/02/03/06 | FR-005, FR-004, FR-007, FR-006 | BR-08 | FR-023 |
 
 ## Notes
 
 - Lần validate 1: tất cả mục đạt trừ 3 marker [NEEDS CLARIFICATION] (trong giới hạn tối đa 3 của Spec Kit).
+- Lần validate 2 (sau Clarify 2026-11-18): tất cả mục đạt; thêm FR-017, FR-045, FR-056, FR-074.
+- Lần validate 3 (yêu cầu phát triển không phí API): tất cả mục đạt; thêm FR-018, FR-019, FR-019b, SC-003b; SC-003 ghi rõ chỉ kiểm chứng khi có key.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

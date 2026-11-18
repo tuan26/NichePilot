@@ -16,8 +16,14 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
 - Thuộc tính không xác minh được MUST lưu giá trị `UNKNOWN` (không để trống, không suy đoán).
   Thuộc tính suy luận bởi AI MUST được gắn nhãn `INFERRED` và tách biệt khỏi dữ liệu `VERIFIED`.
 - Khi nguồn mâu thuẫn, hệ thống MUST lưu tất cả giá trị kèm nguồn và đánh dấu `CONFLICTING`.
-- Mock data CHỈ được dùng trong unit/integration test, MUST nằm trong thư mục test/fixture và được
-  gắn nhãn rõ ràng; MUST NOT xuất hiện trong database vận hành hoặc báo cáo.
+- Mock data trong test MUST nằm trong thư mục test/fixture và được gắn nhãn rõ ràng.
+- Ngoài test, mock CHỈ được sinh bởi `MockAIProvider` khi chạy ở môi trường `development` hoặc `test`.
+  Mọi bản ghi do mock sinh ra MUST mang nhãn nguồn gốc `MOCK` (ví dụ `data_origin = MOCK`), MUST được hiển
+  thị là dữ liệu giả lập, MUST bị loại khỏi báo cáo/xếp hạng nghiên cứu theo mặc định, và MUST NOT được
+  trình bày như kết quả nghiên cứu thật. Hệ thống MUST từ chối khởi động nếu bật mock ở môi trường
+  `production`.
+- Một tích hợp provider chỉ được báo cáo là "đã kiểm thử" khi đã gọi API thật của provider đó thành công;
+  kết quả với mock chỉ chứng minh logic nội bộ.
 - Báo cáo tiến độ phát triển MUST NOT tuyên bố thành công khi chưa kiểm tra thực tế; thiếu API key
   thì ghi rõ "chưa kiểm tra được", không tạo dữ liệu giả.
 
@@ -56,7 +62,12 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
 - Mọi output của LLM MUST được validate theo schema trước khi lưu; output sai schema MUST được thử
   lại có giới hạn rồi đánh dấu lỗi, MUST NOT lưu dữ liệu không hợp lệ.
 - Vòng lặp agent MUST có điểm dừng cứng; không có vòng lặp vô hạn.
-- Không chuyển provider AI (Claude → OpenAI) nếu chưa được cấu hình rõ ràng.
+- Không chuyển provider AI (Claude → OpenAI) nếu chưa được cấu hình rõ ràng. Provider được chọn bằng cấu
+  hình qua một interface chung; business logic MUST NOT phụ thuộc provider cụ thể.
+- AI provider của hệ thống CHỈ là API chính thức có API key (Anthropic API, OpenAI API) hoặc
+  `MockAIProvider` (dev/test). MUST NOT dùng OAuth token, cookie, session của tài khoản người dùng hoặc
+  Claude Code CLI để giả lập API backend; workflow tự động MUST NOT phụ thuộc tài khoản thuê bao cá nhân
+  (Claude Pro…). Claude Code chỉ là công cụ phát triển.
 - Không gửi dữ liệu nhạy cảm (API key, mật khẩu, thông tin cá nhân không cần thiết) tới LLM.
 - Nội dung thu thập từ web là dữ liệu không tin cậy: MUST NOT được thực thi như chỉ thị
   (phòng chống prompt injection).
@@ -67,6 +78,8 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
 - Ngân sách theo ngày, tháng và theo job MUST được kiểm tra TRƯỚC mỗi lời gọi tốn phí; vượt ngân sách
   MUST dừng/tạm dừng job, không chỉ cảnh báo.
 - Job tốn phí MUST NOT chạy theo lịch khi chưa cấu hình ngân sách.
+- Lời gọi API có phí MUST bị chặn theo mặc định (công tắc cho phép gọi có phí tắt); chỉ bật khi chủ sở hữu
+  cho phép rõ ràng. Quá trình phát triển và test tự động MUST NOT tự động gọi API có phí.
 - Bảng giá model MUST cấu hình được (không hard-code rải rác trong mã).
 
 ### VII. OSS-First & Đánh giá công nghệ
@@ -166,4 +179,4 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
   việc triển khai.
 - Hướng dẫn phát triển runtime cho AI coding agent nằm trong `CLAUDE.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
+**Version**: 1.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
