@@ -47,7 +47,20 @@ Mở `http://localhost:8080` → tạo tài khoản chủ sở hữu lần đầ
 | `make backup` / `make restore FILE=…` | Backup / khôi phục (xem backup-restore.md) |
 | `make test` | Lint + test backend + frontend (không gọi API thật) |
 
-## Log
+## Phục hồi worker khi mất kết nối database
+
+- Hành vi đã kiểm chứng (2026-11-18, stack Docker thật): khi PostgreSQL dừng, tiến trình `worker` **thoát** (lỗi
+  `procrastinate.exceptions.ConnectorException`) thay vì tự kết nối lại; `api` trả `503 SERVICE_UNAVAILABLE` rồi tự phục hồi.
+- Khi chạy bằng Docker Compose, cơ chế phục hồi worker là chính sách `restart: unless-stopped` trong
+  `deploy/docker-compose.yml`: Docker khởi động lại worker cho tới khi database sẵn sàng. **Không** gỡ chính sách này.
+- Khi chạy worker **ngoài Docker** (ví dụ `python -m nichepilot.worker` trực tiếp), bắt buộc dùng một process supervisor
+  tự khởi động lại khi tiến trình thoát (systemd `Restart=always`, supervisord `autorestart=true`…). Không có supervisor,
+  worker sẽ dừng hẳn sau sự cố database.
+- Sau khi khởi động lại không có job chạy trùng: lượt thực thi dùng `lock` theo `job_id`; job `RUNNING` mất heartbeat được
+  tác vụ bảo trì đưa về `RETRY_SCHEDULED` (hoặc `PAUSED_BUDGET` nếu còn reservation `UNCERTAIN`) và tiếp tục từ checkpoint.
+- E0 cố ý **không** thêm vòng lặp tự kết nối lại trong worker: chưa chứng minh được an toàn với Procrastinate (lock, lượt
+  thực thi đang dở), connection pool và cơ chế phục hồi job stalled.
+
 
 - Bản lưu chính: file theo ngày `app-YYYY-MM-DD.jsonl` trong volume `logs` (`LOG_DIR`), JSON có `request_id`, `job_id`,
   `step_id`; secret được che tự động.

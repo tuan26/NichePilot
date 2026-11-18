@@ -58,7 +58,7 @@ Kỳ vọng sau vài giây (`GET /api/v1/jobs/{id}`):
 - `status = SUCCEEDED`, `data_origin = MOCK`, `result.note` bắt đầu bằng `[MOCK]`.
 - `GET /api/v1/jobs/{id}/steps` → 3 bước (AI_CALL → TOOL_CALL `system.runtime_info` → AI_CALL), mỗi bước `data_origin = MOCK`.
 - `GET /api/v1/costs/usage?job_id={id}&data_origin=MOCK` → 2 bản ghi `provider = mock`, có token và `cost_usd` giả lập
-  (mặc định endpoint chỉ trả chi phí thật `REAL` – FR-018g).
+  (mặc định endpoint chỉ trả chi phí thật `REAL` – FR-018(g)).
 - `GET /api/v1/budget` → chi tiêu nằm ở `mock`, phần `real` vẫn bằng 0.
 
 ## 4. Kịch bản lỗi giả lập (US2, QA-01/02/15, FR-014, FR-017)
@@ -84,7 +84,13 @@ Tạo job với `params.mock_scenario`:
 2. Tạo job với `mock_scenario = budget_heavy` → job `PAUSED_BUDGET`, `status_reason_code = BUDGET_JOB_EXCEEDED`,
    `status_reason_detail` có hạn mức, đã chi, ước tính; **không** có usage log cho lời gọi bị chặn.
 3. `POST /api/v1/jobs/{id}/resume` khi chưa tăng ngân sách → `402 BUDGET_STILL_INSUFFICIENT`.
-4. Tăng ngân sách job (hoặc `PUT /api/v1/budget`) rồi resume → job tiếp tục từ checkpoint, không lặp bước đã xong.
+4. Hạn mức của một job (`budget_limit_usd`) được chốt khi tạo job; `PUT /api/v1/budget` chỉ đổi giá trị mặc định cho
+   **job tạo sau đó**, không đổi hạn mức của job đã tạo. E0 **không** có API tăng hạn mức của job đã tạo, vì vậy job dừng
+   với `BUDGET_JOB_EXCEEDED` chỉ có hai hướng xử lý chính thức: `POST /api/v1/jobs/{id}/cancel`, hoặc tạo job mới với
+   `budget_limit_usd` lớn hơn (≤ hạn mức ngày). Không sửa database trực tiếp để tăng hạn mức.
+   (Với `BUDGET_DAILY_EXCEEDED`/`BUDGET_MONTHLY_EXCEEDED`, `resume` đánh giá lại theo hạn mức ngày/tháng hiện hành – sang
+   kỳ mới hoặc sau khi chủ sở hữu tăng hạn mức bằng `PUT /api/v1/budget`.) Cơ chế tiếp tục từ checkpoint không lặp bước
+   đã xong được kiểm thử tự động (TC_FR045_01).
 5. Đặt lại `per_job_default_usd = 2.00`.
 6. Tạo job `mock_scenario = timeout_after_send` → reservation chuyển `UNCERTAIN` (`GET /api/v1/budget/reservations?status=UNCERTAIN`),
    `GET /api/v1/budget` có `uncertain_count = 1` và cảnh báo `UNCERTAIN_RESERVATIONS`; phần giữ chỗ vẫn bị trừ.
@@ -92,7 +98,8 @@ Tạo job với `params.mock_scenario`:
 7b. Job đang `PAUSED_BUDGET (UNCERTAIN_RESERVATION_LIMIT)`: `POST …/resume` khi còn reservation chưa đối soát → `423
     UNCERTAIN_RESERVATIONS_UNRESOLVED`; đối soát hết cả 3 rồi resume → job tiếp tục từ checkpoint.
 8. Model/giá chưa xác minh: với provider thật và `AI_PAID_CALLS_ENABLED=true` nhưng model `verified = false` → job `FAILED`,
-   `MODEL_NOT_VERIFIED` (kiểm thử tự động bằng respx, không gọi mạng).
+   `MODEL_NOT_VERIFIED` (kiểm thử tự động bằng provider giả lập/transport HTTP giả lập `httpx2.MockTransport`, không gọi
+   mạng).
 
 ## 6. Vòng đời job: hủy, tạm dừng, retry, worker chết (US4, SC-006, QA-09/10)
 

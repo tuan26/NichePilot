@@ -67,7 +67,7 @@ class LLMResponse(BaseModel):
 **Bất biến của `AIGateway.call(task_type, request, job_ctx)`** – thứ tự bắt buộc:
 
 1. Chọn profile → provider (override). **Rào chắn runtime**: nếu `APP_ENV=production` và provider là `mock` →
-   `MockNotAllowed` (bổ sung cho kiểm tra lúc khởi động – FR-018f).
+   `MockNotAllowed` (bổ sung cho kiểm tra lúc khởi động – FR-018(f)).
 2. Từ chối nếu `mock_scenario` được truyền mà provider không phải mock, hoặc đang ở production.
 3. Provider có phí: model phải `ai_models.verified` và có khả năng tác vụ cần (`MODEL_NOT_VERIFIED`), bảng giá phải
    tồn tại và `verified` (`PRICING_NOT_VERIFIED`). Mock: dùng bảng giá giả lập riêng.

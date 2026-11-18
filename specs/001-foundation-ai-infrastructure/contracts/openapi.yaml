@@ -507,7 +507,14 @@ paths:
   /api/v1/model-profiles/{task_type}:
     put:
       tags: [settings]
-      summary: Cập nhật profile (model phải có giá đã xác minh nếu provider có phí)
+      summary: Cập nhật profile (đổi sang model có phí phải có giá đã xác minh)
+      description: |
+        Khi `provider`/`model` (hoặc `fallback_provider`/`fallback_model`) được ĐỔI sang một model của provider có phí,
+        model đó phải có trong catalog và bảng giá hiện hành phải `verified = true`; nếu không → 422
+        (`pricing_not_verified` / `not_in_catalog`). Sửa các trường khác (max_output_tokens, timeout_s, effort…) của profile
+        đang trỏ tới model chưa xác minh giá vẫn được phép. Điều này KHÔNG mở đường gọi có phí: AI Gateway luôn chặn lời gọi
+        có phí khi model hoặc giá chưa xác minh (`MODEL_NOT_VERIFIED` / `PRICING_NOT_VERIFIED`, FR-019c).
+        `provider = mock` bị từ chối khi APP_ENV=production (409 `MOCK_NOT_ALLOWED`).
       parameters:
         - { name: task_type, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -518,6 +525,8 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ModelTaskProfile" } } } }
         "422": { $ref: "#/components/responses/ValidationError" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/models:
     get:

@@ -30,7 +30,7 @@ Tailwind CSS 4.3, shadcn (CLI 4.23), i18next 27 + react-i18next 18, TanStack Que
 
 **Storage**: PostgreSQL 17 (dữ liệu + hàng đợi Procrastinate); migration Alembic; backup `pg_dump -Fc`
 
-**Testing**: pytest 9.2 + pytest-asyncio, testcontainers (PostgreSQL thật), httpx, respx, import-linter 2.16 (BSD-2, ranh giới
+**Testing**: pytest 9.2 + pytest-asyncio, testcontainers (PostgreSQL thật), httpx, `httpx2.MockTransport` (SDK anthropic/openai dùng httpx2 – respx không áp dụng, xem research.md), import-linter 2.16 (BSD-2, ranh giới
 module), `MockAIProvider`/`FakeLLMProvider`;
 Vitest 5; Playwright 1.65; ruff, mypy, ESLint, tsc; detect-secrets
 
@@ -224,7 +224,7 @@ sequenceDiagram
 | Nhóm yêu cầu | Loại test chính | Kịch bản quickstart |
 |---|---|---|
 | FR-001…FR-007 | import-linter (ranh giới module), integration (migration, seed, ràng buộc, mất kết nối DB), contract (health/status) | 1, 8 |
-| FR-010…FR-019b | Unit (gateway, phân loại lỗi, override, rào chắn production, sanitize), contract adapter (respx), integration với MockAIProvider | 3, 4, 8, 9 |
+| FR-010…FR-019b | Unit (gateway, phân loại lỗi, override, rào chắn production, sanitize), contract adapter (`httpx2.MockTransport`), integration với MockAIProvider | 3, 4, 8, 9 |
 | FR-020…FR-026 | Unit (registry, quyền, external_effect, giới hạn bước), integration agent chẩn đoán | 3, 4 |
 | FR-030…FR-038 | Unit (state machine), integration (queue, idempotency, stalled, cancel, pause, concurrency) | 6, 7 |
 | FR-040…FR-045 | Unit (pricing, phân tầng giá), integration (đặt chỗ đồng thời, PAUSED_BUDGET, resume) | 5 |
@@ -240,9 +240,10 @@ thái **"chưa kiểm chứng"** cho tới khi chủ sở hữu cung cấp key v
 | Rủi ro | Mức | Giảm thiểu |
 |---|---|---|
 | Procrastinate không đáp ứng một yêu cầu phát hiện khi triển khai | Trung bình | Interface `JobQueue`; phương án `PgSkipLockedJobQueue` đã thiết kế |
-| SDK `anthropic` 2.x khác tài liệu đã biết | Trung bình | Đối chiếu tài liệu SDK chính thức khi code; test adapter bằng respx; smoke test thật khi được phép |
+| SDK `anthropic` 2.x khác tài liệu đã biết | Trung bình | Đối chiếu tài liệu SDK chính thức khi code; test adapter bằng `httpx2.MockTransport`; smoke test thật khi được phép |
 | Hành vi API thật khác mock (format refusal, usage) | Trung bình | Mock bám theo hợp đồng `LLMResponse`; test hợp đồng adapter với payload mẫu từ tài liệu; kiểm thử thật ở quickstart 9 |
 | Bảng giá sai/lỗi thời → kiểm soát ngân sách sai | Trung bình | Giá có `source_note` + `verified`; chặn model chưa xác minh; xác minh lại khi triển khai |
+| Worker thoát khi mất kết nối PostgreSQL (đã kiểm chứng trên stack thật) | Trung bình | Compose `restart: unless-stopped` là cơ chế phục hồi; chạy ngoài Docker bắt buộc process supervisor; `lock` theo job + phục hồi job stalled đảm bảo không chạy trùng. Không thêm vòng lặp tự kết nối lại khi chưa chứng minh an toàn (docs/operations/README.md) |
 | Docker Desktop/WSL2 thiếu RAM | Thấp | Giới hạn container, `.wslconfig`, hướng dẫn xử lý sự cố |
 | Không kiểm thử được Windows trong cloud container này | Trung bình | CI Linux + checklist kiểm thử thủ công trên Windows do chủ sở hữu thực hiện (AC-01) |
 | TypeScript 7 chưa tương thích công cụ | Thấp | Pin 6.x |
