@@ -12,8 +12,15 @@ DEPLOY = Path(__file__).resolve().parents[3] / "deploy"
 REQUIRED = ["postgres", "migrate", "api", "worker", "web"]
 
 
+class _ComposeLoader(yaml.SafeLoader):  # type: ignore[misc]
+    """Hiểu tag `!reset` của Docker Compose (xóa giá trị kế thừa)."""
+
+
+_ComposeLoader.add_constructor("!reset", lambda loader, node: None)
+
+
 def _load(name: str) -> dict[str, Any]:
-    data: dict[str, Any] = yaml.safe_load((DEPLOY / name).read_text(encoding="utf-8"))
+    data: dict[str, Any] = yaml.load((DEPLOY / name).read_text(encoding="utf-8"), Loader=_ComposeLoader)  # noqa: S506
     return data
 
 
@@ -53,3 +60,11 @@ def test_TC_FR074_03_dev_web_has_memory_for_npm_and_vite() -> None:
     dev_web = _load("docker-compose.dev.yml")["services"]["web"]
     limit = dev_web.get("mem_limit", prod_web["mem_limit"])
     assert _mb(limit) >= 1024, limit
+
+
+def test_TC_FR074_04_dev_web_does_not_inherit_production_build() -> None:
+    """Dev `web` chạy image node; nếu kế thừa `build:` (Caddy) của production, `up --build` sẽ dựng image Caddy và gắn
+    nhãn đè thành node:22-alpine → `npm: not found` (phát hiện trên CI run 17, 2026-11-18)."""
+    raw = (DEPLOY / "docker-compose.dev.yml").read_text(encoding="utf-8")
+    web_block = raw.split("\n  web:\n", 1)[1].split("\nvolumes:", 1)[0]
+    assert "build: !reset" in web_block
