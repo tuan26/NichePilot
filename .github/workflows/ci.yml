@@ -79,7 +79,10 @@ jobs:
           path: smoke-*.txt
       - name: Compose logs on failure
         if: failure()
-        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml --env-file deploy/env/.env logs
+        run: |
+          cat smoke-*.txt || true
+          docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml --env-file deploy/env/.env ps -a
+          docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml --env-file deploy/env/.env logs --tail=60
 
   traceability:
     runs-on: ubuntu-latest
