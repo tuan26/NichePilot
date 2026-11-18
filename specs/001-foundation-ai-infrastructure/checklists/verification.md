@@ -39,3 +39,42 @@
 | §10 | Bộ test tự động | PASS | backend 289 passed (2 live deselected), frontend 4, E2E 1; lint/format/mypy/import-linter sạch |
 | – | Smoke dev (hot reload trong Docker) | BLOCKED | môi trường này không build được image dev qua proxy; sẽ chạy ở job CI `smoke` |
 | – | Windows 10/11 | NOT_TESTED | `checklists/windows-manual.md` chờ chủ sở hữu thực hiện |
+
+---
+
+## Kiểm chứng sau khắc phục findings (2026-11-18, chiều)
+
+Commit kiểm chứng: `4d13bed` (nhánh `claude/inspiring-wright-06dzhw`). Mọi kiểm thử dùng MockAIProvider;
+`AI_PAID_CALLS_ENABLED=false`, API key trống; 0 bản ghi usage `REAL`/provider khác `mock`.
+
+### Cục bộ (container phát triển Linux, Docker Engine)
+
+| Kiểm tra | Lệnh | Kết quả | Bằng chứng |
+|---|---|---|---|
+| Backend toàn bộ | `cd backend && uv run pytest` | PASS | 309 passed, 2 live deselected |
+| Lint/format/type/import | `ruff check`, `ruff format --check`, `mypy`, `lint-imports` | PASS | 0 lỗi; 3/3 contract import KEPT |
+| Truy vết strict | `uv run --no-project python scripts/traceability_report.py --strict` | PASS | exit 0; 58/58 FR Must; 0 mã "không có trong spec" |
+| Frontend | `npx vitest run`, `npm run typecheck`, `npm run lint` | PASS | 4 tests |
+| Smoke prod | `SMOKE_NO_BUILD=1 deploy/tests/smoke.sh prod` (image build từ `4d13bed`, 14:31Z) | PASS | healthy 22 s; RAM nghỉ 324 MB |
+| E2E Playwright | `npx playwright test` trên stack prod | PASS | 1 passed |
+| Smoke dev (hot reload) | `SMOKE_NO_BUILD=1 SMOKE_EXTRA_COMPOSE=<override cục bộ> deploy/tests/smoke.sh dev` (14:29Z) | PASS (có điều kiện) | reload api=1 worker=1 web=1. Cần override cục bộ (không commit) cho container web dùng mạng host + CA/proxy của môi trường này |
+| C1 – mất DB 20 s khi đang có job RUNNING | script HTTP trên stack prod | PASS | worker RestartCount=1; 4/4 job SUCCEEDED; không `seq` trùng; job đang chạy có 2 lượt `job.started` (lượt đầu + phục hồi attempt 2), job khác 1 lượt → không thực thi trùng |
+| Secret trong log | grep `sk-ant-`/`sk-proj-`/`Bearer `/mật khẩu owner/mật khẩu DB trong stdout và `/var/log/nichepilot` | PASS | 0 kết quả |
+
+Lần chạy smoke prod 14:29Z trước đó dùng image CŨ (build mới bị Docker Hub 429) – **không** tính làm bằng chứng.
+
+### GitHub Actions (CI thật)
+
+| Run | Commit | Job | Kết quả |
+|---|---|---|---|
+| 12 (44275024260) | `ffeac4c` | backend, frontend, traceability, e2e | PASS |
+| 12 | `ffeac4c` | smoke – bước "Smoke prod" | PASS |
+| 12 | `ffeac4c` | smoke – bước "Smoke dev" | FAIL → nguyên nhân: web dev OOM (128m) + Vite chưa có module trong graph; đã sửa ở `4d13bed` |
+| 12, 16 | `ffeac4c`, `4d13bed` | secrets (detect-secrets) | FAIL – dương tính giả (xem N1 trong báo cáo); ngoài phạm vi đợt sửa này |
+| 16 (44324814680) | `4d13bed` | backend, frontend, traceability, e2e | PASS |
+| 16 | `4d13bed` | smoke – bước "Smoke prod" | PASS |
+| 16 | `4d13bed` | smoke – bước "Smoke dev" | NOT RUN (đang chạy lúc ghi 14:40Z – cập nhật khi có kết quả) |
+
+### Windows 10/11
+
+BLOCKED – NOT RUN: không có máy Windows trong môi trường này; `checklists/windows-manual.md` giữ nguyên trạng thái chưa thực hiện.
