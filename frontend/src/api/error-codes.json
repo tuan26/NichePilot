@@ -83,6 +83,10 @@
     "status": 409,
     "title": "Mock provider is not allowed in production"
   },
+  "MODEL_EXISTS": {
+    "status": 409,
+    "title": "Model already exists in catalog"
+  },
   "MODEL_NOT_VERIFIED": {
     "status": 409,
     "title": "Model is not verified for paid calls"

@@ -173,3 +173,13 @@ class OpenAIAPIProvider:
             )
             return ConnectionCheckResult(provider="openai", result=result)
         return ConnectionCheckResult(provider="openai", result="OK")
+
+    async def retrieve_model(self, model_id: str) -> dict[str, Any] | None:
+        """Kiểm tra model ID qua Models API (không tính phí). API này không công bố khả năng (tools/structured)."""
+        try:
+            info = await self.client.models.retrieve(model_id)
+        except openai.NotFoundError:
+            return None
+        except Exception as exc:
+            raise map_openai_error(exc) from exc
+        return info.model_dump()

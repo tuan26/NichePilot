@@ -105,6 +105,7 @@
     "UNCERTAIN_RESERVATION_LIMIT": "The job reached the limit of reservations with unknown cost.",
     "VALIDATION_ERROR": "The input is invalid.",
     "VERSION_CONFLICT": "The data was changed, please reload.",
-    "SCHEDULE_NAME_EXISTS": "A schedule with this name already exists."
+    "SCHEDULE_NAME_EXISTS": "A schedule with this name already exists.",
+    "MODEL_EXISTS": "The model already exists in the catalog."
   }
 }

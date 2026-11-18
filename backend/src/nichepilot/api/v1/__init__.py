@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from nichepilot.api.v1 import auth, costs, jobs, schedules, system
+from nichepilot.api.v1 import audit, auth, costs, jobs, models, providers, schedules, settings, system
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -12,3 +12,7 @@ api_router.include_router(system.router)
 api_router.include_router(jobs.router)
 api_router.include_router(costs.router)
 api_router.include_router(schedules.router)
+api_router.include_router(settings.router)
+api_router.include_router(models.router)
+api_router.include_router(providers.router)
+api_router.include_router(audit.router)

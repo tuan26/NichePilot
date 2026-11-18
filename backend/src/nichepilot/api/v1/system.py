@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter
@@ -10,20 +9,12 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from nichepilot.api.deps import SessionDep, SettingsDep, UserDep
+from nichepilot.api.v1.providers import ProviderStatus, provider_statuses
 from nichepilot.core.logging import get_logger
-from nichepilot.core.security import key_hint
 
 router = APIRouter(prefix="/system", tags=["system"])
 log = get_logger(__name__)
 WORKER_FRESH_SECONDS = 60
-
-
-class ProviderStatus(BaseModel):
-    provider: Literal["anthropic", "openai", "mock"]
-    configured: bool
-    key_hint: str | None = None
-    last_check: str | None = None
-    last_checked_at: datetime | None = None
 
 
 class LogStorage(BaseModel):
@@ -66,14 +57,7 @@ async def status(_user: UserDep, session: SessionDep, settings: SettingsDep) -> 
         log.warning("status database check failed", error_type=type(exc).__name__)
         database = "UNAVAILABLE"
 
-    anthropic = settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
-    openai = settings.openai_api_key.get_secret_value() if settings.openai_api_key else None
-    providers = [
-        ProviderStatus(provider="anthropic", configured=anthropic is not None, key_hint=key_hint(anthropic)),
-        ProviderStatus(provider="openai", configured=openai is not None, key_hint=key_hint(openai)),
-    ]
-    if not settings.is_production:
-        providers.append(ProviderStatus(provider="mock", configured=True, last_check="MOCK"))
+    providers = await provider_statuses(session, settings) if database == "OK" else []
     return SystemStatus(
         version=settings.app_version,
         app_env=settings.app_env,

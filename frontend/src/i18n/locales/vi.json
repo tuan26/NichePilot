@@ -105,6 +105,7 @@
     "UNCERTAIN_RESERVATION_LIMIT": "Job đã đạt giới hạn khoản giữ chỗ chưa xác định chi phí.",
     "VALIDATION_ERROR": "Dữ liệu nhập không hợp lệ.",
     "VERSION_CONFLICT": "Dữ liệu đã bị thay đổi, vui lòng tải lại.",
-    "SCHEDULE_NAME_EXISTS": "Đã có lịch với tên này."
+    "SCHEDULE_NAME_EXISTS": "Đã có lịch với tên này.",
+    "MODEL_EXISTS": "Model đã có trong danh mục."
   }
 }

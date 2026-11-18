@@ -250,17 +250,17 @@ test-connection, verify-models, audit log.
 
 ### Tests cho User Story 6 ⚠️
 
-- [ ] T108 [P] [US6] Contract test `GET/PATCH /settings` (optimistic locking theo version, từ chối khóa bí mật, ràng buộc chéo, `logging.retention_days` < 90 bị từ chối, audit before/after), `GET/PATCH /projects/default` (ngôn ngữ UI/nghiên cứu/nội dung độc lập) trong `backend/tests/contract/test_settings_api.py` (FR-055, FR-051, FR-057)
-- [ ] T109 [P] [US6] Contract test `/model-profiles` (`mock` bị từ chối khi production), `/models` + `/models/{id}/verification` (bắt buộc `verification_source`), `/model-pricing` (chỉ thêm version; `verified=true` bắt buộc `source_note`) trong `backend/tests/contract/test_model_config_api.py` (FR-012, FR-019c, FR-041, FR-018f)
-- [ ] T110 [P] [US6] Contract test `/providers` (không trả giá trị key, chỉ `key_hint`), `test-connection` (OK/INVALID_KEY/NETWORK_ERROR/NOT_CONFIGURED/MOCK, audit, respx), `verify-models` (respx Models API) trong `backend/tests/contract/test_providers_api.py` (FR-054, FR-056)
-- [ ] T111 [P] [US6] Security test: quét response của toàn bộ endpoint, file log và stdout sau bộ test để đảm bảo không có giá trị secret đã nạp trong `backend/tests/integration/test_no_secret_leak.py` (FR-054, SC-008)
+- [X] T108 [P] [US6] Contract test `GET/PATCH /settings` (optimistic locking theo version, từ chối khóa bí mật, ràng buộc chéo, `logging.retention_days` < 90 bị từ chối, audit before/after), `GET/PATCH /projects/default` (ngôn ngữ UI/nghiên cứu/nội dung độc lập) trong `backend/tests/contract/test_settings_api.py` (FR-055, FR-051, FR-057)
+- [X] T109 [P] [US6] Contract test `/model-profiles` (`mock` bị từ chối khi production), `/models` + `/models/{id}/verification` (bắt buộc `verification_source`), `/model-pricing` (chỉ thêm version; `verified=true` bắt buộc `source_note`) trong `backend/tests/contract/test_model_config_api.py` (FR-012, FR-019c, FR-041, FR-018f)
+- [X] T110 [P] [US6] Contract test `/providers` (không trả giá trị key, chỉ `key_hint`), `test-connection` (OK/INVALID_KEY/NETWORK_ERROR/NOT_CONFIGURED/MOCK, audit, respx), `verify-models` (respx Models API) trong `backend/tests/contract/test_providers_api.py` (FR-054, FR-056)
+- [X] T111 [P] [US6] Security test: quét response của toàn bộ endpoint, file log và stdout sau bộ test để đảm bảo không có giá trị secret đã nạp trong `backend/tests/integration/test_no_secret_leak.py` (FR-054, SC-008)
 
 ### Implementation cho User Story 6
 
-- [ ] T112 [US6] Service + router `settings`, `projects/default` (registry schema theo khóa, ràng buộc chéo, áp dụng nóng khóa auth/budget/logging) trong `backend/src/nichepilot/modules/settings/service.py` và `backend/src/nichepilot/api/v1/settings.py` (FR-055)
-- [ ] T113 [US6] Router `model-profiles`, `models`, `models/{id}/verification`, `model-pricing` (audit mọi thay đổi model/giá) trong `backend/src/nichepilot/api/v1/models.py` (FR-012, FR-019c, FR-041)
-- [ ] T114 [US6] Router `providers` (status, test-connection, verify-models dùng Models API không tính phí) trong `backend/src/nichepilot/api/v1/providers.py` (FR-056, FR-019c)
-- [ ] T115 [US6] Router `audit-logs` (chỉ đọc, lọc, phân trang) trong `backend/src/nichepilot/api/v1/audit.py` (FR-051)
+- [X] T112 [US6] Service + router `settings`, `projects/default` (registry schema theo khóa, ràng buộc chéo, áp dụng nóng khóa auth/budget/logging) trong `backend/src/nichepilot/modules/settings/service.py` và `backend/src/nichepilot/api/v1/settings.py` (FR-055)
+- [X] T113 [US6] Router `model-profiles`, `models`, `models/{id}/verification`, `model-pricing` (audit mọi thay đổi model/giá) trong `backend/src/nichepilot/api/v1/models.py` (FR-012, FR-019c, FR-041)
+- [X] T114 [US6] Router `providers` (status, test-connection, verify-models dùng Models API không tính phí) trong `backend/src/nichepilot/api/v1/providers.py` (FR-056, FR-019c)
+- [X] T115 [US6] Router `audit-logs` (chỉ đọc, lọc, phân trang) trong `backend/src/nichepilot/api/v1/audit.py` (FR-051)
 
 **Checkpoint**: Quickstart §8 (cấu hình/audit) đạt.
 
