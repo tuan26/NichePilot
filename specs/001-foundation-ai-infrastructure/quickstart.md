@@ -57,7 +57,8 @@ Kỳ vọng sau vài giây (`GET /api/v1/jobs/{id}`):
 
 - `status = SUCCEEDED`, `data_origin = MOCK`, `result.note` bắt đầu bằng `[MOCK]`.
 - `GET /api/v1/jobs/{id}/steps` → 3 bước (AI_CALL → TOOL_CALL `system.runtime_info` → AI_CALL), mỗi bước `data_origin = MOCK`.
-- `GET /api/v1/costs/usage?job_id={id}` → 2 bản ghi `provider = mock`, có token và `cost_usd` giả lập.
+- `GET /api/v1/costs/usage?job_id={id}&data_origin=MOCK` → 2 bản ghi `provider = mock`, có token và `cost_usd` giả lập
+  (mặc định endpoint chỉ trả chi phí thật `REAL` – FR-018g).
 - `GET /api/v1/budget` → chi tiêu nằm ở `mock`, phần `real` vẫn bằng 0.
 
 ## 4. Kịch bản lỗi giả lập (US2, QA-01/02/15, FR-014, FR-017)

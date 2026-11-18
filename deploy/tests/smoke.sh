@@ -2,6 +2,7 @@
 # Smoke test Docker Compose (FR-070, FR-074, SC-001, SC-002).
 # Test case: TC-FR070-02 TC-SC001-01 TC-SC002-01 (prod), TC-FR074-02 (dev). Chỉ chạy trong CI/thủ công (cần Docker).
 #   deploy/tests/smoke.sh prod  – make up → mọi service healthy ≤ 5 phút; RAM nghỉ (docker stats) ≤ 3 GB
+#   SMOKE_NO_BUILD=1 dùng image đã build sẵn (máy cần build với CA/proxy riêng)
 #   deploy/tests/smoke.sh dev   – make dev → sửa file backend/frontend → api, worker, Vite tự nạp lại
 # Ghi báo cáo vào ${SMOKE_REPORT:-smoke-report.txt}. Chạy với MockAIProvider, AI_PAID_CALLS_ENABLED=false.
 set -euo pipefail
@@ -38,7 +39,7 @@ to_mb() {  # "512.3MiB" | "1.2GiB" | "800kB" → MB (số nguyên)
 
 if [ "$MODE" = "prod" ]; then
   start=$SECONDS
-  "${COMPOSE[@]}" up -d --build
+  if [ "${SMOKE_NO_BUILD:-0}" = "1" ]; then "${COMPOSE[@]}" up -d; else "${COMPOSE[@]}" up -d --build; fi
   wait_http "http://localhost:8080/health" "$TIMEOUT_S" || { log "FAIL: không healthy sau ${TIMEOUT_S}s"; "${COMPOSE[@]}" ps | tee -a "$REPORT"; exit 1; }
   log "startup_seconds=$(( SECONDS - start )) (giới hạn ${TIMEOUT_S})"
   sleep "${SMOKE_IDLE_WAIT_S:-60}"   # để hệ thống về trạng thái nghỉ
