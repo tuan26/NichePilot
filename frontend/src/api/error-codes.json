@@ -47,6 +47,10 @@
     "status": 402,
     "title": "Budget is still insufficient"
   },
+  "COST_ESTIMATE_UNAVAILABLE": {
+    "status": 409,
+    "title": "Cannot safely estimate the cost of a paid call"
+  },
   "CSRF_INVALID": {
     "status": 403,
     "title": "Missing or invalid CSRF token"

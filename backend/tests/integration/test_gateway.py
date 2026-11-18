@@ -319,3 +319,64 @@ async def test_TC_FR013_02_invalid_output_never_stored(env: tuple[AsyncEngine, s
     assert failed and all(s["output"] is None for s in failed)  # output sai schema không được lưu
     rows = await _rows(engine, "SELECT COUNT(*) FROM ai_usage_logs WHERE outcome = 'SCHEMA_INVALID'")
     assert rows[0][0] >= 1  # nhưng chi phí của lời gọi vẫn được ghi nhận
+
+
+class _CountFails(FakePaidProvider):
+    async def count_input_tokens(self, req: object) -> int:  # type: ignore[override]
+        from nichepilot.ai.providers.base import ProviderNetworkError
+
+        raise ProviderNetworkError("fake: count_tokens không khả dụng", sent=False)
+
+
+async def test_TC_FR043_12_paid_call_fails_closed_when_tokens_cannot_be_counted(env: tuple[AsyncEngine, str]) -> None:
+    engine, url = env
+    await _verify_anthropic(engine)
+    job = await insert_job(engine, origin="REAL")
+    fake = _CountFails()
+    gw = _gw(engine, url, providers={"anthropic": fake}, ai_provider_override=None, ai_paid_calls_enabled=True)
+    with pytest.raises(AppError) as exc:
+        await gw.call("system.diagnostic", system="s", messages=MSG, ctx=CallContext(job_id=job))
+    assert exc.value.code == "COST_ESTIMATE_UNAVAILABLE"
+    assert fake.calls == 0  # không gửi lời gọi có phí
+    assert await _rows(engine, "SELECT COUNT(*) FROM budget_reservations") == [(0,)]
+
+
+async def test_TC_FR043_13_paid_call_fails_closed_on_zero_price(env: tuple[AsyncEngine, str]) -> None:
+    from tests.config_snapshot import restore, snapshot
+
+    engine, url = env
+    snap = await snapshot(engine)
+    try:
+        await _verify_anthropic(engine)
+        async with engine.begin() as conn:  # thêm phiên bản giá mới (append-only) có giá input = 0
+            await conn.execute(
+                text(
+                    "INSERT INTO model_pricing (provider, model, version, input_per_mtok, output_per_mtok, source_note,"
+                    " verified) SELECT provider, model, MAX(version) + 1, 0, 0.50, 'test: giá lỗi', true"
+                    " FROM model_pricing WHERE provider = 'anthropic' AND model = 'claude-haiku-5-5' GROUP BY 1, 2"
+                )
+            )
+        job = await insert_job(engine, origin="REAL")
+        fake = FakePaidProvider()
+        gw = _gw(engine, url, providers={"anthropic": fake}, ai_provider_override=None, ai_paid_calls_enabled=True)
+        with pytest.raises(AppError) as exc:
+            await gw.call("system.diagnostic", system="s", messages=MSG, ctx=CallContext(job_id=job))
+        assert exc.value.code == "COST_ESTIMATE_UNAVAILABLE"
+        assert fake.calls == 0
+    finally:
+        await restore(engine, snap)
+
+
+async def test_TC_FR043_14_unverified_price_blocks_before_reservation(env: tuple[AsyncEngine, str]) -> None:
+    engine, url = env
+    await _verify_anthropic(engine)
+    async with engine.begin() as conn:
+        await conn.execute(text("UPDATE model_pricing SET verified=false WHERE provider='anthropic'"))
+    job = await insert_job(engine, origin="REAL")
+    fake = FakePaidProvider()
+    gw = _gw(engine, url, providers={"anthropic": fake}, ai_provider_override=None, ai_paid_calls_enabled=True)
+    with pytest.raises(AppError) as exc:
+        await gw.call("system.diagnostic", system="s", messages=MSG, ctx=CallContext(job_id=job))
+    assert exc.value.code == "PRICING_NOT_VERIFIED"
+    assert fake.calls == 0
+    assert await _rows(engine, "SELECT COUNT(*) FROM budget_reservations") == [(0,)]

@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from nichepilot.ai.budget import BudgetService, UncertainLimitReachedError
 from nichepilot.ai.catalog import check_paid_call_allowed, require_price
-from nichepilot.ai.pricing import PriceSheet, compute_cost, max_cost
+from nichepilot.ai.pricing import CostEstimateError, PriceSheet, compute_cost, ensure_billable, max_cost
 from nichepilot.ai.providers.base import (
     LLMMessage,
     LLMProvider,
@@ -310,10 +310,21 @@ class AIGateway:
         price = await self._price_for(provider, req.model, needs)
         if provider.paid and not self.settings.ai_paid_calls_enabled:
             raise AppError("PAID_CALLS_DISABLED")
-        try:
-            input_tokens = await provider.count_input_tokens(req)
-        except ProviderError:
-            input_tokens = (len(req.system) + sum(len(str(m.content)) for m in req.messages)) // 3 + 1
+        if provider.paid:
+            # C3 – fail closed: lời gọi có phí chỉ được gửi khi ước tính được chi phí tối đa một cách an toàn.
+            try:
+                ensure_billable(price)
+                input_tokens = await provider.count_input_tokens(req)
+            except (CostEstimateError, ProviderError) as estimate_err:
+                raise AppError(
+                    "COST_ESTIMATE_UNAVAILABLE",
+                    params={"provider": provider.name, "reason": type(estimate_err).__name__},
+                ) from estimate_err
+        else:
+            try:
+                input_tokens = await provider.count_input_tokens(req)
+            except ProviderError:  # provider không tính phí (mock): ước lượng thô là đủ
+                input_tokens = (len(req.system) + sum(len(str(m.content)) for m in req.messages)) // 3 + 1
         amount = max_cost(price, input_tokens=input_tokens, max_output_tokens=req.max_output_tokens)
         origin = provider.data_origin
         reservation = await self.budget.reserve(

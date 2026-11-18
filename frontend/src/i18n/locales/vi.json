@@ -106,6 +106,7 @@
     "VALIDATION_ERROR": "Dữ liệu nhập không hợp lệ.",
     "VERSION_CONFLICT": "Dữ liệu đã bị thay đổi, vui lòng tải lại.",
     "SCHEDULE_NAME_EXISTS": "Đã có lịch với tên này.",
-    "MODEL_EXISTS": "Model đã có trong danh mục."
+    "MODEL_EXISTS": "Model đã có trong danh mục.",
+    "COST_ESTIMATE_UNAVAILABLE": "Không ước tính được chi phí tối đa một cách an toàn – lời gọi có phí đã bị chặn."
   }
 }

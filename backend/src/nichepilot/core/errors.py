@@ -49,6 +49,7 @@ ERROR_CATALOG: dict[str, ErrorSpec] = {
     "BUDGET_NOT_CONFIGURED": ErrorSpec(422, "Budget is not configured"),
     "PAID_CALLS_DISABLED": ErrorSpec(409, "Paid API calls are disabled"),
     "PRICING_MISSING": ErrorSpec(409, "No pricing for model"),
+    "COST_ESTIMATE_UNAVAILABLE": ErrorSpec(409, "Cannot safely estimate the cost of a paid call"),
     "PROVIDER_NOT_CONFIGURED": ErrorSpec(409, "Provider is not configured"),
     "PROVIDER_AUTH_ERROR": ErrorSpec(502, "Provider rejected the credentials"),
     "PROVIDER_TIMEOUT": ErrorSpec(504, "Provider timed out"),

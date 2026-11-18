@@ -106,6 +106,7 @@
     "VALIDATION_ERROR": "The input is invalid.",
     "VERSION_CONFLICT": "The data was changed, please reload.",
     "SCHEDULE_NAME_EXISTS": "A schedule with this name already exists.",
-    "MODEL_EXISTS": "The model already exists in the catalog."
+    "MODEL_EXISTS": "The model already exists in the catalog.",
+    "COST_ESTIMATE_UNAVAILABLE": "The maximum cost could not be estimated safely – the paid call was blocked."
   }
 }

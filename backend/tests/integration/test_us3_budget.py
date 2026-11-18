@@ -42,8 +42,9 @@ async def _count(engine: AsyncEngine, sql: str, **p: Any) -> int:
 async def test_TC_FR045_01_paused_budget_then_resume_from_checkpoint(db: AsyncEngine, migrated_db: str) -> None:
     async with api_client(migrated_db) as client:
         await setup_owner(client)
-        # Giữ chỗ tối đa mỗi lời gọi mock = 2000×0.10/1e6 + 1024×0.50/1e6 = $0.000712; chi phí thực bước 1 = $0.00045.
-        # Giới hạn job $0.001: bước 1 đủ, bước 3 còn $0.00055 < $0.000712 → PAUSED_BUDGET ở bước 3.
+        # Giữ chỗ tối đa mỗi lời gọi mock = 2000×0.125/1e6 (token prompt tính theo mức cao nhất input/cache, C3)
+        # + 1024×0.50/1e6 = $0.000762; chi phí thực bước 1 = $0.00045.
+        # Giới hạn job $0.001: bước 1 đủ, bước 3 còn $0.00055 < $0.000762 → PAUSED_BUDGET ở bước 3.
         job = await _create(client, budget_limit_usd="0.001")
         assert job["status"] == "PAUSED_BUDGET", job
         assert job["status_reason_code"] == "BUDGET_JOB_EXCEEDED"

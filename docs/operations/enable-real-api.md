@@ -50,11 +50,15 @@ Phụ phí khác theo trang giá: `inference_geo` chỉ-US nhân 1.1 (E0 không 
 Đối chiếu với seed `0005_seed_ai`: input/output/ngưỡng 100K của Haiku và cache read của Sonnet/Opus **khớp**. Điểm cần
 chủ sở hữu xử lý khi thêm bản giá đã xác minh:
 
-- Seed để trống `cache_write_per_mtok` và cache read của Haiku; khi để trống, bộ tính chi phí dùng giá input thường – **thấp
-  hơn** giá cache write thật (1.25×). E0 chưa bật prompt caching nên chưa ảnh hưởng; khi thêm bản giá đã xác minh hãy
-  điền đủ cache write (5 phút) và cache read.
-- Với Haiku prompt > 100K, giá cache read/write cũng tăng; bộ tính chi phí hiện chỉ đổi giá input/output theo ngưỡng.
-  E0 không gửi prompt > 100K (job chẩn đoán vài trăm token). Ghi nhận để xử lý trước khi E1+ dùng prompt dài.
+- Seed để trống `cache_write_per_mtok` (và cache read của Haiku). Chính sách tính chi phí (C3): cache write chưa có giá
+  → **2× giá input** của bậc áp dụng (= giá ghi cache 1 giờ, mức cao nhất; không bao giờ dùng giá input thường); cache
+  read chưa có giá → giá input (luôn cao hơn giá cache read chính thức). Khi thêm bản giá đã xác minh hãy điền đủ cache
+  write (5 phút) và cache read để chi phí ghi nhận sát thực tế.
+- Độ dài prompt dùng để chọn bậc giá = input + cache read + cache write (theo trang giá). Trên ngưỡng (Haiku 5.5 > 100K),
+  schema chưa có giá cache bậc cao nên cache read tính bằng giá input bậc cao và cache write bằng 2× giá đó – cao hơn giá
+  chính thức (bảo thủ).
+- Giữ chỗ ngân sách tính mỗi token prompt theo mức cao nhất trong input / cache read / cache write → không thấp hơn chi phí
+  thực. Lời gọi có phí bị chặn (`COST_ESTIMATE_UNAVAILABLE`) nếu không đếm được token đầu vào hoặc bảng giá có giá 0.
 
 Khả năng (theo tài liệu chính thức, cần xác nhận lại bằng `verify-models`):
 
