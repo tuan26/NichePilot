@@ -119,7 +119,9 @@ async def test_TC_FR041_10_pricing_append_only(client: httpx.AsyncClient, snap: 
     assert r.status_code == 422  # verified=true bắt buộc source_note
     before = [p for p in (await client.get("/api/v1/model-pricing")).json() if p["model"] == "claude-haiku-5-5"]
     r = await client.post(
-        "/api/v1/model-pricing", json={**body, "source_note": "Trang giá chính thức (owner)"}, headers=_h(client)
+        "/api/v1/model-pricing",
+        json={**body, "source_note": "Trang giá chính thức https://example.invalid/pricing (owner, 2026-11-18)"},
+        headers=_h(client),
     )
     assert r.status_code == 201, r.text
     created = r.json()

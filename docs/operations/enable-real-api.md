@@ -26,7 +26,9 @@ Ngân sách mặc định ($3/ngày, $30/tháng, $2/job) vẫn áp dụng; hệ 
    `POST /api/v1/providers/anthropic/verify-models`. Models API không công bố khả năng tool calling → nếu tác vụ cần tool,
    xác nhận thủ công: `PUT /api/v1/models/{id}/verification` với `verification_source` là trang tài liệu chính thức.
 4. Đối chiếu giá ở mục 3 với trang giá chính thức tại thời điểm bật, rồi thêm phiên bản giá đã xác minh:
-   `POST /api/v1/model-pricing` (`verified: true`, `source_note` ghi URL + ngày đối chiếu). Bản giá cũ được giữ nguyên.
+   `POST /api/v1/model-pricing` (`verified: true`, `source_note` BẮT BUỘC có URL nguồn chính thức và ngày xác minh
+   YYYY-MM-DD – thiếu một trong hai → 422; DB cũng chặn). Điền đủ giá cache read và cache write 5 phút. Bản giá cũ giữ nguyên.
+   Chính sách tính chi phí và công thức giữ chỗ: `specs/001-foundation-ai-infrastructure/checklists/verification.md`.
 5. Chỉ khi chủ sở hữu đồng ý chi phí: đặt `AI_PAID_CALLS_ENABLED=true`, khởi động lại `worker`, chạy job
    `system.diagnostic` (ước tính < $0.01 với Haiku 5.5) và đối chiếu `cost_usd` với usage × bảng giá (SC-003, lệch ≤ 1%).
 6. Ghi kết quả vào mục "Tích hợp provider thật" của báo cáo; đặt lại `AI_PAID_CALLS_ENABLED=false` nếu chưa dùng tiếp.

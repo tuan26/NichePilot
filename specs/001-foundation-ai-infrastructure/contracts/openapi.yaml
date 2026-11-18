@@ -1080,7 +1080,11 @@ components:
         long_context_threshold_tokens: { type: [integer, "null"] }
         long_input_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
         long_output_per_mtok: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
-        source_note: { type: string }
+        source_note:
+          type: string
+          description: |
+            Nguồn giá. Khi `verified = true` với provider có phí: BẮT BUỘC có URL nguồn chính thức (http/https) và ngày
+            xác minh dạng YYYY-MM-DD (C3 – kiểm tra ở API 422 và ràng buộc DB `ck_model_pricing_verified_source_date`).
         verified: { type: boolean }
 
     Schedule:

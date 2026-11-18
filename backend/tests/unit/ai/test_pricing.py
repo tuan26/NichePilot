@@ -144,3 +144,22 @@ def test_TC_FR043_11_paid_price_must_be_usable() -> None:
         except CostEstimateError:
             continue
         raise AssertionError("giá 0 cho provider có phí phải bị từ chối (fail closed)")
+
+
+# --- C3 (quyết định chủ sở hữu 2026-11-18): bộ test bắt buộc ---------------------------------------------------------
+def test_TC_FR040_11_cache_write_null_below_threshold_is_2x_input() -> None:
+    usage = TokenUsage(input_tokens=0, output_tokens=0, cache_write_tokens=50_000)  # ≤ 100K
+    assert compute_cost(_tiered(cache_write_per_mtok=None), usage) == (
+        D(50_000) * D("0.10") * 2 / D(1_000_000)
+    ).quantize(D("0.000001"))
+
+
+def test_TC_FR040_12_cache_write_null_above_threshold_is_2x_long_input() -> None:
+    usage = TokenUsage(input_tokens=60_000, output_tokens=0, cache_write_tokens=50_000)  # 110K > 100K
+    expected = (D(60_000) * D("0.50") + D(50_000) * D("0.50") * 2) / D(1_000_000)
+    assert compute_cost(_tiered(cache_write_per_mtok=None), usage) == expected.quantize(D("0.000001"))
+
+
+def test_TC_FR040_13_verified_cache_read_used_without_multiplier() -> None:
+    usage = TokenUsage(input_tokens=0, output_tokens=0, cache_read_tokens=90_000)  # ≤ 100K, giá cache read đã có
+    assert compute_cost(_tiered(), usage) == D("0.000900")  # 90K × 0.01 / 1M – không nhân 2×, không dùng giá input

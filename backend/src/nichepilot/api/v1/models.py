@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -27,6 +28,7 @@ from nichepilot.modules.audit.service import record_audit
 router = APIRouter(tags=["settings"])
 Provider = Literal["anthropic", "openai", "mock"]
 MONEY_PATTERN = r"^\d+(\.\d{1,6})?$"
+VERIFIED_SOURCE_RE = re.compile(r"(?=.*https?://\S+)(?=.*\b\d{4}-\d{2}-\d{2}\b)", re.DOTALL)
 
 
 def _money(v: Any) -> str | None:
@@ -300,6 +302,9 @@ class PricingInput(BaseModel):
     def _rules(self) -> PricingInput:
         if len(self.source_note.strip()) < (5 if self.verified else 1):
             raise ValueError("source_note is required (min 5 chars when verified)")
+        if self.verified and self.provider != "mock" and not VERIFIED_SOURCE_RE.search(self.source_note):
+            # C3: giá đã xác minh phải ghi nguồn chính thức (URL) và ngày xác minh (YYYY-MM-DD)
+            raise ValueError("verified pricing requires an official source URL and a verification date (YYYY-MM-DD)")
         if self.long_context_threshold_tokens is not None and not (
             self.long_input_per_mtok and self.long_output_per_mtok
         ):

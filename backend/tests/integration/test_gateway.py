@@ -75,7 +75,12 @@ async def _verify_anthropic(engine: AsyncEngine) -> None:
                 " supports_structured_output=true, supports_tools=true, supports_effort=true WHERE provider='anthropic'"
             )
         )
-        await conn.execute(text("UPDATE model_pricing SET verified=true WHERE provider='anthropic'"))
+        await conn.execute(  # fixture: giá đã xác minh phải có URL nguồn + ngày (ràng buộc C3)
+            text(
+                "UPDATE model_pricing SET verified=true, source_note='test fixture https://example.invalid/pricing 2026-11-18'"
+                " WHERE provider='anthropic'"
+            )
+        )
 
 
 async def test_TC_FR018_09_mock_call_records_mock_usage(env: tuple[AsyncEngine, str]) -> None:
@@ -277,7 +282,7 @@ async def test_TC_AI07_01_fallback_only_for_configured_unavailable(env: tuple[As
         )
         await conn.execute(
             text(
-                "INSERT INTO model_pricing (provider, model, version, input_per_mtok, output_per_mtok, source_note, verified) VALUES ('openai','gpt-fallback',1,1,1,'t',true) ON CONFLICT DO NOTHING"
+                "INSERT INTO model_pricing (provider, model, version, input_per_mtok, output_per_mtok, source_note, verified) VALUES ('openai','gpt-fallback',1,1,1,'test fixture https://example.invalid/pricing 2026-11-18',true) ON CONFLICT DO NOTHING"
             )
         )
         await conn.execute(
@@ -352,7 +357,7 @@ async def test_TC_FR043_13_paid_call_fails_closed_on_zero_price(env: tuple[Async
             await conn.execute(
                 text(
                     "INSERT INTO model_pricing (provider, model, version, input_per_mtok, output_per_mtok, source_note,"
-                    " verified) SELECT provider, model, MAX(version) + 1, 0, 0.50, 'test: giá lỗi', true"
+                    " verified) SELECT provider, model, MAX(version) + 1, 0, 0.50, 'test: giá lỗi https://example.invalid 2026-11-18', true"
                     " FROM model_pricing WHERE provider = 'anthropic' AND model = 'claude-haiku-5-5' GROUP BY 1, 2"
                 )
             )

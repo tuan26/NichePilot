@@ -83,3 +83,46 @@ Lần chạy smoke prod 14:29Z trước đó dùng image CŨ (build mới bị D
 ### Windows 10/11
 
 BLOCKED – NOT RUN: không có máy Windows trong môi trường này; `checklists/windows-manual.md` giữ nguyên trạng thái chưa thực hiện.
+
+---
+
+## Quyết định chủ sở hữu N1 & C3 (2026-11-18)
+
+### C3 – Chính sách giá cuối cùng (APPROVED WITH CONDITIONS)
+
+| Trường hợp | Giá áp dụng |
+|---|---|
+| Cache write có giá đã xác minh | Giá chính thức trong bảng giá |
+| Cache write NULL, prompt ≤ ngưỡng | 2 × giá input bậc thường |
+| Prompt > ngưỡng (Haiku 5.5: 100.000 token) | Bậc cao cho input/output; độ dài prompt = input + cache read + cache write |
+| Cache write ở bậc cao (schema chưa có giá cache bậc cao) | 2 × giá input bậc cao |
+| Cache read có giá đã xác minh (bậc thường) | Giá chính thức – **không** nhân 2× |
+| Cache read NULL, hoặc cache read ở bậc cao | Giá input của bậc áp dụng (cao hơn mọi giá cache read chính thức → bảo thủ) |
+| Không đếm được token đầu vào, hoặc giá input/output = 0 (provider có phí) | Chặn trước khi giữ chỗ và gửi: `COST_ESTIMATE_UNAVAILABLE` |
+| Model hoặc giá chưa xác minh | Chặn: `MODEL_NOT_VERIFIED` / `PRICING_NOT_VERIFIED` |
+| Giá `verified = true` của provider có phí | Bắt buộc `source_note` có URL nguồn chính thức + ngày xác minh YYYY-MM-DD (API 422; DB `ck_model_pricing_verified_source_date`, migration 0008) |
+
+Usage của provider tách riêng `cache_read_tokens` và `cache_write_tokens` → chi phí thực tính đúng từng loại. **Giả định khi không
+phân biệt được** (lúc giữ chỗ, trước khi gửi, chưa biết phần nào của prompt sẽ là cache read/write): mỗi token prompt tính theo
+mức cao nhất trong input / cache read / cache write của bậc áp dụng.
+
+**Công thức giữ chỗ** (`ai/pricing.py:max_cost`):
+`reserve = ceil_6dp( (N_prompt × max(r_input, r_cache_read, r_cache_write) + N_max_output × r_output) / 1.000.000 )`,
+tối thiểu 0.000001; `N_prompt` = số token đếm bởi provider (count_tokens – không tính phí), bậc giá chọn theo `N_prompt`.
+Ví dụ mock (giá giả lập trong DB: input 0.10, cache read 0.01, cache write 0.125, output 0.50; prompt 2.000; max output 1.024):
+`(2.000 × 0.125 + 1.024 × 0.50) / 1e6 = 0.000762` – test TC_FR043_20 tính lại từ DB, không hardcode.
+
+**Nguồn giá và ngày xác minh**: trang chính thức `https://platform.claude.com/docs/en/about-claude/pricing`, agent đọc ngày
+2026-11-18 (bảng tham khảo trong `docs/operations/enable-real-api.md` §3). Trong database **không** có bản giá provider thật nào
+`verified = true`: agent không tự điền giá đã xác minh – chủ sở hữu thêm qua `POST /api/v1/model-pricing` với URL + ngày.
+
+Test C3 (đều chạy, PASS): (1) TC_FR040_10; (2) TC_FR040_11; (3) TC_FR040_12; (4) TC_FR040_13; (5) TC_FR041_10;
+(6) TC_FR041_11; (7) TC_FR043_12; (8) TC_FR043_13 (giá 0), TC_FR043_14 + TC_FR019c_01 (chưa xác minh), TC_FR041_20/21
+(thiếu nguồn/ngày); (9) TC_FR043_20; (10) TC_FR043_12/13 (gateway fail closed). Thêm: TC_FR043_10 (giữ chỗ ≥ chi phí thực
+với mọi cách chia prompt).
+
+### N1 – Kết quả quét secret (APPROVED)
+
+detect-secrets 1.5.0, 42 finding / 16 file: 42 Confirmed false positive, 0 Potential secret, 0 Confirmed secret
+(chi tiết và cách xác minh: `docs/operations/security.md`). `.secrets.baseline` chỉ chứa các mục đã rà soát (`is_secret: false`,
+chỉ hash). Kiểm tra: `backend/scripts/check_secrets.py` (cục bộ PASS); canary sinh lúc chạy bị phát hiện (TC_SC008_12 PASS).

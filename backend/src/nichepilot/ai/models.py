@@ -63,6 +63,12 @@ UNCERTAIN_REASONS = (
 )
 FALLBACK_TRIGGERS = ("PROVIDER_UNAVAILABLE",)
 MONEY = Numeric(14, 6)
+# C3: giá đã xác minh của provider thật phải có URL nguồn chính thức và ngày xác minh trong source_note
+# (mock được miễn – giá giả lập nội bộ).
+VERIFIED_PRICE_SOURCE_SQL = (
+    "provider = 'mock' OR NOT verified OR "
+    "(source_note ~ 'https?://[^[:space:]]+' AND source_note ~ '[0-9]{4}-[0-9]{2}-[0-9]{2}')"
+)
 
 
 class AiModel(UUIDPkMixin, TimestampMixin, Base):
@@ -111,6 +117,7 @@ class ModelPricing(UUIDPkMixin, TimestampMixin, Base):
             name="long_context_complete",
         ),
         CheckConstraint("length(source_note) > 0", name="source_note"),
+        CheckConstraint(VERIFIED_PRICE_SOURCE_SQL, name="verified_source_date"),
     )
 
     provider: Mapped[str] = mapped_column(Text)
