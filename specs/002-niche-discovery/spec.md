@@ -37,6 +37,15 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
 - Ràng buộc chung nhắc lại: giữ kiến trúc E0; không dùng LLM local; Claude API chính, OpenAI dự phòng; không dùng Claude Pro
   hoặc Claude Code CLI làm backend; không gọi API có phí; không mở rộng sang E2–E8.
 
+### Session 2026-11-19 (/speckit-clarify)
+
+- Q: Hệ thống được phép dùng những máy tìm kiếm thượng nguồn nào qua SearXNG? → A: B (có bổ sung): mặc định chỉ bật nguồn có
+  điều khoản cho phép truy vấn tự động theo phương thức tích hợp dự kiến; plan xác minh từng nguồn (điều khoản, API, giới hạn
+  truy vấn, khả năng tích hợp SearXNG) và lưu URL điều khoản, ngày xác minh, trạng thái cho phép; nguồn chưa rõ điều khoản tắt;
+  không vượt CAPTCHA/rate limit/cơ chế hạn chế; chủ sở hữu được thêm nguồn kèm cảnh báo + audit nhưng không được bật nguồn đã xác
+  định bị cấm; không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE`, không tạo dữ liệu thay thế; Source Adapter độc lập để bổ sung
+  API tìm kiếm chính thức sau này.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân chính: **chủ sở hữu** (một người, tự host). Tác nhân phụ: **hệ thống** (job theo lịch, agent nghiên cứu).
@@ -230,6 +239,9 @@ sử điểm cũ còn nguyên.
 ### Edge Cases
 
 - Lượt khám phá không tìm được ngách nào đủ bằng chứng → hoàn tất với kết quả rỗng và lý do, không bịa ngách.
+- Không có nguồn tìm kiếm `ALLOWED` nào được bật, hoặc chủ sở hữu tắt hết → lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE`, không
+  tạo ngách từ kiến thức của AI.
+- Chủ sở hữu cố bật một nguồn `PROHIBITED` → bị từ chối, có thông báo lý do.
 - Mọi nguồn đều lỗi (mất internet, rate limit toàn bộ) → lượt khám phá kết thúc có trạng thái lỗi/thiếu dữ liệu rõ ràng, không
   có kết luận nào được đánh dấu `VERIFIED`.
 - Một nguồn trả nội dung rất dài → chỉ lưu trích đoạn ngắn có giới hạn (BR-09), không lưu nguyên văn.
@@ -277,6 +289,16 @@ sử điểm cũ còn nguyên.
 - **FR-006b**: E1 MUST thu thập được dữ liệu thị trường **thực tế** từ nguồn thật (không phụ thuộc vào AI có phí ở bước thu thập).
   Phân tích bằng nhà cung cấp AI giả lập trên dữ liệu thật MUST được gắn nhãn giả lập và MUST NOT được coi là nghiên cứu AI thật;
   nguồn và bằng chứng thu thập thật vẫn giữ nguồn gốc thật. *(Clarification Q1)*
+- **FR-006c**: Mỗi nguồn tìm kiếm thượng nguồn (máy tìm kiếm mà SearXNG truy vấn, hoặc API tìm kiếm chính thức sau này) MUST
+  có hồ sơ tuân thủ gồm: URL điều khoản sử dụng, ngày xác minh, phương thức tích hợp, giới hạn truy vấn đã biết, và trạng thái
+  cho phép (`ALLOWED` / `UNVERIFIED` / `PROHIBITED`). Chỉ nguồn `ALLOWED` được bật mặc định; `UNVERIFIED` tắt mặc định; nguồn
+  `PROHIBITED` MUST NOT bật được dưới bất kỳ hình thức nào. *(Clarification Q4, Constitution X, NFR-11)*
+- **FR-006d**: Chủ sở hữu MAY thêm/bật nguồn `UNVERIFIED`; hệ thống MUST hiển thị cảnh báo rủi ro điều khoản trước khi bật và ghi
+  audit log (ai, khi nào, nguồn, trạng thái trước/sau). *(Clarification Q4)*
+- **FR-006e**: Khi không còn nguồn tìm kiếm hợp lệ nào được bật (hoặc mọi nguồn hợp lệ đều không khả dụng), lượt khám phá MUST
+  dừng bước tìm kiếm với mã `NO_COMPLIANT_SEARCH_SOURCE` hiển thị cho chủ sở hữu, MUST NOT tạo dữ liệu thay thế. *(Clarification Q4)*
+- **FR-006f**: Hệ thống MUST NOT tự động vượt CAPTCHA, giới hạn tần suất hay cơ chế hạn chế truy cập của bất kỳ nguồn nào; gặp các
+  cơ chế này → dừng truy cập nguồn đó và ghi lý do. *(Clarification Q4, Constitution X)*
 - **FR-007**: Hệ thống MUST gom các phàn nàn/vấn đề tương tự thành nhóm pain point, mỗi nhóm có mô tả, số bằng chứng hỗ trợ và
   mức độ nghiêm trọng (thang điểm xác định trong plan, có tiêu chí rõ ràng). *(E1-05, E1-07)*
 - **FR-008**: Hệ thống MUST xác định buyer persona cấp ngách (nhóm khách hàng, bối cảnh, mục tiêu, rào cản, khả năng chi trả),
@@ -377,7 +399,8 @@ sử điểm cũ còn nguyên.
   hash nội dung, thời điểm thu thập; trích đoạn, trạng thái xác minh, thời điểm xác minh, job thu thập).
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
-- **Chính sách nguồn (Source Policy)**: loại nguồn, bật/tắt, giới hạn tần suất, số lần thử lại, thời gian chờ, yêu cầu tuân thủ.
+- **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
+  ngày xác minh, phương thức tích hợp, bật/tắt, giới hạn tần suất, số lần thử lại, thời gian chờ, yêu cầu tuân thủ.
 
 ## Success Criteria *(mandatory)*
 
