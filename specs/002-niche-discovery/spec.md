@@ -15,6 +15,28 @@ thủ Niche-first, Evidence-first, Cost-aware; tái sử dụng kiến trúc E0;
 (NFR-04, NFR-06, NFR-11, NFR-14, NFR-15), §7 (DATA-03, DATA-06), §9 (QA-05, QA-06, QA-07, QA-10); Constitution I–VI, IX, X, XII;
 E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION`).
 
+## Clarifications
+
+### Session 2026-11-19 (quyết định chủ sở hữu cho Q1–Q3 của /speckit-specify)
+
+- Q: Nguồn dữ liệu thật trong E1? → A: Phương án A **bổ sung SearXNG**: kiến trúc Source Adapter thay thế được; E1 triển khai
+  adapter tìm kiếm thật bằng **SearXNG** (tự host, mã nguồn mở) và adapter thu thập nội dung website công khai (ưu tiên
+  **Crawl4AI** hoặc công cụ phù hợp được đánh giá trong plan); kiểm tra robots.txt, điều khoản sử dụng, giới hạn tốc độ; lưu URL,
+  thời điểm thu thập, bằng chứng; có Mock Source Adapter cho kiểm thử; không cần API key tìm kiếm trả phí; không vượt CAPTCHA
+  hay giới hạn truy cập; SearXNG không trả kết quả → ghi lỗi/thiếu dữ liệu, không tự tạo dữ liệu thay thế. Reddit API, YouTube
+  API, Google Trends và nguồn chuyên biệt để feature sau. E1 MUST thu thập được dữ liệu thị trường thực tế (không chỉ chạy giả
+  lập); khi chưa có Claude API key, phân tích của MockAIProvider chỉ dùng cho kiểm thử, không được coi là nghiên cứu AI thật.
+- Q: Quy mô mặc định một lượt khám phá? → B: tối đa **20 ngách ứng viên/lượt**, hạn mức AI tối đa **$2/job**; cấu hình được theo
+  từng lượt; không tự tăng ngân sách; giữ $3/ngày và $30/tháng của E0; vượt ngân sách → `PAUSED_BUDGET`, tiếp tục theo cơ chế E0;
+  không đủ 20 ngách có bằng chứng → trả số lượng thực tế, không tạo ngách giả.
+- Q: Giao diện E1? → B: API + **3 màn hình tối thiểu song ngữ** (mặc định tiếng Việt, chuyển được tiếng Anh): (1) danh sách lượt
+  khám phá – lịch sử, trạng thái, chi phí, thao tác chạy/tạm dừng/hủy; (2) bảng xếp hạng ngách – ngách, Opportunity Score,
+  Confidence Score, trạng thái xác minh, mức phù hợp affiliate; (3) chi tiết ngách – pain point, buyer persona, bằng chứng, nguồn,
+  lý do chấm điểm, rủi ro, nút ghi quyết định. Giao diện đơn giản; có trạng thái loading/empty/error; có E2E cho luồng chính;
+  không làm dashboard phân tích nâng cao (E4); không hiển thị dữ liệu mock như dữ liệu nghiên cứu thật.
+- Ràng buộc chung nhắc lại: giữ kiến trúc E0; không dùng LLM local; Claude API chính, OpenAI dự phòng; không dùng Claude Pro
+  hoặc Claude Code CLI làm backend; không gọi API có phí; không mở rộng sang E2–E8.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân chính: **chủ sở hữu** (một người, tự host). Tác nhân phụ: **hệ thống** (job theo lịch, agent nghiên cứu).
@@ -233,8 +255,9 @@ sử điểm cũ còn nguyên.
 - **FR-002**: Chủ sở hữu MUST chạy được lượt khám phá **không chọn lĩnh vực**; lĩnh vực gợi ý là tùy chọn. Khi không chọn, các
   ngách ứng viên MUST không bị giới hạn vào một lĩnh vực định trước. *(E1-02, E1-03, AC-04)*
 - **FR-003**: Mỗi lượt khám phá MUST có cấu hình rõ ràng (thị trường, ngôn ngữ nghiên cứu, lĩnh vực gợi ý nếu có, số ngách ứng
-  viên tối đa, hạn mức chi phí, phiên bản trọng số) được lưu lại để tái lập. Mức mặc định: [NEEDS CLARIFICATION: quy mô mặc định
-  của một lượt khám phá – số ngách ứng viên tối đa và hạn mức chi phí mỗi lượt?]
+  viên tối đa, hạn mức chi phí, phiên bản trọng số) được lưu lại để tái lập. Mặc định: tối đa **20 ngách ứng viên** và hạn mức
+  AI **$2** mỗi lượt (bằng hạn mức job của E0), chỉnh được theo từng lượt nhưng không vượt hạn mức ngày; hệ thống MUST NOT tự
+  tăng ngân sách. Không đủ số ngách có bằng chứng → trả về số lượng thực tế, MUST NOT tạo thêm ngách. *(Clarification Q2)*
 - **FR-004**: Lượt khám phá tốn phí MUST bị từ chối khi ngân sách ngày/tháng chưa được cấu hình hoặc bằng 0, và khi hạn mức của
   lượt vượt hạn mức ngày. *(AUT-04)*
 
@@ -245,8 +268,15 @@ sử điểm cũ còn nguyên.
   *(E1-04, BR-01, NFR-11)*
 - **FR-006**: Mỗi loại nguồn dữ liệu bên ngoài (công cụ tìm kiếm, diễn đàn/cộng đồng, trang đánh giá, video, xu hướng, website
   sản phẩm/so sánh) MUST được truy cập qua một giao diện thay thế được, có phiên bản giả lập dùng cho phát triển/kiểm thử, và
-  có chính sách truy cập riêng (giới hạn tần suất, số lần thử lại, thời gian chờ). Nguồn thật được hỗ trợ trong E1:
-  [NEEDS CLARIFICATION: những nguồn dữ liệu thật nào cần có trong E1 (và có chấp nhận nguồn tốn phí/cần API key không)?]
+  có chính sách truy cập riêng (giới hạn tần suất, số lần thử lại, thời gian chờ). Nguồn **thật** trong E1: (a) tìm kiếm qua một
+  máy tìm kiếm tổng hợp **tự host, mã nguồn mở** (SearXNG), không cần API key trả phí; (b) thu thập nội dung trang web công khai
+  bằng công cụ thu thập mã nguồn mở được đánh giá trong plan (ưu tiên Crawl4AI). Adapter giả lập dùng cho kiểm thử. Reddit API,
+  YouTube API, Google Trends và nguồn chuyên biệt ngoài phạm vi E1. *(Clarification Q1)*
+- **FR-006a**: Khi nguồn tìm kiếm không trả kết quả hoặc không khả dụng, hệ thống MUST ghi nhận lỗi/trạng thái thiếu dữ liệu cho
+  bước đó và MUST NOT tự tạo dữ liệu thay thế (kể cả nhờ AI "đoán" nguồn). *(Clarification Q1, Constitution I)*
+- **FR-006b**: E1 MUST thu thập được dữ liệu thị trường **thực tế** từ nguồn thật (không phụ thuộc vào AI có phí ở bước thu thập).
+  Phân tích bằng nhà cung cấp AI giả lập trên dữ liệu thật MUST được gắn nhãn giả lập và MUST NOT được coi là nghiên cứu AI thật;
+  nguồn và bằng chứng thu thập thật vẫn giữ nguồn gốc thật. *(Clarification Q1)*
 - **FR-007**: Hệ thống MUST gom các phàn nàn/vấn đề tương tự thành nhóm pain point, mỗi nhóm có mô tả, số bằng chứng hỗ trợ và
   mức độ nghiêm trọng (thang điểm xác định trong plan, có tiêu chí rõ ràng). *(E1-05, E1-07)*
 - **FR-008**: Hệ thống MUST xác định buyer persona cấp ngách (nhóm khách hàng, bối cảnh, mục tiêu, rào cản, khả năng chi trả),
@@ -300,8 +330,13 @@ sử điểm cũ còn nguyên.
   và tiêu đề; nội dung trích dẫn giữ ngôn ngữ gốc). *(E1-18, AC-16)*
 - **FR-025**: AI MUST chỉ đề xuất "tiếp tục/loại bỏ" kèm lý do; chủ sở hữu ghi quyết định (tiếp tục / theo dõi / loại bỏ) kèm lý
   do; quyết định có audit và không ghi đè đề xuất của AI. *(AUT-01, Constitution IV)*
-- **FR-026**: Giao diện của E1 trong MVP: [NEEDS CLARIFICATION: E1 có cần màn hình dashboard (danh sách lượt khám phá, bảng xếp
-  hạng, chi tiết ngách) hay chỉ cần API và báo cáo xuất file, để E4 làm dashboard đầy đủ?]
+- **FR-026**: E1 MUST cung cấp API cho mọi chức năng và **3 màn hình tối thiểu song ngữ** (mặc định tiếng Việt, chuyển được tiếng
+  Anh), mọi chuỗi qua hệ thống i18n: (1) **Danh sách lượt khám phá** – lịch sử, trạng thái, chi phí (tách thật/giả lập), thao tác
+  chạy/tạm dừng/tiếp tục/hủy; (2) **Bảng xếp hạng ngách** – ngách, Opportunity Score, Confidence Score, trạng thái xác minh, mức phù
+  hợp affiliate (cờ rủi ro monetization); (3) **Chi tiết ngách** – pain point, buyer persona, bằng chứng và nguồn, lý do chấm điểm
+  (điểm thành phần + phiên bản trọng số), rủi ro, nút ghi quyết định. Mỗi màn hình MUST có trạng thái đang tải, rỗng và lỗi; dữ
+  liệu giả lập MUST được gắn nhãn rõ và không trình bày như nghiên cứu thật; không có biểu đồ/phân tích nâng cao (E4). Luồng chính
+  MUST có kiểm thử end-to-end. *(Clarification Q3, FR-060 E0, NFR-12)*
 
 **Vận hành, chi phí, độ bền**
 
@@ -371,6 +406,13 @@ sử điểm cũ còn nguyên.
 - **SC-012**: Với cấu hình mặc định, chi phí AI thực tế của một lượt khám phá không vượt hạn mức đã cấu hình cho lượt đó, và chi phí
   được báo cáo tách REAL/MOCK. *(chỉ kiểm chứng phần chi phí thật khi chủ sở hữu cho phép gọi API thật)*
 
+- **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
+  đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
+  lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
+- **SC-014**: Chủ sở hữu hoàn thành luồng "chạy lượt khám phá → xem bảng xếp hạng → mở chi tiết ngách → ghi quyết định" trên giao
+  diện bằng tiếng Việt và tiếng Anh; 3 màn hình đều có trạng thái đang tải, rỗng, lỗi; luồng này có kiểm thử end-to-end đạt.
+  *(Clarification Q3)*
+
 ## Assumptions
 
 - E0 là nền tảng: AI Gateway, budget reservation, Job Runtime (checkpoint, pause/resume/cancel, retry), scheduler, Tool
@@ -387,4 +429,7 @@ sử điểm cũ còn nguyên.
   hiện trùng được xác định trong plan (có tài liệu và test), cấu hình được khi hợp lý.
 - Ngôn ngữ nghiên cứu mặc định theo thị trường (Mỹ → tiếng Anh); trích dẫn giữ ngôn ngữ gốc; nhãn báo cáo theo ngôn ngữ giao diện.
 - Trích đoạn bằng chứng giới hạn độ dài (theo giới hạn hiện có của E0 cho trích đoạn); không lưu nguyên văn trang.
+- Máy tìm kiếm tổng hợp tự host (SearXNG) và công cụ thu thập web chạy như dịch vụ tùy chọn trong Docker Compose (bật bằng
+  profile khi dùng nguồn thật), có giới hạn tài nguyên; đánh giá giấy phép, tài nguyên và rủi ro điều khoản sử dụng của các máy
+  tìm kiếm thượng nguồn nằm trong plan (Constitution VII).
 - Không triển khai E2–E8 trong feature này.

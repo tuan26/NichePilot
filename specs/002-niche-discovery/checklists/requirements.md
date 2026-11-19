@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain — còn 3 (FR-003 quy mô mặc định, FR-006 nguồn dữ liệu thật, FR-026 giao diện)
+- [x] No [NEEDS CLARIFICATION] markers remain (Q1–Q3 đã có quyết định chủ sở hữu 2026-11-19)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
