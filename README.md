@@ -3,8 +3,9 @@
 Hệ thống AI Agent tự host, tự động hóa quy trình Affiliate Marketing quốc tế: khám phá ngách → sản phẩm & affiliate →
 keyword → nội dung → xuất bản → doanh thu → tối ưu. *(Tên làm việc, chưa xác nhận nhãn hiệu/tên miền.)*
 
-**Trạng thái:** E0 – Foundation & AI Infrastructure đã triển khai, **đang chờ chủ sở hữu nghiệm thu**. Chưa triển khai
-E1–E8. Mọi kiểm thử tự động chạy với `MockAIProvider` – tích hợp Claude/OpenAI API thật **chưa kiểm chứng**.
+**Trạng thái E0:** `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION` (chủ sở hữu xác nhận 2026-11-19) – chưa phải
+`PRODUCTION_VERIFIED`. Windows 10/11 và Claude/OpenAI API thật: `NOT_TESTED`. Báo cáo: `docs/reports/e0-acceptance-report.md`.
+E1 (Autonomous Niche Discovery) đang ở giai đoạn đặc tả; chưa triển khai E1–E8.
 
 > ⚠️ **API có phí**: mặc định `AI_PAID_CALLS_ENABLED=false` và `AI_PROVIDER_OVERRIDE=mock`. Chỉ bật gọi API thật khi chủ
 > sở hữu cho phép, sau khi xác minh model và bảng giá – xem `docs/operations/enable-real-api.md`. Không dùng Claude Pro,

@@ -1,5 +1,12 @@
 # Kết quả kiểm chứng Quickstart E0 (T129)
 
+> **Trạng thái E0 (2026-11-19)**: `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION`. Windows 10/11 và Claude/OpenAI API
+> thật: `NOT_TESTED`. Báo cáo nghiệm thu: `docs/reports/e0-acceptance-report.md`.
+
+## Tích hợp provider thật
+
+CHƯA KIỂM CHỨNG – `NOT_TESTED` (chưa có API key, chưa được phép gọi có phí). Ghi kết quả theo `docs/operations/enable-real-api.md` §5.
+
 **Ngày chạy**: 2026-11-18 | **Môi trường**: Linux (container phát triển), Docker Engine, image `nichepilot-backend:local`,
 `nichepilot-web:local`, `postgres:17-alpine`; `APP_ENV=development`, `AI_PROVIDER_OVERRIDE=mock`,
 `AI_PAID_CALLS_ENABLED=false`. Kịch bản §2–§8 chạy bằng script HTTP trên stack Docker Compose thật (cổng 8080).

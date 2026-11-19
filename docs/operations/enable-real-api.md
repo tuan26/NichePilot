@@ -91,3 +91,28 @@ Kết quả tra cứu tài liệu chính thức (2026-11-18):
 đã gửi mà nhận phản hồi lỗi được ghi `UNCERTAIN` (không tự giải phóng); sau 3 reservation UNCERTAIN, job chuyển
 `PAUSED_BUDGET` chờ đối soát. Cách này an toàn về chi phí nhưng cần chủ sở hữu đối chiếu trang usage của provider. Chỉ
 đổi sang `true` khi có văn bản chính thức (hoặc xác nhận của bộ phận hỗ trợ) – đổi qua `PATCH /api/v1/settings` (có audit).
+
+## 5. Kịch bản kiểm thử Claude API thật (chỉ khi chủ sở hữu cho phép)
+
+Mục tiêu: kiểm chứng AC-02 và SC-003. Chi phí ước tính < $0.01 (job chẩn đoán với Haiku 5.5). Trước khi bắt đầu, ghi lại
+quyết định cho phép (người, ngày, hạn mức chi phí).
+
+| Bước | Thao tác | Tiêu chí đạt |
+|---|---|---|
+| L1 | Điền `ANTHROPIC_API_KEY` (key API chính thức), để trống `AI_PROVIDER_OVERRIDE`, giữ `AI_PAID_CALLS_ENABLED=false`, khởi động lại `api`/`worker` | `GET /api/v1/providers`: anthropic `configured = true`, chỉ hiện `key_hint` |
+| L2 | `POST /api/v1/providers/anthropic/test-connection` | `OK` (Models API, không tính phí); có audit `provider.connection_tested` |
+| L3 | `POST /api/v1/providers/anthropic/verify-models` | Model của profile `system.diagnostic` = `VERIFIED`; nếu cần tool calling, xác nhận thủ công bằng `PUT /api/v1/models/{id}/verification` kèm URL tài liệu |
+| L4 | `POST /api/v1/model-pricing` cho model đó với `verified: true`, `source_note` = URL trang giá chính thức + ngày xác minh | 201; thiếu URL hoặc ngày → 422 |
+| L5 | Tạo job khi `AI_PAID_CALLS_ENABLED=false` | Job `FAILED` với `PAID_CALLS_DISABLED`, không có usage `REAL` |
+| L6 | Đặt `AI_PAID_CALLS_ENABLED=true`, khởi động lại `worker`, tạo job `system.diagnostic` | `SUCCEEDED`, `data_origin = REAL`, 3 bước; usage có token, `cost_usd`, `provider_request_id` |
+| L7 | Đối chiếu `cost_usd` với trang usage của Anthropic (theo `provider_request_id`/thời điểm) | Lệch ≤ 1% (SC-003); ghi số liệu |
+| L8 | (Tùy chọn, có trần) `NICHEPILOT_LIVE_MAX_USD=0.05 make test-live` | 2 test live PASS; kết quả trong `live-results.jsonl` |
+| L9 | Đặt lại `AI_PAID_CALLS_ENABLED=false`, khởi động lại `worker` | Job mới bị chặn `PAID_CALLS_DISABLED` |
+
+Quay lui khi có sự cố: đặt `AI_PAID_CALLS_ENABLED=false` (hoặc xóa `ANTHROPIC_API_KEY`) và khởi động lại `worker`; reservation
+`UNCERTAIN` (nếu có) đối soát với trang usage rồi `POST /api/v1/budget/reservations/{id}/resolve`. Thu hồi key trên Anthropic
+Console nếu nghi lộ.
+
+Ghi kết quả L1–L9 (thời điểm, model, request ID, chi phí, độ lệch) vào mục "Tích hợp provider thật" của
+`specs/001-foundation-ai-infrastructure/checklists/verification.md`. Trước khi có kết quả này, AC-02 và SC-003 giữ trạng thái
+`NOT_TESTED`.
