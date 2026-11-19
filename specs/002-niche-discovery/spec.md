@@ -51,6 +51,14 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   tính độc lập (không chỉ đếm URL); không đạt → `INSUFFICIENT_EVIDENCE`, không xếp hạng, không tính vào 20, vẫn lưu để nghiên cứu/
   đánh giá lại; Opportunity và Confidence tính và hiển thị riêng; không tự tạo bằng chứng để đạt ngưỡng; không đủ 20 → trả số
   thực tế. Đạt ngưỡng bằng chứng ≠ có khả năng sinh lợi; khả năng kiếm tiền affiliate đánh giá riêng.
+- Q: Mỗi lượt khám phá được chạy tối đa bao lâu và thu thập tối đa bao nhiêu trang? → A: B (có bổ sung): mặc định 90 phút,
+  300 trang, mỗi tên miền ≤ 1 request/2 giây (mức trần; robots.txt/điều khoản/phản hồi máy chủ yêu cầu chậm hơn thì áp dụng mức
+  chặt hơn), cấu hình được theo lượt; dừng sớm khi đủ bằng chứng hợp lệ; ưu tiên trang có khả năng cho bằng chứng pain point/
+  persona/giải pháp, không crawl hàng loạt; phân bổ ngân sách crawl giữa các ngách, điều chỉnh theo chất lượng nhưng không vượt
+  tổng; chạm giới hạn → dừng thu thập, lưu dữ liệu + checkpoint, đánh giá ngách đủ bằng chứng, ngách thiếu → `INSUFFICIENT_EVIDENCE`;
+  kết quả `COMPLETED` / `PARTIAL_COMPLETED` kèm lý do (`TIME_LIMIT_REACHED`, `PAGE_LIMIT_REACHED`…); giới hạn thời gian/trang không
+  thay giới hạn AI $2/job, $3/ngày, $30/tháng – chạm ngân sách → `PAUSED_BUDGET` (E0); lưu số liệu theo dõi; có test cho timeout,
+  giới hạn trang, rate limiting, dừng sớm, kết thúc một phần, resume. Không tạo bằng chứng/ngách giả khi không đạt mục tiêu.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -178,6 +186,15 @@ nguồn giả lập trả lỗi giới hạn tần suất / không truy cập đ
    đó bị bỏ qua, không vượt rào cản, lý do được ghi nhận.
 6. **Given** chủ sở hữu hủy lượt khám phá, **When** hủy, **Then** không phát sinh thêm lời gọi AI hay truy cập nguồn mới; dữ liệu
    đã thu thập được giữ lại có trạng thái rõ ràng.
+7. **Given** lượt khám phá chạm 90 phút hoặc 300 trang, **When** đạt giới hạn, **Then** hệ thống dừng thu thập, lưu dữ liệu và
+   checkpoint, đánh giá các ngách đủ bằng chứng, chuyển ngách thiếu sang `INSUFFICIENT_EVIDENCE`, và kết thúc với kết quả
+   `PARTIAL_COMPLETED` kèm lý do `TIME_LIMIT_REACHED` hoặc `PAGE_LIMIT_REACHED`.
+8. **Given** mọi ngách ứng viên đã đủ bằng chứng hợp lệ trước khi chạm giới hạn, **When** đánh giá xong, **Then** lượt khám phá
+   kết thúc sớm với kết quả `COMPLETED`, không thu thập thêm trang chỉ để đủ số.
+9. **Given** robots.txt của một tên miền yêu cầu `Crawl-delay` 10 giây, **When** thu thập từ tên miền đó, **Then** khoảng cách giữa
+   hai yêu cầu ≥ 10 giây (mức chặt hơn được ưu tiên so với mặc định 2 giây).
+10. **Given** lượt khám phá đang `PAUSED_BUDGET` do hết ngân sách AI trong khi còn thời gian/trang, **When** chủ sở hữu tiếp tục sau khi
+    đủ ngân sách, **Then** lượt khám phá tiếp tục từ checkpoint với phần giới hạn thời gian/trang còn lại.
 
 ---
 
@@ -252,6 +269,10 @@ sử điểm cũ còn nguyên.
 - Hai bài viết ở hai tên miền khác nhau có cùng nội dung (bài đăng lại, aggregator) → tính là một nguồn; ngách có thể rơi
   xuống `INSUFFICIENT_EVIDENCE`.
 - Ngách `INSUFFICIENT_EVIDENCE` được đánh giá lại và có thêm bằng chứng độc lập → chuyển vào bảng xếp hạng ở lần đánh giá mới.
+- Máy chủ nguồn trả 429/503 kèm `Retry-After` dài hơn thời gian còn lại của lượt → bỏ nguồn đó, ghi lý do, không chờ vượt giới hạn.
+- Chạm 90 phút đúng lúc đang chờ một lời gọi AI → lời gọi đang dở được xử lý theo quy tắc E0 (không gửi lời gọi mới), rồi kết
+  thúc `PARTIAL_COMPLETED`.
+- Worker dừng đột ngột giữa lượt → tiếp tục từ checkpoint, số trang/thời gian đã dùng được giữ, không thu thập lại trang đã có.
 - Lượt khám phá không tìm được ngách nào đủ bằng chứng → hoàn tất với kết quả rỗng và lý do, không bịa ngách.
 - Không có nguồn tìm kiếm `ALLOWED` nào được bật, hoặc chủ sở hữu tắt hết → lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE`, không
   tạo ngách từ kiến thức của AI.
@@ -282,7 +303,8 @@ sử điểm cũ còn nguyên.
   ngách ứng viên MUST không bị giới hạn vào một lĩnh vực định trước. *(E1-02, E1-03, AC-04)*
 - **FR-003**: Mỗi lượt khám phá MUST có cấu hình rõ ràng (thị trường, ngôn ngữ nghiên cứu, lĩnh vực gợi ý nếu có, số ngách ứng
   viên tối đa, hạn mức chi phí, phiên bản trọng số) được lưu lại để tái lập. Mặc định: tối đa **20 ngách ứng viên** và hạn mức
-  AI **$2** mỗi lượt (bằng hạn mức job của E0), chỉnh được theo từng lượt nhưng không vượt hạn mức ngày; hệ thống MUST NOT tự
+  AI **$2** mỗi lượt (bằng hạn mức job của E0), thời gian tối đa **90 phút**, tối đa **300 trang** thu thập, mỗi tên miền tối đa
+  **1 request/2 giây**; chỉnh được theo từng lượt nhưng hạn mức AI không vượt hạn mức ngày; hệ thống MUST NOT tự
   tăng ngân sách. Không đủ số ngách có bằng chứng → trả về số lượng thực tế, MUST NOT tạo thêm ngách. *(Clarification Q2)*
 - **FR-004**: Lượt khám phá tốn phí MUST bị từ chối khi ngân sách ngày/tháng chưa được cấu hình hoặc bằng 0, và khi hạn mức của
   lượt vượt hạn mức ngày. *(AUT-04)*
@@ -397,10 +419,27 @@ sử điểm cũ còn nguyên.
   trùng. *(AUT-05, QA-10)*
 - **FR-030**: Nguồn bị giới hạn tần suất MUST được thử lại có giới hạn với thời gian chờ theo chính sách nguồn; quá giới hạn thì bỏ
   qua nguồn đó, ghi lý do, tiếp tục với nguồn khác. *(QA-06)*
+- **FR-030a**: Tốc độ truy cập mặc định là **mức trần** 1 request/2 giây cho mỗi tên miền; khi robots.txt (`Crawl-delay`), điều
+  khoản nguồn hoặc phản hồi máy chủ (ví dụ `Retry-After`, mã 429/503) yêu cầu chậm hơn, hệ thống MUST áp dụng mức chặt hơn; MUST NOT
+  tự vượt CAPTCHA hay cơ chế hạn chế truy cập. *(Clarification Q6)*
+- **FR-030b**: Ngân sách thu thập (số trang) MUST được phân bổ giữa các ngách ứng viên, có thể điều chỉnh theo chất lượng dữ liệu
+  (ngách thiếu bằng chứng được ưu tiên thêm) nhưng tổng MUST NOT vượt giới hạn của lượt. Trang được chọn theo khả năng cung cấp bằng
+  chứng pain point, persona, giải pháp hiện tại; MUST NOT crawl hàng loạt chỉ để đạt số trang. *(Clarification Q6)*
+- **FR-030c**: Khi mọi ngách ứng viên đã đủ bằng chứng hợp lệ (hoặc đã có quyết định không thể đạt), lượt khám phá MUST được kết
+  thúc sớm, không cần dùng hết thời gian/số trang. *(Clarification Q6)*
+- **FR-030d**: Khi chạm giới hạn thời gian hoặc số trang, hệ thống MUST dừng thu thập, lưu dữ liệu và checkpoint, tiếp tục đánh giá
+  các ngách đủ bằng chứng, chuyển ngách thiếu sang `INSUFFICIENT_EVIDENCE`. Kết quả lượt khám phá MUST phân biệt `COMPLETED` và
+  `PARTIAL_COMPLETED` kèm lý do (`TIME_LIMIT_REACHED`, `PAGE_LIMIT_REACHED`, `NO_COMPLIANT_SEARCH_SOURCE`, `SOURCES_UNAVAILABLE`…);
+  đây là kết quả nghiệp vụ của lượt khám phá, ghi kèm job E0 (job vẫn theo vòng đời E0, không đổi state machine của E0).
+  *(Clarification Q6)*
+- **FR-030e**: Giới hạn thời gian/số trang MUST NOT thay thế giới hạn ngân sách AI ($2/lượt-job, $3/ngày, $30/tháng); chạm ngân sách
+  AI → `PAUSED_BUDGET` theo E0, tiếp tục từ checkpoint với phần giới hạn thời gian/trang còn lại (thời gian tạm dừng không tính vào
+  90 phút). *(Clarification Q6, Constitution VI)*
 - **FR-031**: Trang không truy cập được, bị robots.txt chặn hoặc trả lỗi MUST bị bỏ qua có ghi lý do, không làm hỏng cả lượt
   khám phá. *(QA-07, NFR-11)*
-- **FR-032**: Mỗi lượt khám phá MUST ghi nhận: số lời gọi AI, chi phí (tách REAL/MOCK), số nguồn đã truy cập/bỏ qua và lý do, số
-  ngách ứng viên, số ngách đạt đủ trường. *(Constitution VI, NFR-09)*
+- **FR-032**: Mỗi lượt khám phá MUST ghi nhận: số lời gọi AI, chi phí (tách REAL/MOCK), số trang đã thu thập (thành công/thất bại,
+  kèm lý do bỏ qua), thời gian thực thi, số nguồn độc lập, số ngách ứng viên, số ngách đủ bằng chứng, số ngách
+  `INSUFFICIENT_EVIDENCE`, kết quả (`COMPLETED`/`PARTIAL_COMPLETED`) và lý do dừng. *(Constitution VI, NFR-09)*
 - **FR-033**: Chủ sở hữu MUST tạo được lịch khám phá định kỳ và lịch đánh giá lại ngách đang theo dõi qua scheduler của E0; lịch
   tốn phí bị từ chối khi chưa cấu hình ngân sách. *(E1-19, AUT-04)*
 - **FR-034** *(Should)*: Hệ thống SHOULD đánh giá lại ngách theo dữ liệu mới, tạo lần đánh giá mới (điểm, phiên bản trọng số, bằng
@@ -428,6 +467,9 @@ sử điểm cũ còn nguyên.
   ngưỡng; nguồn độc lập xác định theo tên miền + nội dung chuẩn hóa (bản sao/gần giống gom một nguồn); đánh giá liên quan/chất
   lượng của AI lưu kèm bằng chứng với nhãn `INFERRED` và lý do; ngách chỉ vào bảng xếp hạng khi trạng thái bằng chứng là
   `EVIDENCE_SUFFICIENT`.
+- **Quy tắc dữ liệu (Q6)**: lượt khám phá lưu giới hạn đã áp dụng (thời gian, số trang, tốc độ mỗi tên miền), phần đã dùng và còn
+  lại, kết quả (`COMPLETED`/`PARTIAL_COMPLETED`) và lý do dừng; mỗi lần truy cập trang lưu tên miền, thời điểm, kết quả (thành
+  công/thất bại/bỏ qua) và lý do; trang đã thu thập thành công không bị thu thập lại khi tiếp tục hoặc chạy lại trong cùng lượt.
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
 - **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
@@ -463,6 +505,10 @@ sử điểm cũ còn nguyên.
 - **SC-012**: Với cấu hình mặc định, chi phí AI thực tế của một lượt khám phá không vượt hạn mức đã cấu hình cho lượt đó, và chi phí
   được báo cáo tách REAL/MOCK. *(chỉ kiểm chứng phần chi phí thật khi chủ sở hữu cho phép gọi API thật)*
 
+- **SC-015**: Trong 100% kịch bản kiểm thử: lượt khám phá không vượt giới hạn thời gian và số trang đã cấu hình; khoảng cách giữa
+  hai yêu cầu tới cùng tên miền không nhỏ hơn mức trần đã cấu hình hoặc mức chặt hơn do nguồn yêu cầu; dừng sớm khi đủ bằng chứng
+  cho kết quả `COMPLETED`; chạm giới hạn cho `PARTIAL_COMPLETED` đúng lý do; tiếp tục từ checkpoint không thu thập lại trang đã có.
+  *(Clarification Q6)*
 - **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
   đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
   lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
