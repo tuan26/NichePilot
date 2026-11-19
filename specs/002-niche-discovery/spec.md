@@ -59,6 +59,16 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   kết quả `COMPLETED` / `PARTIAL_COMPLETED` kèm lý do (`TIME_LIMIT_REACHED`, `PAGE_LIMIT_REACHED`…); giới hạn thời gian/trang không
   thay giới hạn AI $2/job, $3/ngày, $30/tháng – chạm ngân sách → `PAUSED_BUDGET` (E0); lưu số liệu theo dõi; có test cho timeout,
   giới hạn trang, rate limiting, dừng sớm, kết thúc một phần, resume. Không tạo bằng chứng/ngách giả khi không đạt mục tiêu.
+- Q: Khi một hoặc nhiều tiêu chí Opportunity là `UNKNOWN`, điểm cơ hội tính thế nào? → A: B (có bổ sung): chỉ dùng tiêu chí có dữ
+  liệu hợp lệ, chuẩn hóa lại trọng số về 100%, không gán 0/100 cho `UNKNOWN`, tính bằng logic xác định; Coverage = tổng trọng số gốc
+  của tiêu chí có dữ liệu, hiển thị cạnh Opportunity; Coverage < 60% → không có Opportunity chính thức, hiển thị
+  `INSUFFICIENT_SCORING_DATA`; Confidence tính riêng, giảm khi thiếu dữ liệu quan trọng, không cao theo Opportunity; Monetization
+  `UNKNOWN` vẫn tính được Opportunity nếu Coverage ≥ 60% nhưng gắn `MONETIZATION_UNVERIFIED`, không vào danh sách ưu tiên triển khai
+  affiliate, vẫn ở danh sách nghiên cứu; xếp hạng chính thức cần đạt ngưỡng bằng chứng Q5 và Coverage ≥ 60%; tách bảng xếp hạng cơ
+  hội nghiên cứu và danh sách ưu tiên triển khai affiliate; giao diện hiển thị Opportunity, Confidence, Coverage, tiêu chí `UNKNOWN`,
+  trạng thái Monetization, giải thích điểm và dữ liệu thiếu; có test cho đủ/thiếu tiêu chí, Coverage = 60% và < 60%, Monetization
+  `UNKNOWN`, dữ liệu mâu thuẫn/không hợp lệ, công thức chuẩn hóa và tính nhất quán thứ hạng. Opportunity cao không phải khả năng sinh
+  lợi đã xác minh; không trình bày như dự báo doanh thu.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -156,6 +166,14 @@ phiên bản mới trong khi kết quả cũ vẫn tái lập được.
    vẫn có thể xếp hạng cao (BR-15); search volume không phải điều kiện bắt buộc.
 6. **Given** không tìm được chương trình affiliate phù hợp cho một ngách, **When** đánh giá, **Then** ngách được gắn cờ rủi ro
    monetization (BR-06).
+7. **Given** ngách có tiêu chí "khoảng trống thị trường" (20%) là `UNKNOWN`, các tiêu chí khác có điểm, **When** chấm điểm, **Then**
+   Coverage = 80% và Opportunity = tổng (điểm × trọng số gốc) của 5 tiêu chí còn lại chia 0,80; giao diện hiển thị Coverage 80% và
+   tiêu chí thiếu.
+8. **Given** Coverage đúng 60%, **When** chấm điểm, **Then** có Opportunity chính thức; **Given** Coverage 55%, **Then** không có
+   Opportunity chính thức, ngách hiển thị `INSUFFICIENT_SCORING_DATA` và không vào bảng xếp hạng cơ hội.
+9. **Given** tiêu chí Monetization là `UNKNOWN` và Coverage 80%, **When** chấm điểm, **Then** có Opportunity chính thức, ngách gắn
+   `MONETIZATION_UNVERIFIED`, xuất hiện trong bảng xếp hạng cơ hội nghiên cứu nhưng không xuất hiện trong danh sách ưu tiên triển
+   khai affiliate.
 
 ---
 
@@ -273,6 +291,11 @@ sử điểm cũ còn nguyên.
 - Chạm 90 phút đúng lúc đang chờ một lời gọi AI → lời gọi đang dở được xử lý theo quy tắc E0 (không gửi lời gọi mới), rồi kết
   thúc `PARTIAL_COMPLETED`.
 - Worker dừng đột ngột giữa lượt → tiếp tục từ checkpoint, số trang/thời gian đã dùng được giữ, không thu thập lại trang đã có.
+- Ngách đủ bằng chứng (Q5) nhưng Coverage < 60% → nằm ở "cần nghiên cứu thêm" với `INSUFFICIENT_SCORING_DATA`; đánh giá lại khi có
+  thêm dữ liệu.
+- Hai nguồn cho điểm khác nhau cho cùng tiêu chí (`CONFLICTING`) → tiêu chí coi như `UNKNOWN` khi tính Opportunity cho tới khi được
+  phân xử; Coverage và Confidence giảm tương ứng.
+- Đổi trọng số làm Coverage của một ngách vượt hoặc rơi dưới 60% → kết quả mới chỉ áp dụng ở lần chấm lại theo phiên bản mới.
 - Lượt khám phá không tìm được ngách nào đủ bằng chứng → hoàn tất với kết quả rỗng và lý do, không bịa ngách.
 - Không có nguồn tìm kiếm `ALLOWED` nào được bật, hoặc chủ sở hữu tắt hết → lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE`, không
   tạo ngách từ kiến thức của AI.
@@ -383,10 +406,23 @@ sử điểm cũ còn nguyên.
 - **FR-018**: Trọng số MUST cấu hình được, tổng đúng 100%, có phiên bản; mỗi lần đánh giá MUST lưu phiên bản trọng số và điểm
   thành phần; đổi trọng số tạo phiên bản mới có audit, không sửa kết quả cũ; chấm lại theo phiên bản mới MUST không cần gọi
   lại AI. *(BR-03, Constitution II)*
-- **FR-019**: Tiêu chí có giá trị `UNKNOWN` MUST NOT được gán điểm giả; Opportunity Score MUST ghi rõ tiêu chí thiếu dữ liệu và
-  cách xử lý (công thức cụ thể quyết định trong plan, áp dụng nhất quán); thiếu dữ liệu MUST làm giảm Confidence. *(BR-04)*
-- **FR-020**: Confidence Score MUST tách biệt hoàn toàn với Opportunity Score và phản ánh số lượng, độ đa dạng loại nguồn, độ mới
-  và độ nhất quán của bằng chứng (giảm khi `CONFLICTING`, `UNKNOWN`, bằng chứng cũ hoặc ít nguồn). *(E1-15, BR-04)*
+- **FR-019**: Tiêu chí `UNKNOWN` MUST NOT được gán điểm giả (không gán 0, 100 hay giá trị mặc định). Opportunity Score MUST được
+  tính bằng logic xác định chỉ trên các tiêu chí có dữ liệu hợp lệ, với trọng số được chuẩn hóa lại về 100%:
+  `Opportunity = Σ(điểm_i × w_i) / Σ w_i` (i thuộc tiêu chí có dữ liệu hợp lệ, `w_i` là trọng số gốc của phiên bản đang dùng).
+  Tiêu chí có dữ liệu hợp lệ = có điểm thành phần dựa trên bằng chứng `VERIFIED` hoặc nhận định `INFERRED` có lý do; tiêu chí chỉ có
+  dữ liệu `CONFLICTING` chưa phân xử hoặc không hợp lệ được coi như `UNKNOWN`. AI chỉ đề xuất điểm thành phần kèm lý do và bằng chứng;
+  kết quả cuối cùng do mã tính. *(BR-03, BR-04, Clarification Q7, Constitution III)*
+- **FR-019a**: **Coverage** = tổng trọng số gốc của các tiêu chí có dữ liệu hợp lệ (0–100%) MUST được lưu và hiển thị cạnh Opportunity
+  Score. Coverage < 60% → không có Opportunity Score chính thức; ngách hiển thị `INSUFFICIENT_SCORING_DATA` và không được xếp hạng theo
+  Opportunity. Ngưỡng 60% cấu hình được, có phiên bản cùng trọng số. *(Clarification Q7)*
+- **FR-019b**: Khi tiêu chí Monetization là `UNKNOWN` (hoặc không có tín hiệu affiliate đã xác minh), ngách MUST mang nhãn
+  `MONETIZATION_UNVERIFIED`; vẫn được tính Opportunity khi Coverage ≥ 60% và vẫn xuất hiện trong bảng xếp hạng cơ hội nghiên cứu,
+  nhưng MUST NOT xuất hiện trong danh sách ưu tiên triển khai affiliate. *(Clarification Q7, BR-06)*
+- **FR-019c**: Opportunity Score MUST NOT được trình bày như dự báo doanh thu hay khả năng sinh lợi đã xác minh; giao diện và báo cáo
+  MUST kèm chú thích này. *(Clarification Q7, Constitution I)*
+- **FR-020**: Confidence Score MUST được tính riêng, độc lập với Opportunity Score (không dùng Opportunity làm đầu vào), phản ánh chất
+  lượng, tính độc lập, độ mới, độ nhất quán và độ đầy đủ của bằng chứng; MUST giảm khi thiếu dữ liệu quan trọng (Coverage thấp, tiêu
+  chí `UNKNOWN`), khi có `CONFLICTING`, bằng chứng cũ hoặc ít nguồn độc lập. *(E1-15, BR-04, Clarification Q7)*
 - **FR-021**: Search volume thấp hoặc không có MUST NOT tự động loại ngách hay chặn ngách khỏi xếp hạng cao. *(BR-15)*
 
 **Phát hiện trùng, báo cáo, quyết định**
@@ -395,18 +431,23 @@ sử điểm cũ còn nguyên.
   lượt; trùng chắc chắn → liên kết vào ngách sẵn có; không chắc chắn → đánh dấu "có thể tương đồng" chờ chủ sở hữu, không tự gộp.
   Logic so sánh cuối cùng MUST là mã xác định (AI chỉ có thể đề xuất). *(E1-16)*
 - **FR-023**: Mỗi ngách trong bảng xếp hạng MUST có đủ 16 trường đầu ra BR-07; trường thiếu dữ liệu MUST là `UNKNOWN`. *(BR-07)*
-- **FR-024**: Hệ thống MUST tạo báo cáo xếp hạng ngách theo lượt khám phá và theo project, sắp xếp được theo Opportunity Score và
-  Confidence Score, lọc theo ngưỡng, xuất được ở dạng đọc được bởi người (song ngữ VI/EN theo ngôn ngữ giao diện cho phần nhãn
+- **FR-024**: Hệ thống MUST tạo báo cáo xếp hạng ngách theo lượt khám phá và theo project gồm hai danh sách tách biệt:
+  (a) **bảng xếp hạng cơ hội nghiên cứu** – ngách `EVIDENCE_SUFFICIENT` có Coverage ≥ 60%, xếp theo Opportunity Score; (b) **danh sách
+  ưu tiên triển khai affiliate** – tập con của (a) không mang `MONETIZATION_UNVERIFIED` hoặc cờ rủi ro monetization. Ngách
+  `INSUFFICIENT_EVIDENCE` hoặc `INSUFFICIENT_SCORING_DATA` nằm ở danh sách "cần nghiên cứu thêm", không có thứ hạng Opportunity.
+  Sắp xếp được theo Opportunity Score và Confidence Score, lọc theo ngưỡng, xuất được ở dạng đọc được bởi người (song ngữ VI/EN theo ngôn ngữ giao diện cho phần nhãn
   và tiêu đề; nội dung trích dẫn giữ ngôn ngữ gốc). *(E1-18, AC-16)*
 - **FR-025**: AI MUST chỉ đề xuất "tiếp tục/loại bỏ" kèm lý do; chủ sở hữu ghi quyết định (tiếp tục / theo dõi / loại bỏ) kèm lý
   do; quyết định có audit và không ghi đè đề xuất của AI. *(AUT-01, Constitution IV)*
 - **FR-026**: E1 MUST cung cấp API cho mọi chức năng và **3 màn hình tối thiểu song ngữ** (mặc định tiếng Việt, chuyển được tiếng
-  Anh), mọi chuỗi qua hệ thống i18n: (1) **Danh sách lượt khám phá** – lịch sử, trạng thái, chi phí (tách thật/giả lập), thao tác
-  chạy/tạm dừng/tiếp tục/hủy; (2) **Bảng xếp hạng ngách** – ngách, Opportunity Score, Confidence Score, trạng thái xác minh, mức phù
-  hợp affiliate (cờ rủi ro monetization); (3) **Chi tiết ngách** – pain point, buyer persona, bằng chứng và nguồn, lý do chấm điểm
-  (điểm thành phần + phiên bản trọng số), rủi ro, nút ghi quyết định. Mỗi màn hình MUST có trạng thái đang tải, rỗng và lỗi; dữ
-  liệu giả lập MUST được gắn nhãn rõ và không trình bày như nghiên cứu thật; không có biểu đồ/phân tích nâng cao (E4). Luồng chính
-  MUST có kiểm thử end-to-end. *(Clarification Q3, FR-060 E0, NFR-12)*
+  Anh), mọi chuỗi qua hệ thống i18n: (1) **Danh sách lượt khám phá** – lịch sử, trạng thái, kết quả (`COMPLETED`/`PARTIAL_COMPLETED` +
+  lý do), chi phí (tách thật/giả lập), thao tác chạy/tạm dừng/tiếp tục/hủy; (2) **Bảng xếp hạng ngách** – ngách, Opportunity Score,
+  Confidence Score, Coverage (%), trạng thái xác minh, trạng thái Monetization (`MONETIZATION_UNVERIFIED`/cờ rủi ro), chuyển giữa bảng
+  cơ hội nghiên cứu / danh sách ưu tiên affiliate / cần nghiên cứu thêm; (3) **Chi tiết ngách** – pain point, buyer persona, bằng chứng
+  và nguồn, lý do chấm điểm (điểm thành phần, phiên bản trọng số, Coverage, tiêu chí `UNKNOWN`, dữ liệu còn thiếu), rủi ro, nút ghi
+  quyết định. Mỗi màn hình MUST có trạng thái đang tải, rỗng và lỗi; dữ liệu giả lập MUST được gắn nhãn rõ và không trình bày như
+  nghiên cứu thật; Opportunity kèm chú thích không phải dự báo doanh thu (FR-019c); không có biểu đồ/phân tích nâng cao (E4). Luồng
+  chính MUST có kiểm thử end-to-end. *(Clarification Q3, Q7, FR-060 E0, NFR-12)*
 
 **Vận hành, chi phí, độ bền**
 
@@ -470,6 +511,9 @@ sử điểm cũ còn nguyên.
 - **Quy tắc dữ liệu (Q6)**: lượt khám phá lưu giới hạn đã áp dụng (thời gian, số trang, tốc độ mỗi tên miền), phần đã dùng và còn
   lại, kết quả (`COMPLETED`/`PARTIAL_COMPLETED`) và lý do dừng; mỗi lần truy cập trang lưu tên miền, thời điểm, kết quả (thành
   công/thất bại/bỏ qua) và lý do; trang đã thu thập thành công không bị thu thập lại khi tiếp tục hoặc chạy lại trong cùng lượt.
+- **Quy tắc dữ liệu (Q7)**: mỗi lần đánh giá lưu điểm thành phần (hoặc `UNKNOWN`) kèm lý do và bằng chứng, trọng số gốc, phiên bản
+  trọng số, ngưỡng Coverage, Coverage, Opportunity (hoặc `INSUFFICIENT_SCORING_DATA`), Confidence và các yếu tố cấu thành, nhãn
+  `MONETIZATION_UNVERIFIED`; mọi giá trị đủ để tính lại kết quả bằng tay.
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
 - **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
@@ -489,6 +533,10 @@ sử điểm cũ còn nguyên.
 - **SC-003**: 100% ngách trong báo cáo có đủ 16 trường đầu ra bắt buộc (giá trị hoặc `UNKNOWN`). *(BR-07)*
 - **SC-004**: 100% kết luận được hiển thị có ít nhất một bằng chứng có nguồn và thời điểm thu thập, hoặc mang trạng thái `UNKNOWN`;
   0 số liệu search volume/CPC/keyword difficulty/thị trường do hệ thống tự tạo. *(AC-07, AC-09, NFR-04)*
+- **SC-005a**: Trong bộ kiểm thử chấm điểm (đủ 6 tiêu chí; thiếu 1 và nhiều tiêu chí; Coverage đúng 60% và dưới 60%; Monetization
+  `UNKNOWN`; dữ liệu mâu thuẫn/không hợp lệ): 100% Opportunity khớp công thức chuẩn hóa tính tay, 100% Coverage đúng, 100% trường hợp
+  Coverage < 60% không có Opportunity chính thức, 100% ngách `MONETIZATION_UNVERIFIED` không có mặt trong danh sách ưu tiên affiliate,
+  và thứ tự xếp hạng nhất quán qua các lần tính lại. *(Clarification Q7)*
 - **SC-005**: Opportunity Score của 100% ngách trong bộ kiểm thử khớp với tính toán thủ công theo công thức và phiên bản trọng số đã
   lưu; chấm lại theo phiên bản trọng số mới không phát sinh lời gọi AI nào. *(AC-06)*
 - **SC-006**: Trong 100% kịch bản kiểm thử vượt hạn mức, không có lời gọi tốn phí nào được gửi vượt hạn mức lượt/ngày/tháng, và
