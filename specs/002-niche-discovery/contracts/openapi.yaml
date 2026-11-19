@@ -1,0 +1,582 @@
+openapi: 3.1.0
+info:
+  title: NichePilot API – E1 Autonomous Niche Discovery
+  version: 0.2.0-draft
+  description: |
+    Hợp đồng REST API của E1. Kế thừa toàn bộ quy ước E0 (specs/001-foundation-ai-infrastructure/contracts/openapi.yaml):
+    - Phiên đăng nhập cookie `np_session`; request thay đổi dữ liệu gửi `X-CSRF-Token`.
+    - Lỗi `application/problem+json` (RFC 9457) với `code` ổn định; frontend dịch `code`.
+    - Bản ghi kết quả AI/nghiên cứu có `data_origin` (REAL | MOCK).
+    - Job lượt khám phá điều khiển bằng endpoint E0 `/api/v1/jobs/{job_id}/pause|resume|cancel`; lịch định kỳ bằng `/api/v1/schedules`
+      với `job_type` ∈ {discovery.run, discovery.reevaluate}.
+    - Opportunity Score là điểm ưu tiên nghiên cứu, KHÔNG phải dự báo doanh thu (FR-019c).
+    - Không endpoint nào trả nội dung PII chưa che (FR-012b).
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+tags:
+  - name: discovery
+  - name: niches
+  - name: evidence
+  - name: search-sources
+  - name: scoring
+
+paths:
+  /api/v1/discovery/runs:
+    get:
+      tags: [discovery]
+      summary: Danh sách lượt khám phá (màn hình 1)
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+        - name: include_mock
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/DiscoveryRun" } }
+                  next_cursor: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [discovery]
+      summary: Tạo lượt khám phá (FR-001…FR-004) – tạo job E0 `discovery.run`
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DiscoveryRunCreate" }
+      responses:
+        "201":
+          description: Đã tạo lượt + job (trạng thái job PENDING)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoveryRun" }
+        "200":
+          description: Trùng Idempotency-Key – trả lượt đã có
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoveryRun" }
+        "409":
+          description: |
+            `BUDGET_NOT_CONFIGURED` | `RUN_BUDGET_EXCEEDS_DAILY_LIMIT` | `NO_COMPLIANT_SEARCH_SOURCE`
+            (không có nguồn tìm kiếm được bật – từ chối sớm, không tạo job)
+          content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/discovery/runs/{run_id}:
+    get:
+      tags: [discovery]
+      summary: Chi tiết lượt (cấu hình, trạng thái job, outcome, stop_reason, metrics, chi phí REAL/MOCK)
+      parameters: [{ $ref: "#/components/parameters/RunId" }]
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/DiscoveryRun" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/discovery/runs/{run_id}/report:
+    get:
+      tags: [discovery]
+      summary: Báo cáo xếp hạng của lượt (FR-024) – ba danh sách tách biệt
+      parameters:
+        - { $ref: "#/components/parameters/RunId" }
+        - { name: format, in: query, schema: { type: string, enum: [json, markdown], default: json } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json: { schema: { $ref: "#/components/schemas/RankingReport" } }
+            text/markdown: { schema: { type: string } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/niches:
+    get:
+      tags: [niches]
+      summary: Bảng xếp hạng ngách của project (màn hình 2)
+      parameters:
+        - name: list
+          in: query
+          description: |
+            research = bảng cơ hội nghiên cứu (đủ bằng chứng ∧ SCORED);
+            affiliate = ưu tiên affiliate (thêm SIGNALS_FOUND ∧ không MONETIZATION_RISK);
+            needs_research = INSUFFICIENT_EVIDENCE hoặc INSUFFICIENT_SCORING_DATA
+          schema: { type: string, enum: [research, affiliate, needs_research], default: research }
+        - { name: run_id, in: query, schema: { type: string, format: uuid } }
+        - { name: country, in: query, schema: { type: string, pattern: "^[A-Z]{2}$" } }
+        - name: decision_status
+          in: query
+          schema: { type: array, items: { $ref: "#/components/schemas/DecisionStatus" } }
+        - { name: include_mock, in: query, schema: { type: boolean, default: false } }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [opportunity_desc, confidence_desc, created_desc], default: opportunity_desc }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer_key]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/NicheSummary" } }
+                  next_cursor: { type: [string, "null"] }
+                  disclaimer_key:
+                    type: string
+                    description: Khóa i18n chú thích "không phải dự báo doanh thu"
+                    const: discovery.opportunity.disclaimer
+
+  /api/v1/niches/{niche_id}:
+    get:
+      tags: [niches]
+      summary: Chi tiết ngách (màn hình 3) – 16 trường BR-07, pain point, persona, bằng chứng, lý do chấm điểm
+      parameters: [{ $ref: "#/components/parameters/NicheId" }]
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/NicheDetail" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/niches/{niche_id}/evaluations:
+    get:
+      tags: [niches]
+      summary: Lịch sử đánh giá (bất biến) để so sánh thay đổi (FR-034)
+      parameters: [{ $ref: "#/components/parameters/NicheId" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Evaluation" } }
+
+  /api/v1/niches/{niche_id}/decision:
+    put:
+      tags: [niches]
+      summary: Ghi quyết định của chủ sở hữu (FR-025) – audit `niche.decision_recorded`
+      parameters: [{ $ref: "#/components/parameters/NicheId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { $ref: "#/components/schemas/DecisionStatus" }
+                reason: { type: string, maxLength: 2000 }
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/NicheSummary" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/niches/{niche_id}/reevaluate:
+    post:
+      tags: [niches]
+      summary: Tạo job `discovery.reevaluate` cho ngách (FR-034) – có giữ chỗ ngân sách
+      parameters: [{ $ref: "#/components/parameters/NicheId" }]
+      responses:
+        "202":
+          description: Đã tạo job
+          content: { application/json: { schema: { $ref: "#/components/schemas/JobRef" } } }
+        "409": { description: "`BUDGET_NOT_CONFIGURED` | `BUDGET_EXCEEDED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+
+  /api/v1/niche-similarities:
+    get:
+      tags: [niches]
+      summary: Cặp ngách có thể tương đồng chờ xác nhận (FR-022)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [POSSIBLE, CONFIRMED_DUPLICATE, NOT_DUPLICATE], default: POSSIBLE } }
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Similarity" } } } }
+
+  /api/v1/niche-similarities/{similarity_id}:
+    put:
+      tags: [niches]
+      summary: Chủ sở hữu xác nhận trùng (gộp) hoặc không trùng – audit
+      parameters:
+        - { name: similarity_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [CONFIRMED_DUPLICATE, NOT_DUPLICATE] }
+                keep_niche_id: { type: string, format: uuid, description: Bắt buộc khi CONFIRMED_DUPLICATE }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Similarity" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/evidence/{evidence_id}/erase:
+    post:
+      tags: [evidence]
+      summary: Xóa bằng chứng (FR-013e) – nội dung bị xóa, ghi ledger, tính lại ngách liên quan (job `discovery.recompute`)
+      parameters:
+        - { name: evidence_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+                scope: { type: string, enum: [EVIDENCE, SOURCE], default: EVIDENCE, description: SOURCE = mọi bằng chứng của URL nguồn }
+      responses:
+        "202":
+          description: Đã xóa; trả job tính lại
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [erasure_id, affected_niche_ids]
+                properties:
+                  erasure_id: { type: string, format: uuid }
+                  affected_niche_ids: { type: array, items: { type: string, format: uuid } }
+                  recompute_job: { $ref: "#/components/schemas/JobRef" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "`EVIDENCE_ALREADY_ERASED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+
+  /api/v1/search-sources:
+    get:
+      tags: [search-sources]
+      summary: Hồ sơ tuân thủ nguồn tìm kiếm (FR-006c)
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+    post:
+      tags: [search-sources]
+      summary: Chủ sở hữu thêm nguồn (FR-006d) – bắt đầu UNVERIFIED, tắt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [engine_key, display_name, integration_method, tos_url]
+              properties:
+                engine_key: { type: string, pattern: "^[a-z0-9_:.-]{2,64}$" }
+                display_name: { type: string, maxLength: 120 }
+                integration_method: { type: string, enum: [SEARXNG_ENGINE, OFFICIAL_API] }
+                tos_url: { type: string, format: uri }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+        "409": { description: "`SOURCE_EXISTS`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+
+  /api/v1/search-sources/{source_id}:
+    put:
+      tags: [search-sources]
+      summary: Cập nhật trạng thái xác minh / bật-tắt – audit `search_source.updated`
+      description: |
+        - enabled=true với PROHIBITED → 409 `SOURCE_PROHIBITED`.
+        - enabled=true với UNVERIFIED cần `acknowledge_warning=true` → nếu thiếu 409 `SOURCE_WARNING_NOT_ACKNOWLEDGED`.
+        - compliance_status=ALLOWED|PROHIBITED cần `verified_at` và `verification_note` (≥ 10 ký tự).
+      parameters:
+        - { name: source_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
+                verified_at: { type: string, format: date }
+                verification_note: { type: string, maxLength: 2000 }
+                tos_url: { type: string, format: uri }
+                known_limits: { type: string, maxLength: 1000 }
+                enabled: { type: boolean }
+                acknowledge_warning: { type: boolean }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+        "409": { description: "`SOURCE_PROHIBITED` | `SOURCE_WARNING_NOT_ACKNOWLEDGED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/scoring/weights:
+    get:
+      tags: [scoring]
+      summary: Các phiên bản trọng số/tham số chấm điểm (FR-018)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WeightsVersion" } } } } }
+    post:
+      tags: [scoring]
+      summary: Tạo phiên bản mới (active) – không sửa phiên bản cũ; tùy chọn tạo job `discovery.recompute`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weights]
+              properties:
+                weights: { $ref: "#/components/schemas/CriteriaWeights" }
+                coverage_threshold: { type: number, exclusiveMinimum: 0, maximum: 100 }
+                recompute_existing: { type: boolean, default: false }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/WeightsVersion" } } } }
+        "422": { description: "`WEIGHTS_INVALID` (tổng ≠ 100, thiếu tiêu chí, giá trị âm)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: np_session }
+  parameters:
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    Cursor: { name: cursor, in: query, schema: { type: string } }
+    RunId: { name: run_id, in: path, required: true, schema: { type: string, format: uuid } }
+    NicheId: { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    Unauthorized: { description: "`UNAUTHENTICATED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+    NotFound: { description: "`DISCOVERY_RUN_NOT_FOUND` | `NICHE_NOT_FOUND` | `EVIDENCE_NOT_FOUND`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+    ValidationError: { description: "`VALIDATION_ERROR`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+  schemas:
+    Problem:
+      type: object
+      required: [code, title, status]
+      properties:
+        code: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    DataOrigin: { type: string, enum: [REAL, MOCK] }
+    VerificationStatus: { type: string, enum: [VERIFIED, INFERRED, UNKNOWN, CONFLICTING] }
+    ComplianceStatus: { type: string, enum: [ALLOWED, UNVERIFIED, PROHIBITED] }
+    DecisionStatus: { type: string, enum: [CANDIDATE, WATCH, PURSUE, REJECTED, HIDDEN] }
+    JobRef:
+      type: object
+      required: [job_id, job_type, status]
+      properties:
+        job_id: { type: string, format: uuid }
+        job_type: { type: string, enum: [discovery.run, discovery.reevaluate, discovery.recompute] }
+        status: { type: string, description: Trạng thái job theo state machine E0 }
+    DiscoveryRunCreate:
+      type: object
+      required: [market]
+      properties:
+        market: { type: string, pattern: "^[A-Z]{2}$" }
+        research_language: { type: string, maxLength: 16, description: Mặc định theo cấu hình project }
+        seed_topic: { type: [string, "null"], maxLength: 200, description: null = không chọn lĩnh vực (FR-002) }
+        max_candidates: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        budget_usd: { type: string, pattern: "^\\d+(\\.\\d{1,6})?$", default: "2.00" }
+        time_limit_minutes: { type: integer, minimum: 5, maximum: 240, default: 90 }
+        page_limit: { type: integer, minimum: 10, maximum: 2000, default: 300 }
+        per_domain_interval_s: { type: number, minimum: 1, default: 2, description: Mức trần; robots/Retry-After nghiêm hơn được ưu tiên }
+    RunMetrics:
+      type: object
+      properties:
+        pages_attempted: { type: integer }
+        pages_succeeded: { type: integer }
+        pages_failed: { type: integer }
+        pages_skipped: { type: integer }
+        skipped_by_reason: { type: object, additionalProperties: { type: integer } }
+        elapsed_active_s: { type: integer }
+        independent_sources: { type: integer }
+        candidates: { type: integer }
+        evidence_sufficient: { type: integer }
+        insufficient_evidence: { type: integer }
+        insufficient_scoring_data: { type: integer }
+        ai_calls: { type: integer }
+        cost_real_usd: { type: string }
+        cost_mock_usd: { type: string }
+    DiscoveryRun:
+      type: object
+      required: [id, job, market, max_candidates, budget_usd, data_origin, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        job: { $ref: "#/components/schemas/JobRef" }
+        market: { type: string }
+        research_language: { type: string }
+        seed_topic: { type: [string, "null"] }
+        max_candidates: { type: integer }
+        budget_usd: { type: string }
+        time_limit_minutes: { type: integer }
+        page_limit: { type: integer }
+        weights_version: { type: integer }
+        source_mode: { $ref: "#/components/schemas/DataOrigin" }
+        outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, null] }
+        stop_reason:
+          type: [string, "null"]
+          enum: [ALL_CANDIDATES_SUFFICIENT, CANDIDATES_EXHAUSTED, TIME_LIMIT_REACHED, PAGE_LIMIT_REACHED,
+                 NO_COMPLIANT_SEARCH_SOURCE, SOURCES_UNAVAILABLE, CANCELLED, null]
+        metrics: { $ref: "#/components/schemas/RunMetrics" }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        created_at: { type: string, format: date-time }
+    CriteriaWeights:
+      type: object
+      required: [problem_severity, monetization, market_gap, reachability, competition_opportunity, demand_stability]
+      additionalProperties: false
+      properties:
+        problem_severity: { type: number, minimum: 0, maximum: 100 }
+        monetization: { type: number, minimum: 0, maximum: 100 }
+        market_gap: { type: number, minimum: 0, maximum: 100 }
+        reachability: { type: number, minimum: 0, maximum: 100 }
+        competition_opportunity: { type: number, minimum: 0, maximum: 100 }
+        demand_stability: { type: number, minimum: 0, maximum: 100 }
+    WeightsVersion:
+      type: object
+      required: [id, version, weights, coverage_threshold, is_active, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        version: { type: integer }
+        weights: { $ref: "#/components/schemas/CriteriaWeights" }
+        coverage_threshold: { type: number }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    CriterionResult:
+      type: object
+      required: [score, status]
+      properties:
+        score: { type: [integer, "null"], enum: [0, 25, 50, 75, 100, null], description: null khi UNKNOWN/CONFLICTING }
+        status: { $ref: "#/components/schemas/VerificationStatus" }
+        weight: { type: number }
+        normalized_weight: { type: [number, "null"] }
+        reason: { type: string }
+        evidence_ids: { type: array, items: { type: string, format: uuid } }
+    Evaluation:
+      type: object
+      required: [id, weights_version, criteria, coverage, scoring_status, confidence_score, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        run_id: { type: [string, "null"], format: uuid }
+        weights_version: { type: integer }
+        criteria: { type: object, additionalProperties: { $ref: "#/components/schemas/CriterionResult" } }
+        coverage: { type: number }
+        scoring_status: { type: string, enum: [SCORED, INSUFFICIENT_SCORING_DATA] }
+        opportunity_score: { type: [number, "null"] }
+        confidence_score: { type: number }
+        confidence_components: { type: object, additionalProperties: { type: number } }
+        missing_data: { type: array, items: { type: string }, description: Tiêu chí UNKNOWN/CONFLICTING và dữ liệu còn thiếu }
+        computed_without_ai: { type: boolean }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+        created_at: { type: string, format: date-time }
+    NicheSummary:
+      type: object
+      required: [id, name, country, evidence_status, decision_status, monetization_status, data_origin]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        micro_niche: { type: string }
+        country: { type: string }
+        opportunity_score: { type: [number, "null"] }
+        confidence_score: { type: [number, "null"] }
+        coverage: { type: [number, "null"] }
+        scoring_status: { type: [string, "null"], enum: [SCORED, INSUFFICIENT_SCORING_DATA, null] }
+        evidence_status: { type: string, enum: [EVIDENCE_SUFFICIENT, INSUFFICIENT_EVIDENCE] }
+        verification_summary: { type: object, additionalProperties: { type: integer }, description: Số trường theo VERIFIED/INFERRED/UNKNOWN }
+        monetization_status: { type: string, enum: [SIGNALS_FOUND, MONETIZATION_UNVERIFIED, NO_AFFILIATE_FOUND] }
+        risk_flags: { type: array, items: { type: string } }
+        ai_recommendation: { type: string, enum: [PURSUE, REJECT, UNKNOWN] }
+        decision_status: { $ref: "#/components/schemas/DecisionStatus" }
+        has_possible_duplicate: { type: boolean }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+    Evidence:
+      type: object
+      required: [id, source_url, excerpt, collected_at, verification_status, redaction_status, data_origin]
+      properties:
+        id: { type: string, format: uuid }
+        source_url: { type: string }
+        source_domain: { type: string }
+        excerpt: { type: string, maxLength: 1000, description: Đã che PII }
+        collected_at: { type: string, format: date-time }
+        published_at: { type: [string, "null"], format: date-time }
+        verification_status: { $ref: "#/components/schemas/VerificationStatus" }
+        redaction_status: { type: string, enum: [REDACTED, NEEDS_REVIEW] }
+        purpose: { type: string }
+        relevance: { type: [number, "null"] }
+        quality: { type: [number, "null"] }
+        independence_group: { type: string }
+        counted_for_threshold: { type: boolean }
+        data_origin: { $ref: "#/components/schemas/DataOrigin" }
+    Finding:
+      type: object
+      required: [status]
+      properties:
+        value: { description: null khi UNKNOWN }
+        status: { $ref: "#/components/schemas/VerificationStatus" }
+        evidence_ids: { type: array, items: { type: string, format: uuid } }
+    NicheDetail:
+      allOf:
+        - { $ref: "#/components/schemas/NicheSummary" }
+        - type: object
+          required: [customer_group, core_problem, pain_points, persona, findings, competitors, evidence, latest_evaluation]
+          properties:
+            customer_group: { type: string }
+            core_problem: { type: string }
+            pain_points:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  title: { type: string }
+                  description: { type: string }
+                  severity: { type: [integer, "null"], minimum: 1, maximum: 5 }
+                  evidence_count: { type: integer }
+                  status: { $ref: "#/components/schemas/VerificationStatus" }
+            persona: { type: object, additionalProperties: { $ref: "#/components/schemas/Finding" } }
+            findings:
+              type: object
+              description: CURRENT_SOLUTIONS, MARKET_GAPS, POTENTIAL_PRODUCTS, MONETIZATION, CHANNELS, RISKS
+              additionalProperties: { $ref: "#/components/schemas/Finding" }
+            competitors: { type: array, items: { type: object } }
+            evidence: { type: array, items: { $ref: "#/components/schemas/Evidence" } }
+            latest_evaluation: { $ref: "#/components/schemas/Evaluation" }
+            ai_recommendation_reason: { type: string }
+            owner_decision_reason: { type: [string, "null"] }
+            run_ids: { type: array, items: { type: string, format: uuid } }
+    Similarity:
+      type: object
+      required: [id, niche_a_id, niche_b_id, score, status]
+      properties:
+        id: { type: string, format: uuid }
+        niche_a_id: { type: string, format: uuid }
+        niche_b_id: { type: string, format: uuid }
+        score: { type: number }
+        status: { type: string, enum: [POSSIBLE, CONFIRMED_DUPLICATE, NOT_DUPLICATE] }
+    SearchSourcePolicy:
+      type: object
+      required: [id, engine_key, display_name, integration_method, tos_url, compliance_status, enabled]
+      properties:
+        id: { type: string, format: uuid }
+        engine_key: { type: string }
+        display_name: { type: string }
+        integration_method: { type: string, enum: [SEARXNG_ENGINE, OFFICIAL_API] }
+        tos_url: { type: string }
+        verified_at: { type: [string, "null"], format: date }
+        verification_note: { type: [string, "null"] }
+        compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
+        known_limits: { type: [string, "null"] }
+        enabled: { type: boolean }
+        warning_acknowledged_at: { type: [string, "null"], format: date-time }
+    RankingReport:
+      type: object
+      required: [run, research_ranking, affiliate_priority, needs_research, disclaimer_key, generated_at]
+      properties:
+        run: { $ref: "#/components/schemas/DiscoveryRun" }
+        research_ranking: { type: array, items: { $ref: "#/components/schemas/NicheSummary" } }
+        affiliate_priority: { type: array, items: { $ref: "#/components/schemas/NicheSummary" } }
+        needs_research: { type: array, items: { $ref: "#/components/schemas/NicheSummary" } }
+        disclaimer_key: { type: string, const: discovery.opportunity.disclaimer }
+        generated_at: { type: string, format: date-time }
