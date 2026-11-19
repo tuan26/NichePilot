@@ -45,6 +45,12 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   không vượt CAPTCHA/rate limit/cơ chế hạn chế; chủ sở hữu được thêm nguồn kèm cảnh báo + audit nhưng không được bật nguồn đã xác
   định bị cấm; không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE`, không tạo dữ liệu thay thế; Source Adapter độc lập để bổ sung
   API tìm kiếm chính thức sau này.
+- Q: Một ngách ứng viên cần tối thiểu bao nhiêu bằng chứng thật để vào bảng xếp hạng và được tính vào giới hạn 20 ngách? → A: B
+  (có bổ sung): ≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập; mỗi bằng chứng có URL, nội dung liên quan, thời điểm thu
+  thập, trạng thái xác minh; khác tên miền nhưng sao chép cùng nội dung không tính là độc lập; AI đánh giá chất lượng, độ liên quan,
+  tính độc lập (không chỉ đếm URL); không đạt → `INSUFFICIENT_EVIDENCE`, không xếp hạng, không tính vào 20, vẫn lưu để nghiên cứu/
+  đánh giá lại; Opportunity và Confidence tính và hiển thị riêng; không tự tạo bằng chứng để đạt ngưỡng; không đủ 20 → trả số
+  thực tế. Đạt ngưỡng bằng chứng ≠ có khả năng sinh lợi; khả năng kiếm tiền affiliate đánh giá riêng.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -79,7 +85,12 @@ chạy hoàn tất, sinh ra số ngách ứng viên trong giới hạn cấu hì
    chối và giải thích lý do (AUT-04), không tạo lời gọi AI nào.
 4. **Given** một thuộc tính (ví dụ đối thủ) không tìm được bằng chứng, **When** lượt khám phá hoàn tất, **Then** thuộc tính đó
    ghi `UNKNOWN`, không có giá trị được tự tạo ra.
-5. **Given** lượt khám phá chạy bằng nhà cung cấp AI giả lập, **When** xem kết quả, **Then** mọi ngách, pain point, bằng chứng
+5. **Given** một ngách ứng viên chỉ có 1 bằng chứng pain point, hoặc 2 bằng chứng từ 2 tên miền nhưng cùng một nội dung sao
+   chép, **When** lượt khám phá hoàn tất, **Then** ngách có trạng thái `INSUFFICIENT_EVIDENCE`, không xuất hiện trong bảng xếp hạng,
+   không được tính vào giới hạn số ngách, và vẫn được lưu để nghiên cứu tiếp.
+6. **Given** chỉ 7 ngách đạt ngưỡng bằng chứng trong giới hạn 20, **When** lượt khám phá hoàn tất, **Then** bảng xếp hạng có đúng 7
+   ngách; hệ thống không tạo thêm ngách hay bằng chứng để đủ số.
+7. **Given** lượt khám phá chạy bằng nhà cung cấp AI giả lập, **When** xem kết quả, **Then** mọi ngách, pain point, bằng chứng
    và báo cáo hiển thị nhãn dữ liệu giả lập và không xuất hiện trong báo cáo/xếp hạng mặc định (chỉ dữ liệu thật).
 
 ---
@@ -238,6 +249,9 @@ sử điểm cũ còn nguyên.
 
 ### Edge Cases
 
+- Hai bài viết ở hai tên miền khác nhau có cùng nội dung (bài đăng lại, aggregator) → tính là một nguồn; ngách có thể rơi
+  xuống `INSUFFICIENT_EVIDENCE`.
+- Ngách `INSUFFICIENT_EVIDENCE` được đánh giá lại và có thêm bằng chứng độc lập → chuyển vào bảng xếp hạng ở lần đánh giá mới.
 - Lượt khám phá không tìm được ngách nào đủ bằng chứng → hoàn tất với kết quả rỗng và lý do, không bịa ngách.
 - Không có nguồn tìm kiếm `ALLOWED` nào được bật, hoặc chủ sở hữu tắt hết → lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE`, không
   tạo ngách từ kiến thức của AI.
@@ -320,10 +334,22 @@ sử điểm cũ còn nguyên.
 - **FR-013**: Mọi kết luận (ngách, pain point, persona, giải pháp, khoảng trống, đối thủ, monetization, kênh tiếp cận) MUST
   gắn với bằng chứng gồm nguồn (URL hoặc định danh), trích đoạn ngắn có giới hạn độ dài, thời điểm thu thập và thời điểm xác
   minh – hoặc mang trạng thái `UNKNOWN`. *(E1-17, DATA-03, NFR-04)*
+- **FR-013a**: Mỗi bằng chứng MUST có URL nguồn, nội dung liên quan (trích đoạn), thời điểm thu thập và trạng thái xác minh.
+  *(Clarification Q5)*
+- **FR-013b**: Ngưỡng bằng chứng để một ngách vào bảng xếp hạng chính: **≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập**.
+  Bằng chứng "hợp lệ" = có đủ trường FR-013a, được đánh giá là liên quan tới pain point của ngách và đạt chất lượng tối thiểu; hai
+  nguồn "độc lập" = khác tên miền **và** không phải bản sao/bản gần giống của cùng một nội dung. Kiểm tra trùng nội dung, đếm
+  nguồn độc lập và so ngưỡng MUST là logic xác định trong mã; AI đánh giá độ liên quan, chất lượng và dấu hiệu sao chép như một
+  nhận định có nhãn `INFERRED` kèm lý do, đầu vào cho logic xác định (không chỉ đếm URL). *(Clarification Q5, Constitution III)*
+- **FR-013c**: Ngách không đạt ngưỡng MUST có trạng thái `INSUFFICIENT_EVIDENCE`: được lưu cùng bằng chứng đã có để nghiên cứu và
+  đánh giá lại, MUST NOT xuất hiện trong bảng xếp hạng chính, MUST NOT được tính vào giới hạn số ngách của lượt khám phá. Hệ thống
+  MUST NOT tạo, suy diễn hay "mượn" bằng chứng để đạt ngưỡng. *(Clarification Q5, Constitution I)*
+- **FR-013d**: Đạt ngưỡng bằng chứng không có nghĩa là ngách sinh lợi: khả năng kiếm tiền affiliate (FR-010) và Opportunity Score
+  (FR-017) được đánh giá riêng; Opportunity Score và Confidence Score MUST được tính và hiển thị riêng biệt. *(Clarification Q5, BR-04)*
 - **FR-014**: Trạng thái xác minh MUST theo BR-02: `VERIFIED` chỉ khi có nguồn trực tiếp; nhận định do AI suy luận gắn `INFERRED`;
   không xác minh được gắn `UNKNOWN` (không giá trị); nguồn mâu thuẫn gắn `CONFLICTING` và lưu mọi giá trị kèm nguồn. *(BR-02, QA-05)*
-- **FR-015**: Nguồn trùng nội dung (cùng nội dung chuẩn hóa ở nhiều URL) MUST được gom về một nguồn và không được đếm lặp khi
-  tính Confidence.
+- **FR-015**: Nguồn trùng nội dung (cùng nội dung chuẩn hóa ở nhiều URL, kể cả khác tên miền) MUST được gom về một nguồn và
+  không được đếm lặp khi tính ngưỡng bằng chứng (FR-013b) hay Confidence.
 - **FR-016**: Mọi dữ liệu sinh từ nhà cung cấp AI giả lập hoặc nguồn giả lập MUST mang nhãn `MOCK`, MUST bị loại khỏi báo cáo,
   xếp hạng và thống kê mặc định, và chỉ hiển thị khi yêu cầu rõ ràng kèm nhãn. *(Constitution I, E0 FR-018(g))*
 
@@ -346,7 +372,7 @@ sử điểm cũ còn nguyên.
 - **FR-022**: Hệ thống MUST phát hiện ngách trùng/tương đồng (cùng nhóm khách hàng và vấn đề cốt lõi) trong cùng lượt và giữa các
   lượt; trùng chắc chắn → liên kết vào ngách sẵn có; không chắc chắn → đánh dấu "có thể tương đồng" chờ chủ sở hữu, không tự gộp.
   Logic so sánh cuối cùng MUST là mã xác định (AI chỉ có thể đề xuất). *(E1-16)*
-- **FR-023**: Mỗi ngách MUST có đủ 16 trường đầu ra BR-07; trường thiếu dữ liệu MUST là `UNKNOWN`. *(BR-07)*
+- **FR-023**: Mỗi ngách trong bảng xếp hạng MUST có đủ 16 trường đầu ra BR-07; trường thiếu dữ liệu MUST là `UNKNOWN`. *(BR-07)*
 - **FR-024**: Hệ thống MUST tạo báo cáo xếp hạng ngách theo lượt khám phá và theo project, sắp xếp được theo Opportunity Score và
   Confidence Score, lọc theo ngưỡng, xuất được ở dạng đọc được bởi người (song ngữ VI/EN theo ngôn ngữ giao diện cho phần nhãn
   và tiêu đề; nội dung trích dẫn giữ ngôn ngữ gốc). *(E1-18, AC-16)*
@@ -387,7 +413,8 @@ sử điểm cũ còn nguyên.
 
 - **Lượt khám phá (Discovery Run)**: một lần chạy nghiên cứu; thị trường, ngôn ngữ nghiên cứu, lĩnh vực gợi ý (tùy chọn), giới
   hạn số ngách và chi phí, phiên bản trọng số, liên kết tới job E0, trạng thái, thống kê (FR-032), nhãn nguồn gốc dữ liệu.
-- **Ngách (Niche)**: tên, micro-niche, quốc gia, nhóm khách hàng, trạng thái (ứng viên / theo dõi / tiếp tục / loại bỏ / ẩn), đề
+- **Ngách (Niche)**: tên, micro-niche, quốc gia, nhóm khách hàng, trạng thái bằng chứng (`EVIDENCE_SUFFICIENT` /
+  `INSUFFICIENT_EVIDENCE`), trạng thái quyết định (ứng viên / theo dõi / tiếp tục / loại bỏ / ẩn), đề
   xuất của AI và quyết định của chủ sở hữu, cờ rủi ro (monetization, tuân thủ), liên kết tới các lượt khám phá đã phát hiện nó.
 - **Lần đánh giá ngách (Niche Evaluation)**: điểm thành phần 6 tiêu chí (giá trị hoặc `UNKNOWN`), Opportunity Score, Confidence
   Score và các yếu tố cấu thành, phiên bản trọng số, thời điểm; nhiều lần đánh giá cho một ngách.
@@ -397,6 +424,10 @@ sử điểm cũ còn nguyên.
 - **Phiên bản trọng số (Scoring Weights Version)**: 6 trọng số (tổng 100%), số phiên bản, người tạo, thời điểm.
 - **Nguồn (Research Source)** và **Bằng chứng (Research Evidence)**: hạ tầng dùng chung của E0 (URL/định danh chuẩn hóa, loại nguồn,
   hash nội dung, thời điểm thu thập; trích đoạn, trạng thái xác minh, thời điểm xác minh, job thu thập).
+- **Quy tắc dữ liệu (Q5)**: bằng chứng thiếu URL, trích đoạn, thời điểm thu thập hoặc trạng thái xác minh không được tính vào
+  ngưỡng; nguồn độc lập xác định theo tên miền + nội dung chuẩn hóa (bản sao/gần giống gom một nguồn); đánh giá liên quan/chất
+  lượng của AI lưu kèm bằng chứng với nhãn `INFERRED` và lý do; ngách chỉ vào bảng xếp hạng khi trạng thái bằng chứng là
+  `EVIDENCE_SUFFICIENT`.
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
 - **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
@@ -410,6 +441,9 @@ sử điểm cũ còn nguyên.
   nhận cấu hình – chạy) và nhận danh sách ngách xếp hạng khi lượt chạy hoàn tất. *(AC-04)*
 - **SC-002**: Trong lượt khám phá không chọn lĩnh vực, các ngách ứng viên thuộc ít nhất 3 lĩnh vực khác nhau (kiểm tra với bộ dữ
   liệu kiểm thử chuẩn).
+- **SC-003a**: 100% ngách trong bảng xếp hạng có ≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập; 100% ngách không đạt
+  ngưỡng có trạng thái `INSUFFICIENT_EVIDENCE` và không được xếp hạng; trong bộ kiểm thử có bản sao nội dung khác tên miền, 0 cặp
+  bản sao được tính là hai nguồn độc lập. *(Clarification Q5)*
 - **SC-003**: 100% ngách trong báo cáo có đủ 16 trường đầu ra bắt buộc (giá trị hoặc `UNKNOWN`). *(BR-07)*
 - **SC-004**: 100% kết luận được hiển thị có ít nhất một bằng chứng có nguồn và thời điểm thu thập, hoặc mang trạng thái `UNKNOWN`;
   0 số liệu search volume/CPC/keyword difficulty/thị trường do hệ thống tự tạo. *(AC-07, AC-09, NFR-04)*
