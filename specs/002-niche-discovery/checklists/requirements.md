@@ -34,4 +34,7 @@
 - Spec nhắc tới các thành phần đã có của E0 (AI Gateway, giữ chỗ ngân sách, job, scheduler, Model Task Profile) như **phụ thuộc
   hệ thống hiện có**, không phải lựa chọn công nghệ mới – chấp nhận được.
 - Thang điểm từng tiêu chí, công thức xử lý `UNKNOWN`, công thức Confidence và ngưỡng phát hiện trùng được cố ý để cho plan.
+- Spec nêu tên SearXNG (tự host, OSS) và ưu tiên Crawl4AI vì đó là **quyết định của chủ sở hữu** (Clarification Q1), không phải
+  lựa chọn công nghệ do spec tự đặt; đánh giá chi tiết (giấy phép, tài nguyên, điều khoản) thuộc plan.
+- Sau /speckit-clarify (Q4–Q8, 2026-11-19): 0 [NEEDS CLARIFICATION]; 16/16 mục đạt.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

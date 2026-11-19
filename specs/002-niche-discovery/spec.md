@@ -397,13 +397,6 @@ sử điểm cũ còn nguyên.
   nghiên cứu chỉ dùng được tool đã đăng ký trong danh sách quyền của nó, không có tool có tác động bên ngoài. *(Constitution V,
   NFR-14, BR-08)*
 
-**Bằng chứng và trạng thái xác minh**
-
-- **FR-013**: Mọi kết luận (ngách, pain point, persona, giải pháp, khoảng trống, đối thủ, monetization, kênh tiếp cận) MUST
-  gắn với bằng chứng gồm nguồn (URL hoặc định danh), trích đoạn ngắn có giới hạn độ dài, thời điểm thu thập và thời điểm xác
-  minh – hoặc mang trạng thái `UNKNOWN`. *(E1-17, DATA-03, NFR-04)*
-- **FR-013a**: Mỗi bằng chứng MUST có URL nguồn, nội dung liên quan (trích đoạn **đã che PII**), thời điểm thu thập và trạng thái
-  xác minh; MUST NOT lưu toàn bộ nội dung trang khi không cần thiết. *(Clarification Q5, Q8)*
 - **FR-012a**: Nội dung thu thập MUST qua bước che thông tin cá nhân (PII) **trước** khi ghi vào database và **trước** khi gửi tới
   bất kỳ nhà cung cấp AI nào: email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
   nhắc tên → `[PERSON]`, và các định danh cá nhân khác phát hiện được; giữ nội dung pain point và ngữ cảnh cần thiết. Bước che PII
@@ -413,13 +406,13 @@ sử điểm cũ còn nguyên.
   chỉ tồn tại tạm thời trong bộ nhớ của bước thu thập. Khi bước che PII không chắc chắn xử lý an toàn, đoạn nội dung MUST bị bỏ qua hoặc
   đánh dấu "cần kiểm tra" (không lưu dạng chưa che, không gửi AI). *(Clarification Q8)*
 - **FR-012c**: Hệ thống MUST NOT dùng thông tin cá nhân để xây dựng hồ sơ cá nhân hay danh sách liên hệ. *(Clarification Q8)*
-- **FR-013e**: Chủ sở hữu MUST xóa hoặc vô hiệu hóa được một bằng chứng (hoặc toàn bộ bằng chứng của một nguồn) theo yêu cầu hợp lệ.
-  Sau khi xóa: bằng chứng MUST NOT được dùng ở bất kỳ phân tích nào sau đó; số nguồn độc lập, Confidence và trạng thái xếp hạng của các
-  ngách liên quan MUST được tính lại (không còn đủ ngưỡng FR-013b → `INSUFFICIENT_EVIDENCE`); audit ghi thao tác tối thiểu (ai, khi
-  nào, định danh bằng chứng/nguồn, lý do) không chứa nội dung đã xóa. *(Clarification Q8)*
-- **FR-013f**: Hệ thống MUST có chính sách bảo đảm bằng chứng đã xóa không quay lại hệ thống đang hoạt động: bản sao trong cache bị
-  xóa cùng lúc; sau khi khôi phục từ backup, mọi yêu cầu xóa ghi nhận sau thời điểm backup MUST được áp dụng lại trước khi dữ liệu được
-  sử dụng (cơ chế cụ thể quyết định trong plan và có kiểm thử). *(Clarification Q8, E0 FR-073)*
+**Bằng chứng và trạng thái xác minh**
+
+- **FR-013**: Mọi kết luận (ngách, pain point, persona, giải pháp, khoảng trống, đối thủ, monetization, kênh tiếp cận) MUST
+  gắn với bằng chứng gồm nguồn (URL hoặc định danh), trích đoạn ngắn có giới hạn độ dài, thời điểm thu thập và thời điểm xác
+  minh – hoặc mang trạng thái `UNKNOWN`. *(E1-17, DATA-03, NFR-04)*
+- **FR-013a**: Mỗi bằng chứng MUST có URL nguồn, nội dung liên quan (trích đoạn **đã che PII**), thời điểm thu thập và trạng thái
+  xác minh; MUST NOT lưu toàn bộ nội dung trang khi không cần thiết. *(Clarification Q5, Q8)*
 - **FR-013b**: Ngưỡng bằng chứng để một ngách vào bảng xếp hạng chính: **≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập**.
   Bằng chứng "hợp lệ" = có đủ trường FR-013a, được đánh giá là liên quan tới pain point của ngách và đạt chất lượng tối thiểu; hai
   nguồn "độc lập" = khác tên miền **và** không phải bản sao/bản gần giống của cùng một nội dung. Kiểm tra trùng nội dung, đếm
@@ -430,6 +423,13 @@ sử điểm cũ còn nguyên.
   MUST NOT tạo, suy diễn hay "mượn" bằng chứng để đạt ngưỡng. *(Clarification Q5, Constitution I)*
 - **FR-013d**: Đạt ngưỡng bằng chứng không có nghĩa là ngách sinh lợi: khả năng kiếm tiền affiliate (FR-010) và Opportunity Score
   (FR-017) được đánh giá riêng; Opportunity Score và Confidence Score MUST được tính và hiển thị riêng biệt. *(Clarification Q5, BR-04)*
+- **FR-013e**: Chủ sở hữu MUST xóa hoặc vô hiệu hóa được một bằng chứng (hoặc toàn bộ bằng chứng của một nguồn) theo yêu cầu hợp lệ.
+  Sau khi xóa: bằng chứng MUST NOT được dùng ở bất kỳ phân tích nào sau đó; số nguồn độc lập, Confidence và trạng thái xếp hạng của các
+  ngách liên quan MUST được tính lại (không còn đủ ngưỡng FR-013b → `INSUFFICIENT_EVIDENCE`); audit ghi thao tác tối thiểu (ai, khi
+  nào, định danh bằng chứng/nguồn, lý do) không chứa nội dung đã xóa. *(Clarification Q8)*
+- **FR-013f**: Hệ thống MUST có chính sách bảo đảm bằng chứng đã xóa không quay lại hệ thống đang hoạt động: bản sao trong cache bị
+  xóa cùng lúc; sau khi khôi phục từ backup, mọi yêu cầu xóa ghi nhận sau thời điểm backup MUST được áp dụng lại trước khi dữ liệu được
+  sử dụng (cơ chế cụ thể quyết định trong plan và có kiểm thử). *(Clarification Q8, E0 FR-073)*
 - **FR-014**: Trạng thái xác minh MUST theo BR-02: `VERIFIED` chỉ khi có nguồn trực tiếp; nhận định do AI suy luận gắn `INFERRED`;
   không xác minh được gắn `UNKNOWN` (không giá trị); nguồn mâu thuẫn gắn `CONFLICTING` và lưu mọi giá trị kèm nguồn. *(BR-02, QA-05)*
 - **FR-015**: Nguồn trùng nội dung (cùng nội dung chuẩn hóa ở nhiều URL, kể cả khác tên miền) MUST được gom về một nguồn và
