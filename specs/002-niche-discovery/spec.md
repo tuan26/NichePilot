@@ -69,6 +69,14 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   trạng thái Monetization, giải thích điểm và dữ liệu thiếu; có test cho đủ/thiếu tiêu chí, Coverage = 60% và < 60%, Monetization
   `UNKNOWN`, dữ liệu mâu thuẫn/không hợp lệ, công thức chuẩn hóa và tính nhất quán thứ hạng. Opportunity cao không phải khả năng sinh
   lợi đã xác minh; không trình bày như dự báo doanh thu.
+- Q: Thông tin cá nhân trong nội dung thu thập xử lý thế nào trước khi lưu bằng chứng và gửi AI? → A: C (có bổ sung): che PII
+  (email, số điện thoại, @username, tên tác giả và thông tin nhận diện khác khi phát hiện được) bằng nhãn `[EMAIL]`, `[PHONE]`,
+  `[USER]`, `[PERSON]` trước khi ghi database và trước khi gửi Claude/OpenAI; giữ nội dung pain point và ngữ cảnh; không lưu hồ sơ/
+  liên hệ; không ghi PII chưa xử lý vào log, cache, checkpoint, báo cáo; không xử lý an toàn được → bỏ qua hoặc đánh dấu cần kiểm
+  tra; chỉ lưu URL, thời điểm, trích đoạn đã che, trạng thái xác minh; hỗ trợ xóa/vô hiệu hóa bằng chứng theo yêu cầu hợp lệ, tính
+  lại nguồn độc lập, Confidence và trạng thái xếp hạng (không đủ 2 nguồn → `INSUFFICIENT_EVIDENCE`), không dùng lại bằng chứng đã
+  xóa, audit tối thiểu không chứa PII, chính sách cho cache và backup để dữ liệu đã xóa không quay lại sau restore; có test cho các
+  điểm trên. Phát hiện PII không thể đúng 100% → kết hợp nhiều phương pháp, kiểm thử, và xử lý an toàn khi không chắc chắn.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -136,6 +144,16 @@ và hai nguồn có giá trị khác nhau cho cùng thuộc tính tạo trạng 
    lưu, **Then** nhận định gắn `INFERRED` và tách biệt khỏi dữ liệu `VERIFIED`.
 4. **Given** nội dung thu thập từ web chứa câu lệnh kiểu "bỏ qua hướng dẫn trước đó", **When** AI phân tích, **Then** nội dung
    chỉ được coi là dữ liệu; không có hành động nào ngoài phạm vi được cấp quyền xảy ra (prompt injection).
+5. **Given** trích đoạn chứa email, số điện thoại, @username và tên tác giả, **When** lưu bằng chứng và gửi cho AI, **Then** các thông
+   tin đó đã được thay bằng `[EMAIL]`, `[PHONE]`, `[USER]`, `[PERSON]` ở cả dữ liệu lưu và dữ liệu gửi AI; nội dung pain point vẫn
+   giữ nguyên.
+6. **Given** một đoạn nội dung mà bước che PII không chắc chắn xử lý an toàn, **When** thu thập, **Then** đoạn đó bị bỏ qua hoặc đánh
+   dấu "cần kiểm tra", không được lưu dạng chưa che và không được gửi cho AI.
+7. **Given** chủ sở hữu xóa một bằng chứng theo yêu cầu hợp lệ và ngách liên quan chỉ còn 1 nguồn độc lập, **When** xác nhận xóa,
+   **Then** bằng chứng không còn được dùng, nguồn độc lập và Confidence được tính lại, ngách chuyển `INSUFFICIENT_EVIDENCE` và rời bảng
+   xếp hạng; audit ghi thao tác xóa mà không chứa nội dung đã xóa.
+8. **Given** đã xóa bằng chứng sau thời điểm của một bản backup, **When** khôi phục từ bản backup đó, **Then** bằng chứng đã xóa không
+   xuất hiện lại trong hệ thống đang hoạt động (yêu cầu xóa được áp dụng lại trước khi dữ liệu được sử dụng).
 
 ---
 
@@ -296,6 +314,11 @@ sử điểm cũ còn nguyên.
 - Hai nguồn cho điểm khác nhau cho cùng tiêu chí (`CONFLICTING`) → tiêu chí coi như `UNKNOWN` khi tính Opportunity cho tới khi được
   phân xử; Coverage và Confidence giảm tương ứng.
 - Đổi trọng số làm Coverage của một ngách vượt hoặc rơi dưới 60% → kết quả mới chỉ áp dụng ở lần chấm lại theo phiên bản mới.
+- Trang có nhiều PII đan xen vào nội dung vấn đề (ví dụ câu chuyện cá nhân) → che PII, nếu không tách được an toàn thì bỏ đoạn
+  đó; ngách có thể thiếu bằng chứng → `INSUFFICIENT_EVIDENCE`.
+- Yêu cầu xóa trỏ tới bằng chứng đang được một lượt khám phá chạy sử dụng → lượt đó không dùng bằng chứng đã xóa ở bước kế tiếp;
+  đánh giá đã lưu được tính lại.
+- Khôi phục backup cũ hơn một yêu cầu xóa → yêu cầu xóa được áp dụng lại trước khi hệ thống phục vụ dữ liệu.
 - Lượt khám phá không tìm được ngách nào đủ bằng chứng → hoàn tất với kết quả rỗng và lý do, không bịa ngách.
 - Không có nguồn tìm kiếm `ALLOWED` nào được bật, hoặc chủ sở hữu tắt hết → lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE`, không
   tạo ngách từ kiến thức của AI.
@@ -379,8 +402,24 @@ sử điểm cũ còn nguyên.
 - **FR-013**: Mọi kết luận (ngách, pain point, persona, giải pháp, khoảng trống, đối thủ, monetization, kênh tiếp cận) MUST
   gắn với bằng chứng gồm nguồn (URL hoặc định danh), trích đoạn ngắn có giới hạn độ dài, thời điểm thu thập và thời điểm xác
   minh – hoặc mang trạng thái `UNKNOWN`. *(E1-17, DATA-03, NFR-04)*
-- **FR-013a**: Mỗi bằng chứng MUST có URL nguồn, nội dung liên quan (trích đoạn), thời điểm thu thập và trạng thái xác minh.
-  *(Clarification Q5)*
+- **FR-013a**: Mỗi bằng chứng MUST có URL nguồn, nội dung liên quan (trích đoạn **đã che PII**), thời điểm thu thập và trạng thái
+  xác minh; MUST NOT lưu toàn bộ nội dung trang khi không cần thiết. *(Clarification Q5, Q8)*
+- **FR-012a**: Nội dung thu thập MUST qua bước che thông tin cá nhân (PII) **trước** khi ghi vào database và **trước** khi gửi tới
+  bất kỳ nhà cung cấp AI nào: email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
+  nhắc tên → `[PERSON]`, và các định danh cá nhân khác phát hiện được; giữ nội dung pain point và ngữ cảnh cần thiết. Bước che PII
+  MUST kết hợp nhiều phương pháp (mẫu xác định + nhận diện ngữ cảnh) và có kiểm thử với bộ mẫu PII phổ biến. *(Clarification Q8,
+  Constitution V)*
+- **FR-012b**: Nội dung PII chưa xử lý MUST NOT xuất hiện trong log, cache, checkpoint, báo cáo, audit hay dữ liệu gửi AI; nội dung thô
+  chỉ tồn tại tạm thời trong bộ nhớ của bước thu thập. Khi bước che PII không chắc chắn xử lý an toàn, đoạn nội dung MUST bị bỏ qua hoặc
+  đánh dấu "cần kiểm tra" (không lưu dạng chưa che, không gửi AI). *(Clarification Q8)*
+- **FR-012c**: Hệ thống MUST NOT dùng thông tin cá nhân để xây dựng hồ sơ cá nhân hay danh sách liên hệ. *(Clarification Q8)*
+- **FR-013e**: Chủ sở hữu MUST xóa hoặc vô hiệu hóa được một bằng chứng (hoặc toàn bộ bằng chứng của một nguồn) theo yêu cầu hợp lệ.
+  Sau khi xóa: bằng chứng MUST NOT được dùng ở bất kỳ phân tích nào sau đó; số nguồn độc lập, Confidence và trạng thái xếp hạng của các
+  ngách liên quan MUST được tính lại (không còn đủ ngưỡng FR-013b → `INSUFFICIENT_EVIDENCE`); audit ghi thao tác tối thiểu (ai, khi
+  nào, định danh bằng chứng/nguồn, lý do) không chứa nội dung đã xóa. *(Clarification Q8)*
+- **FR-013f**: Hệ thống MUST có chính sách bảo đảm bằng chứng đã xóa không quay lại hệ thống đang hoạt động: bản sao trong cache bị
+  xóa cùng lúc; sau khi khôi phục từ backup, mọi yêu cầu xóa ghi nhận sau thời điểm backup MUST được áp dụng lại trước khi dữ liệu được
+  sử dụng (cơ chế cụ thể quyết định trong plan và có kiểm thử). *(Clarification Q8, E0 FR-073)*
 - **FR-013b**: Ngưỡng bằng chứng để một ngách vào bảng xếp hạng chính: **≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập**.
   Bằng chứng "hợp lệ" = có đủ trường FR-013a, được đánh giá là liên quan tới pain point của ngách và đạt chất lượng tối thiểu; hai
   nguồn "độc lập" = khác tên miền **và** không phải bản sao/bản gần giống của cùng một nội dung. Kiểm tra trùng nội dung, đếm
@@ -503,7 +542,11 @@ sử điểm cũ còn nguyên.
 - **Đối thủ / giải pháp hiện có (Competitor)**: tên/định danh, loại giải pháp, điểm mạnh/yếu có bằng chứng; thuộc một ngách.
 - **Phiên bản trọng số (Scoring Weights Version)**: 6 trọng số (tổng 100%), số phiên bản, người tạo, thời điểm.
 - **Nguồn (Research Source)** và **Bằng chứng (Research Evidence)**: hạ tầng dùng chung của E0 (URL/định danh chuẩn hóa, loại nguồn,
-  hash nội dung, thời điểm thu thập; trích đoạn, trạng thái xác minh, thời điểm xác minh, job thu thập).
+  hash nội dung, thời điểm thu thập; trích đoạn **đã che PII**, trạng thái xác minh, thời điểm xác minh, job thu thập). Bổ sung cho E1:
+  trạng thái che PII (đã che / cần kiểm tra), trạng thái hiệu lực (đang dùng / đã xóa theo yêu cầu – không còn trích đoạn), đánh giá
+  liên quan/chất lượng của AI (`INFERRED` + lý do).
+- **Yêu cầu xóa bằng chứng (Evidence Erasure Request)**: định danh bằng chứng hoặc nguồn, lý do, người thực hiện, thời điểm; không chứa
+  nội dung đã xóa; dùng để áp dụng lại sau khi khôi phục backup.
 - **Quy tắc dữ liệu (Q5)**: bằng chứng thiếu URL, trích đoạn, thời điểm thu thập hoặc trạng thái xác minh không được tính vào
   ngưỡng; nguồn độc lập xác định theo tên miền + nội dung chuẩn hóa (bản sao/gần giống gom một nguồn); đánh giá liên quan/chất
   lượng của AI lưu kèm bằng chứng với nhãn `INFERRED` và lý do; ngách chỉ vào bảng xếp hạng khi trạng thái bằng chứng là
@@ -514,6 +557,9 @@ sử điểm cũ còn nguyên.
 - **Quy tắc dữ liệu (Q7)**: mỗi lần đánh giá lưu điểm thành phần (hoặc `UNKNOWN`) kèm lý do và bằng chứng, trọng số gốc, phiên bản
   trọng số, ngưỡng Coverage, Coverage, Opportunity (hoặc `INSUFFICIENT_SCORING_DATA`), Confidence và các yếu tố cấu thành, nhãn
   `MONETIZATION_UNVERIFIED`; mọi giá trị đủ để tính lại kết quả bằng tay.
+- **Quy tắc dữ liệu (Q8)**: chỉ trích đoạn đã che PII được ghi vào database; bằng chứng "cần kiểm tra" không được dùng cho ngưỡng hay
+  điểm cho tới khi được xử lý; bằng chứng đã xóa giữ lại định danh và hash (không còn nội dung) để chống thu thập lại cùng nội dung
+  và để áp dụng lại yêu cầu xóa sau restore.
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
 - **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
@@ -557,6 +603,9 @@ sử điểm cũ còn nguyên.
   hai yêu cầu tới cùng tên miền không nhỏ hơn mức trần đã cấu hình hoặc mức chặt hơn do nguồn yêu cầu; dừng sớm khi đủ bằng chứng
   cho kết quả `COMPLETED`; chạm giới hạn cho `PARTIAL_COMPLETED` đúng lý do; tiếp tục từ checkpoint không thu thập lại trang đã có.
   *(Clarification Q6)*
+- **SC-016**: Trên bộ mẫu PII kiểm thử (email, số điện thoại nhiều định dạng, @username, tên tác giả): 100% mẫu bị che trong dữ liệu
+  lưu và dữ liệu gửi AI; 0 mẫu PII chưa che trong database, log, checkpoint; sau khi xóa bằng chứng, 100% ngách liên quan được tính lại
+  đúng và bằng chứng đã xóa không xuất hiện lại sau khi khôi phục backup cũ hơn yêu cầu xóa. *(Clarification Q8)*
 - **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
   đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
   lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
