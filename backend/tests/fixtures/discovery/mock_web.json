@@ -1,0 +1,26 @@
+{
+  "_note": "MOCK fixture tự soạn cho test E1 – ánh xạ URL giả lập → file; KHÔNG phải dữ liệu thật, không truy cập mạng.",
+  "pages": {
+    "https://forum.example/t/bakery-inventory": {"file": "forum_bakery.html", "status": 200, "published_at": "2026-06-01T10:00:00Z"},
+    "https://reviews.example/stockpal-micro-bakery": {"file": "review_bakery_app.html", "status": 200, "published_at": "2026-03-15T09:00:00Z"},
+    "https://aggregator.example/copy/bakery-inventory": {"file": "copy_of_forum_bakery.html", "status": 200},
+    "https://forum.example/t/grooming-chaos": {"file": "pii_page.html", "status": 200},
+    "https://tutors.example/scheduling": {"file": "names_unstructured.html", "status": 200},
+    "https://blocked.example/page": {"file": "captcha.html", "status": 403},
+    "https://members.example/thread": {"file": "login_required.html", "status": 200},
+    "https://broken.example/page": {"status": 500},
+    "https://slow.example/page": {"status": 429, "retry_after": 7200}
+  },
+  "robots": {
+    "forum.example": "robots_crawl_delay.txt",
+    "reviews.example": "robots_wildcard.txt",
+    "private.example": "robots_disallow_all.txt"
+  },
+  "search": {
+    "default": [
+      "https://forum.example/t/bakery-inventory",
+      "https://reviews.example/stockpal-micro-bakery",
+      "https://aggregator.example/copy/bakery-inventory"
+    ]
+  }
+}

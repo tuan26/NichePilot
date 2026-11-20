@@ -55,6 +55,22 @@
     "status": 403,
     "title": "Missing or invalid CSRF token"
   },
+  "DISCOVERY_RUN_NOT_FOUND": {
+    "status": 404,
+    "title": "Discovery run not found"
+  },
+  "ERASURE_LEDGER_NOT_APPLIED": {
+    "status": 503,
+    "title": "Evidence erasure ledger has not been fully applied"
+  },
+  "EVIDENCE_ALREADY_ERASED": {
+    "status": 409,
+    "title": "Evidence was already erased"
+  },
+  "EVIDENCE_NOT_FOUND": {
+    "status": 404,
+    "title": "Evidence not found"
+  },
   "INTERNAL_ERROR": {
     "status": 500,
     "title": "Internal error"
@@ -95,13 +111,25 @@
     "status": 409,
     "title": "Model is not verified for paid calls"
   },
+  "NICHE_NOT_FOUND": {
+    "status": 404,
+    "title": "Niche not found"
+  },
   "NOT_FOUND": {
     "status": 404,
     "title": "Not found"
   },
+  "NO_COMPLIANT_SEARCH_SOURCE": {
+    "status": 409,
+    "title": "No ALLOWED data source is enabled"
+  },
   "PAID_CALLS_DISABLED": {
     "status": 409,
     "title": "Paid API calls are disabled"
+  },
+  "PII_ENGINE_NOT_APPROVED": {
+    "status": 409,
+    "title": "PII engine is not approved for this environment"
   },
   "PRICING_MISSING": {
     "status": 409,
@@ -143,6 +171,10 @@
     "status": 409,
     "title": "Reservation is not in UNCERTAIN state"
   },
+  "RUN_BUDGET_EXCEEDS_DAILY_LIMIT": {
+    "status": 409,
+    "title": "Run budget exceeds the daily budget"
+  },
   "SCHEDULE_NAME_EXISTS": {
     "status": 409,
     "title": "A schedule with this name already exists"
@@ -150,6 +182,22 @@
   "SERVICE_UNAVAILABLE": {
     "status": 503,
     "title": "Service temporarily unavailable"
+  },
+  "SOURCE_CONFIG_INVALID": {
+    "status": 422,
+    "title": "Source configuration is invalid"
+  },
+  "SOURCE_EXISTS": {
+    "status": 409,
+    "title": "Source already exists"
+  },
+  "SOURCE_NOT_ALLOWED": {
+    "status": 409,
+    "title": "Only ALLOWED sources can be enabled"
+  },
+  "SOURCE_VERIFICATION_INCOMPLETE": {
+    "status": 422,
+    "title": "Source verification evidence is incomplete"
   },
   "TOOL_EXTERNAL_EFFECT_DISABLED": {
     "status": 403,
@@ -174,5 +222,9 @@
   "VERSION_CONFLICT": {
     "status": 409,
     "title": "Resource was modified concurrently"
+  },
+  "WEIGHTS_INVALID": {
+    "status": 422,
+    "title": "Scoring weights are invalid"
   }
 }

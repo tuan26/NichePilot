@@ -107,6 +107,24 @@
     "VERSION_CONFLICT": "The data was changed, please reload.",
     "SCHEDULE_NAME_EXISTS": "A schedule with this name already exists.",
     "MODEL_EXISTS": "The model already exists in the catalog.",
-    "COST_ESTIMATE_UNAVAILABLE": "The maximum cost could not be estimated safely – the paid call was blocked."
+    "COST_ESTIMATE_UNAVAILABLE": "The maximum cost could not be estimated safely – the paid call was blocked.",
+    "NO_COMPLIANT_SEARCH_SOURCE": "No data source has been verified as ALLOWED and enabled. Verify a source before running discovery.",
+    "SOURCE_NOT_ALLOWED": "Only sources verified as ALLOWED can be enabled. Unverified or prohibited sources cannot be used.",
+    "SOURCE_VERIFICATION_INCOMPLETE": "Verification evidence is incomplete: verification date, evidence note, allowed access method and permitted use scope are required.",
+    "SOURCE_CONFIG_INVALID": "Source configuration is invalid or contains credentials (only an environment variable name is allowed).",
+    "SOURCE_EXISTS": "This source already exists.",
+    "RUN_BUDGET_EXCEEDS_DAILY_LIMIT": "The run budget exceeds the daily budget.",
+    "WEIGHTS_INVALID": "Scoring weights are invalid (all 6 criteria are required and must total 100%).",
+    "DISCOVERY_RUN_NOT_FOUND": "Discovery run not found.",
+    "NICHE_NOT_FOUND": "Niche not found.",
+    "EVIDENCE_NOT_FOUND": "Evidence not found.",
+    "EVIDENCE_ALREADY_ERASED": "This evidence was already erased.",
+    "ERASURE_LEDGER_NOT_APPLIED": "The evidence erasure ledger has not been fully applied – research data is temporarily unavailable. See the restore guide.",
+    "PII_ENGINE_NOT_APPROVED": "The PII redaction engine is not approved for this environment."
+  },
+  "discovery": {
+    "opportunity": {
+      "disclaimer": "The Opportunity Score is a research priority score, not a revenue forecast or verified profitability."
+    }
   }
 }

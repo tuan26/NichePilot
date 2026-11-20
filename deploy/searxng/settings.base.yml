@@ -1,0 +1,31 @@
+# NichePilot – cấu hình SearXNG cơ sở (E1, research R-02; đã đối chiếu searx/settings.yml của image 2026.11.18-b867c56a5).
+# keep_only rỗng: KHÔNG engine nào được bật cho tới khi chủ sở hữu xác minh nguồn ALLOWED (FR-006c, FR-006d).
+# File này chỉ dùng lần khởi động đầu; sau đó NichePilot ghi đè /etc/searxng/settings.yml từ source_policies.
+use_default_settings:
+  engines:
+    keep_only: []
+
+general:
+  instance_name: "NichePilot internal SearXNG"
+  enable_metrics: false
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+
+server:
+  # secret_key được ghi đè bởi biến môi trường SEARXNG_SECRET
+  limiter: false
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+ui:
+  static_use_hash: true
+
+# Không nạp plugin nào: danh sách `plugins` của người dùng THAY THẾ danh sách mặc định (searx/settings_loader.py). Plugin
+# tracker_url_remover tự tải ClearURLs từ cdn.jsdelivr.net/clearurls.xyz khi khởi tạo – kể cả khi `active: false`
+# (phát hiện khi chạy thử 2026-11-20) – là kết nối ra ngoài không qua nguồn ALLOWED nào. NichePilot không cần plugin.
+plugins: {}

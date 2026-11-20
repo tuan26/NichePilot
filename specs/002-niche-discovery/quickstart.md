@@ -35,7 +35,7 @@ không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiệ
 2. Khởi động lại `searxng` khi phản hồi có `requires_service_restart = true` (cấu hình `keep_only` được sinh lại từ policy).
 3. Mọi lượt (thủ công, theo lịch) chỉ dùng nguồn `ALLOWED`: `sources` của lượt chỉ có `ALLOWED`. Thử `PUT /api/v1/sources/{id}` với
    `enabled = true` cho nguồn `UNVERIFIED` hoặc `PROHIBITED` → 409 `SOURCE_NOT_ALLOWED` (không có cách xác nhận cảnh báo để bỏ qua).
-   Tạo lịch E0 `job_type = discovery.run` → đến hạn có đúng một bản ghi `discovery_runs` với `trigger = SCHEDULED`.
+   Tạo lịch E0 `job_type = discovery.run` → đến hạn có đúng một bản ghi `discovery_runs` với `trigger = SCHEDULE`.
 4. Tạo lượt: `POST /api/v1/discovery/runs {"market":"US","max_candidates":5,"page_limit":40,"time_limit_minutes":15}`.
 5. Quan sát màn hình 1: trạng thái job, trang đã thu thập/bỏ qua theo lý do, chi phí REAL/MOCK (REAL = $0 khi gọi có phí tắt).
 6. Kỳ vọng: nguồn/bằng chứng `REAL`, trích đoạn đã che PII; phân tích AI là `MOCK` (không có API key) → ngách gắn `MOCK`. Đây **không**

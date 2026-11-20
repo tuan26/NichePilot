@@ -19,7 +19,17 @@ dependencies = [
     "structlog~=26.1",
     "argon2-cffi~=25.1",
     "httpx~=0.28.1",
+    # E1 (research R-12, technology-evaluation.md) – giấy phép/phiên bản đã xác minh 2026-11-20
+    "trafilatura~=2.3.1",
+    "protego~=0.7.0",
+    "phonenumbers~=9.0.43",
+    "rapidfuzz~=3.14.6",
+    "tldextract~=5.4.0",
 ]
+
+[project.optional-dependencies]
+# Chỉ dev/test khi chủ sở hữu bật (quyết định I2): KHÔNG cài trong image production.
+pii-ner = ["spacy~=3.8.18"]
 
 [dependency-groups]
 dev = [
@@ -75,5 +85,10 @@ markers = [
     "mock: test dùng MockAIProvider/FakeLLMProvider – KHÔNG được tính là kiểm thử provider thật",
     "live: gọi API thật có phí – chỉ chạy thủ công khi chủ sở hữu cho phép",
     "integration: cần PostgreSQL thật",
+    "discovery: test E1 Autonomous Niche Discovery",
+    "live_sources: thu thập từ nguồn ALLOWED thật – chỉ chạy thủ công; thiếu nguồn ALLOWED → BLOCKED",
+    "perf: test hiệu năng E1 – chạy riêng",
+    "pii_ner: cần nhóm tùy chọn pii-ner (spaCy) – chỉ dev/test",
+    "browser: cần profile browser-fetcher (Playwright) – chạy riêng",
 ]
 addopts = "-m 'not live' --strict-markers"

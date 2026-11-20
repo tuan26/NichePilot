@@ -21,6 +21,11 @@ COMPOSE_DEV=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compos
 COMPOSE_DEV+=(--env-file "$ENV_FILE")
 
 [ -f "$ENV_FILE" ] || cp deploy/env/.env.example "$ENV_FILE"
+# E1: SearXNG cần SEARXNG_SECRET (secret cục bộ, sinh ngẫu nhiên, không commit)
+if ! grep -qE '^SEARXNG_SECRET=.+' "$ENV_FILE"; then
+  secret="$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  if grep -q '^SEARXNG_SECRET=' "$ENV_FILE"; then sed -i "s/^SEARXNG_SECRET=.*/SEARXNG_SECRET=$secret/" "$ENV_FILE"; else echo "SEARXNG_SECRET=$secret" >> "$ENV_FILE"; fi
+fi
 grep -q '^AI_PAID_CALLS_ENABLED=false$' "$ENV_FILE" || { echo "Smoke test chỉ chạy khi AI_PAID_CALLS_ENABLED=false" >&2; exit 2; }
 
 log() { echo "$*" | tee -a "$REPORT"; }

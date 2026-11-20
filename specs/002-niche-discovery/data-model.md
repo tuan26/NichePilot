@@ -92,7 +92,7 @@ Không có đường mã nào đặt `ALLOWED` hay `enabled = true` ngoài API c
 | `time_limit_s` | INT | 300–14400, mặc định 5400 |
 | `page_limit` | INT | 10–2000, mặc định 300 |
 | `per_domain_interval_s` | NUMERIC(6,2) | ≥ 1, mặc định 2 (mức trần) |
-| `trigger` | TEXT | `MANUAL` \| `SCHEDULED` – sao chép từ `agent_jobs.trigger` của E0 |
+| `trigger` | TEXT | `MANUAL` \| `SCHEDULE` \| `RETRY` – sao chép từ `agent_jobs.trigger` của E0 (`JOB_TRIGGERS`) |
 | `source_policy_ids` | UUID[] | nguồn `ALLOWED` ∧ `enabled` được chốt lúc bắt đầu lượt; rỗng ⇒ `stop_reason = NO_COMPLIANT_SEARCH_SOURCE` |
 | `weights_version_id` | UUID | FK scoring_weights_versions (chốt lúc bắt đầu) |
 | `source_mode` | TEXT | `REAL` \| `MOCK` |

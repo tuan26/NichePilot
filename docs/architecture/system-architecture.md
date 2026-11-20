@@ -223,7 +223,7 @@ nichepilot/
 | structlog | MIT/Apache-2.0 | Structured logging | E0 | — |
 | React, Vite, TypeScript, Tailwind, shadcn/ui, i18next, TanStack Query | MIT | Frontend | E0 (khung), E4 | — |
 | SearXNG | AGPL-3.0 | Meta-search | E1 | Chạy như service riêng, không sửa mã → nghĩa vụ AGPL hạn chế; cần lưu ý khi thương mại hóa SaaS. Kết quả phụ thuộc engine upstream, có thể bị chặn/rate limit |
-| Crawl4AI | Apache-2.0 | Crawl nội dung | E1/E2 | Kéo theo Playwright/Chromium – tốn RAM; bật theo profile |
+| Crawl4AI | Apache-2.0 | Crawl nội dung | ~~E1/E2~~ – **loại khỏi E1** | Phụ thuộc bắt buộc `playwright-stealth`, `patchright` (chống phát hiện bot) – xem đánh giá E1 bên dưới |
 | Playwright | Apache-2.0 | Browser automation, E2E test | E0 (test), E1/E2 | — |
 | Docling | MIT | Phân tích tài liệu | Khi cần (E2) | Model tải về lớn; chỉ bật khi cần |
 | FFmpeg | LGPL/GPL (tùy build) | Video | E6 | Kiểm tra build khi phân phối |
@@ -233,6 +233,18 @@ nichepilot/
 | Matomo | GPL-3.0 | Analytics | E8 | — |
 | Metabase | AGPL-3.0 (bản Community) | Reporting | E8 | Nặng RAM (JVM); cân nhắc dashboard tự xây |
 | Claude server tool `web_search` | Dịch vụ trả phí theo lượt | Nguồn tìm kiếm thay thế/ bổ sung SearXNG | Đánh giá ở E1 | Tốn phí, cần đưa vào ngân sách |
+
+### 10.1 E1 – Technology Evaluation (Constitution VII)
+
+Đánh giá đầy đủ 7 tiêu chí (giấy phép, bảo trì, tích hợp, tài nguyên, thương mại hóa, bảo mật, thay thế) cho E1:
+[`specs/002-niche-discovery/technology-evaluation.md`](../../specs/002-niche-discovery/technology-evaluation.md). Tóm tắt:
+
+- **SearXNG** (AGPL-3.0-or-later): dịch vụ riêng, image chính thức không sửa mã → không phát sinh nghĩa vụ công bố mã NichePilot;
+  nếu sửa SearXNG phải công bố phần sửa. Không engine và không plugin nào được nạp cho tới khi có nguồn `ALLOWED`.
+- **trafilatura, protego, phonenumbers, rapidfuzz, tldextract**: Apache/BSD/MIT – dependency production của E1.
+- **Playwright**: chỉ profile tùy chọn `browser-fetcher`, tắt mặc định, không stealth.
+- **Crawl4AI**: loại khỏi E1 (quyết định I1). **spaCy `en_core_web_sm`**: chưa phê duyệt cho production (quyết định I2) – chỉ
+  nhóm tùy chọn `pii-ner` cho dev/test.
 
 ## 11. Quyết định kiến trúc chờ xác nhận
 

@@ -466,7 +466,7 @@ components:
         page_limit: { type: integer }
         weights_version: { type: integer }
         source_mode: { $ref: "#/components/schemas/DataOrigin" }
-        trigger: { type: string, enum: [MANUAL, SCHEDULED] }
+        trigger: { type: string, enum: [MANUAL, SCHEDULE, RETRY] }
         sources: { type: array, description: Nguồn ALLOWED được chốt cho lượt, items: { type: object, properties: { source_key: { type: string }, verified_at: { type: string, format: date } } } }
         outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, null] }
         stop_reason:

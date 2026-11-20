@@ -29,3 +29,16 @@ type = independence
 modules =
     nichepilot.modules.identity
     nichepilot.modules.evidence
+
+# E1 (T008): discovery được dùng service công khai của evidence/audit/settings (Constitution VIII),
+# nhưng module E0 không được phụ thuộc ngược vào discovery.
+[importlinter:contract:e0-modules-not-depend-on-discovery]
+name = Module E0 không import module discovery (E1)
+type = forbidden
+source_modules =
+    nichepilot.modules.identity
+    nichepilot.modules.evidence
+    nichepilot.modules.audit
+    nichepilot.modules.settings
+forbidden_modules =
+    nichepilot.modules.discovery

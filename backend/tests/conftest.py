@@ -128,3 +128,36 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
         await conn.execute(text("SET LOCAL session_replication_role = replica"))
         await conn.execute(text("TRUNCATE audit_logs"))
         await conn.execute(text("TRUNCATE procrastinate_jobs CASCADE"))
+
+
+# ---------------------------------------------------------------------------
+# E1 – marker chạy riêng (T007). Test bị bỏ qua có lý do bắt đầu "BLOCKED:" được báo cáo là BLOCKED, KHÔNG PASS.
+# ---------------------------------------------------------------------------
+OPT_IN_MARKERS = {
+    "live_sources": "NICHEPILOT_RUN_LIVE_SOURCES",
+    "perf": "NICHEPILOT_RUN_PERF",
+    "pii_ner": "NICHEPILOT_RUN_PII_NER",
+    "browser": "NICHEPILOT_RUN_BROWSER",
+}
+BLOCKED_PREFIX = "BLOCKED:"
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    for item in items:
+        for marker, env in OPT_IN_MARKERS.items():
+            if item.get_closest_marker(marker) and os.environ.get(env) != "1":
+                reason = (
+                    f"{BLOCKED_PREFIX} test nguồn thật chỉ chạy thủ công ({env}=1) và cần nguồn ALLOWED"
+                    if marker == "live_sources"
+                    else f"chạy riêng: đặt {env}=1"
+                )
+                item.add_marker(pytest.mark.skip(reason=reason))
+
+
+def pytest_terminal_summary(terminalreporter: object, exitstatus: int, config: pytest.Config) -> None:
+    stats = getattr(terminalreporter, "stats", {})
+    blocked = [r for r in stats.get("skipped", []) if BLOCKED_PREFIX in str(getattr(r, "longrepr", ""))]
+    if blocked:
+        terminalreporter.write_line(  # type: ignore[attr-defined]
+            f"BLOCKED (không phải PASS): {len(blocked)} test – xem lý do 'BLOCKED:' trong báo cáo skip"
+        )

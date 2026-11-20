@@ -107,6 +107,24 @@
     "VERSION_CONFLICT": "Dữ liệu đã bị thay đổi, vui lòng tải lại.",
     "SCHEDULE_NAME_EXISTS": "Đã có lịch với tên này.",
     "MODEL_EXISTS": "Model đã có trong danh mục.",
-    "COST_ESTIMATE_UNAVAILABLE": "Không ước tính được chi phí tối đa một cách an toàn – lời gọi có phí đã bị chặn."
+    "COST_ESTIMATE_UNAVAILABLE": "Không ước tính được chi phí tối đa một cách an toàn – lời gọi có phí đã bị chặn.",
+    "NO_COMPLIANT_SEARCH_SOURCE": "Chưa có nguồn dữ liệu nào được xác minh ALLOWED và đang bật. Hãy xác minh nguồn trước khi chạy lượt khám phá.",
+    "SOURCE_NOT_ALLOWED": "Chỉ nguồn đã xác minh ALLOWED mới được bật. Nguồn chưa xác minh hoặc bị cấm không thể sử dụng.",
+    "SOURCE_VERIFICATION_INCOMPLETE": "Thiếu căn cứ xác minh: cần ngày xác minh, ghi chú căn cứ, phương thức truy cập và phạm vi sử dụng được phép.",
+    "SOURCE_CONFIG_INVALID": "Cấu hình nguồn không hợp lệ hoặc chứa thông tin xác thực trực tiếp (chỉ được ghi tên biến môi trường).",
+    "SOURCE_EXISTS": "Nguồn này đã tồn tại.",
+    "RUN_BUDGET_EXCEEDS_DAILY_LIMIT": "Ngân sách của lượt vượt hạn mức ngày.",
+    "WEIGHTS_INVALID": "Trọng số chấm điểm không hợp lệ (phải đủ 6 tiêu chí và tổng bằng 100%).",
+    "DISCOVERY_RUN_NOT_FOUND": "Không tìm thấy lượt khám phá.",
+    "NICHE_NOT_FOUND": "Không tìm thấy ngách.",
+    "EVIDENCE_NOT_FOUND": "Không tìm thấy bằng chứng.",
+    "EVIDENCE_ALREADY_ERASED": "Bằng chứng này đã bị xóa trước đó.",
+    "ERASURE_LEDGER_NOT_APPLIED": "Sổ xóa bằng chứng chưa được áp dụng đầy đủ – dữ liệu nghiên cứu tạm thời không được cung cấp. Xem hướng dẫn khôi phục.",
+    "PII_ENGINE_NOT_APPROVED": "Bộ che thông tin cá nhân chưa được phê duyệt cho môi trường này."
+  },
+  "discovery": {
+    "opportunity": {
+      "disclaimer": "Opportunity Score là điểm ưu tiên nghiên cứu, không phải dự báo doanh thu hay khả năng sinh lợi đã xác minh."
+    }
   }
 }

@@ -11,6 +11,10 @@ x-backend: &backend
   restart: unless-stopped
   volumes:
     - logs:/var/log/nichepilot
+    # E1 (X4): sổ xóa bằng chứng – volume riêng, KHÔNG nằm trong dump PostgreSQL (research R-09)
+    - erasure-ledger:/var/lib/nichepilot/erasure-ledger
+    # E1 (X1): cấu hình SearXNG sinh từ source_policies (chỉ nguồn ALLOWED đang bật)
+    - searxng-config:/var/lib/nichepilot/searxng
   logging:
     # Stdout chỉ là bản sao để xem nhanh; bản lưu chính là file log theo ngày trong volume `logs` (FR-057)
     driver: json-file
@@ -79,6 +83,34 @@ services:
     mem_limit: 128m
     cpus: 0.5
 
+  # E1 (X1, research R-02): metasearch tự host, AGPL-3.0-or-later, image chính thức KHÔNG sửa mã.
+  # Chỉ mạng nội bộ Compose (không publish cổng). Lần đầu chạy dùng settings.base.yml (keep_only rỗng = không engine nào),
+  # sau đó dùng cấu hình do NichePilot sinh từ nguồn ALLOWED đang bật. Không có nguồn ALLOWED → không truy vấn ra ngoài.
+  # Trình thu thập có trình duyệt (Playwright, profile `browser-fetcher`) là tùy chọn, tắt mặc định – thêm ở T128.
+  searxng:
+    image: searxng/searxng:2026.11.18-b867c56a5
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -c
+      - '[ -f /etc/searxng/settings.yml ] || cp /opt/nichepilot/settings.base.yml /etc/searxng/settings.yml; exec /usr/local/searxng/entrypoint.sh'
+    environment:
+      GRANIAN_HOST: 0.0.0.0
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?SEARXNG_SECRET chưa được đặt trong deploy/env/.env}
+    volumes:
+      - ./searxng/settings.base.yml:/opt/nichepilot/settings.base.yml:ro
+      - searxng-config:/etc/searxng
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q OK"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    mem_limit: 256m
+    cpus: 0.5
+
   # Backup theo lịch (FR-073): docker compose --profile ops up -d backup ; backup thủ công: make backup
   backup:
     image: postgres:17-alpine
@@ -103,3 +135,5 @@ services:
 volumes:
   pgdata:
   logs:
+  erasure-ledger:
+  searxng-config:

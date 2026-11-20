@@ -16,13 +16,25 @@ RUN --mount=type=secret,id=extra_ca,required=false \
     uv sync --frozen --no-dev --no-install-project
 
 FROM deps AS dev
+# E1 – PII NER tùy chọn (quyết định I2): CHỈ image dev khi chủ sở hữu bật INSTALL_PII_NER=true.
+# Stage `runtime` (production) không bao giờ cài nhóm `pii-ner` hay model spaCy; model không bao giờ tải lúc chạy.
+ARG INSTALL_PII_NER=false
+ARG SPACY_MODEL_URL=https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+ARG SPACY_MODEL_SHA256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85
 RUN --mount=type=secret,id=extra_ca,required=false \
     if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
-    uv sync --frozen --no-install-project
+    if [ "$INSTALL_PII_NER" = "true" ]; then \
+      uv sync --frozen --no-install-project --extra pii-ner \
+      && python -c "import urllib.request; urllib.request.urlretrieve('$SPACY_MODEL_URL', '/tmp/en_core_web_sm-3.8.0-py3-none-any.whl')" \
+      && echo "$SPACY_MODEL_SHA256  /tmp/en_core_web_sm-3.8.0-py3-none-any.whl" | sha256sum -c - \
+      && uv pip install --no-deps /tmp/en_core_web_sm-3.8.0-py3-none-any.whl && rm /tmp/en_core_web_sm-3.8.0-py3-none-any.whl; \
+    else \
+      uv sync --frozen --no-install-project; \
+    fi
 COPY . .
 RUN --mount=type=secret,id=extra_ca,required=false \
     if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
-    uv sync --frozen
+    if [ "$INSTALL_PII_NER" = "true" ]; then uv sync --frozen --extra pii-ner --inexact; else uv sync --frozen; fi
 ENV PATH="/app/.venv/bin:$PATH"
 
 FROM deps AS runtime

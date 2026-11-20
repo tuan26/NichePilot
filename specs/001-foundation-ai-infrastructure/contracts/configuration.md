@@ -35,6 +35,10 @@ lúc chạy nằm trong bảng `settings` (xem data-model §4); bảng dưới l
 | `BACKUP_CRON` | Không | `0 3 * * *` | Lịch backup (service `backup`, profile `ops`) |
 | `BACKUP_TZ` | Không | `Asia/Ho_Chi_Minh` | Múi giờ áp dụng cho `BACKUP_CRON` |
 | `NICHEPILOT_LIVE_MAX_USD` | Không | `0.05` | Trần chi phí cho bộ test live thủ công |
+| `SEARXNG_SECRET` | **Có** | — | E1: secret của SearXNG (bắt buộc khi chạy Compose); sinh ngẫu nhiên khi cài, không commit |
+| `SEARXNG_URL` | Không | `http://searxng:8080` | E1: địa chỉ SearXNG trong mạng nội bộ Compose |
+| `PII_ENGINE` | Không | `regex-phone` | E1: bộ che PII đang dùng (`specs/002-niche-discovery/research.md` R-05) |
+| `PII_APPROVED_ENGINES` | Không | `regex-phone` | E1: danh sách engine được phê duyệt; production từ chối khởi động nếu `PII_ENGINE` không thuộc danh sách |
 
 ## Quy tắc khởi động (fail-fast)
 

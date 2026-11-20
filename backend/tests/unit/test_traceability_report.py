@@ -81,3 +81,74 @@ def test_TC_SC011_03_clause_ids_map_to_parent_requirement(tmp_path: Path) -> Non
     assert len(reqs["FR-018"].auto_tests) == 2
     assert any("FR-018(f)" in t for t in reqs["FR-018"].auto_tests)
     assert len(reqs["FR-019c"].auto_tests) == 1  # FR-019c là bullet thật, không gộp vào FR-019
+
+
+# ---------------------------------------------------------------------------
+# E1 (spec 002) – nhiều spec, tiền tố TC_E1_, yêu cầu PENDING theo tasks.md (T006)
+# ---------------------------------------------------------------------------
+E1 = P + "_E1"
+SPEC2 = """# Spec E1
+- **FR-001**: Hệ thống MUST tạo lượt.
+- **FR-002**: Hệ thống MUST chạy không chọn lĩnh vực.
+- **FR-006d**: Chỉ nguồn ALLOWED MUST được dùng.
+- **SC-013**: Thu thập thật ≥ 80%.
+"""
+TASKS2 = f"""# Tasks
+- [X] T001 Làm A (FR-001)
+- [x] T002 Test nguồn ({E1}_FR006d_01) (FR-006d)
+- [ ] T003 Làm B, chưa xong (FR-002)
+- [ ] T004 Test live (SC-013)
+"""
+
+
+def _fixture2(tmp_path: Path) -> tuple[Path, Path]:
+    d = tmp_path / "spec002"
+    d.mkdir()
+    (d / "spec.md").write_text(SPEC2, encoding="utf-8")
+    (d / "tasks.md").write_text(TASKS2, encoding="utf-8")
+    tests = tmp_path / "tests2"
+    (tests / "unit").mkdir(parents=True)
+    (tests / "live_sources").mkdir()
+    # Mã E0 cùng số (TC_FR001_xx) KHÔNG được tính cho E1; mã E1 không được tính cho E0.
+    (tests / "unit" / "test_e1.py").write_text(f"def test_{E1}_FR006d_01(): ...\ndef test_{P}_FR001_09(): ...\n")
+    (tests / "live_sources" / "test_real.py").write_text(f"def test_{E1}_SC013_01(): ...\n")
+    return d / "spec.md", tests
+
+
+def test_TC_E1_SC011_01_prefix_isolates_specs(tmp_path: Path) -> None:
+    mod = _load()
+    spec, tests = _fixture2(tmp_path)
+    reqs, _unknown = mod.build(spec, [tests], prefix="E1")
+    assert len(reqs["FR-006d"].auto_tests) == 1
+    assert len(reqs["FR-001"].auto_tests) == 0  # TC_FR001_09 là mã của spec 001
+    assert len(reqs["SC-013"].live_tests) == 1  # live_sources = test thủ công (BLOCKED khi chưa có nguồn ALLOWED)
+    e0_spec = tmp_path / "e0.md"
+    e0_spec.write_text("- **FR-006d**: MUST x.\n- **FR-001**: MUST y.\n", encoding="utf-8")
+    e0, _ = mod.build(e0_spec, [tests])
+    assert len(e0["FR-006d"].auto_tests) == 0 and len(e0["FR-001"].auto_tests) == 1
+
+
+def test_TC_E1_SC011_02_pending_requirements_from_tasks(tmp_path: Path) -> None:
+    """Yêu cầu chỉ xuất hiện trong task chưa hoàn thành → PENDING (không làm --strict thất bại);
+    yêu cầu thuộc task đã [X] mà thiếu test tự động → MISSING (--strict thất bại)."""
+    mod = _load()
+    spec, tests = _fixture2(tmp_path)
+    reqs, unknown = mod.build(spec, [tests], prefix="E1")
+    pending = mod.pending_requirements(spec.parent / "tasks.md")
+    assert pending == {"FR-002", "SC-013"}
+    report = mod.render(reqs, unknown, pending=pending, title="E1")
+    assert "| FR-002 | Có | 0 | 0 | PENDING |" in report
+    assert "| FR-001 | Có | 0 | 0 | MISSING |" in report
+    args = ["--spec", str(spec), "--prefix", "E1", "--tests", str(tests), "--strict"]
+    assert mod.main(args) == 1  # FR-001 thuộc task đã xong nhưng thiếu test
+    (tests / "unit" / "test_more.py").write_text(f"def test_{E1}_FR001_01(): ...\n")
+    assert mod.main(args) == 0
+
+
+def test_TC_E1_SC011_03_default_run_covers_all_specs() -> None:
+    mod = _load()
+    profiles = mod.DEFAULT_PROFILES
+    assert [(p.spec.parent.name, p.prefix) for p in profiles] == [
+        ("001-foundation-ai-infrastructure", ""),
+        ("002-niche-discovery", "E1"),
+    ]

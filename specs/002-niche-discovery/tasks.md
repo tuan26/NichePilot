@@ -41,35 +41,40 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
 
 ## Phase 1: Setup (hạ tầng dùng chung)
 
-- [ ] T001 Thêm dependency production đã xác minh vào `backend/pyproject.toml` + `backend/uv.lock`, ghim phiên bản theo research R-12
+- [X] T001 Thêm dependency production đã xác minh vào `backend/pyproject.toml` + `backend/uv.lock`, ghim phiên bản theo research R-12
   (trafilatura 2.3.1, protego 0.7.0, phonenumbers 9.0.43, rapidfuzz 3.14.6, tldextract 5.4.0); thêm nhóm tùy chọn `pii-ner` (spacy 3.8.18)
   **không** thuộc cài đặt mặc định; kiểm tra lại giấy phép bắc cầu và ghi vào `docs/operations/discovery.md` §Dependency; không thêm crawl4ai,
   playwright-stealth, patchright (FR-005, FR-012a, FR-015, FR-022, FR-030a)
-- [ ] T002 Sửa `backend/Dockerfile`: build arg `INSTALL_PII_NER=false` mặc định; chỉ khi `true` (image dev) cài nhóm `pii-ner` + wheel
+- [X] T002 Sửa `backend/Dockerfile`: build arg `INSTALL_PII_NER=false` mặc định; chỉ khi `true` (image dev) cài nhóm `pii-ner` + wheel
   `en_core_web_sm-3.8.0` từ URL ghim phiên bản kèm kiểm tra SHA-256; stage production không bao giờ cài; ghi kích thước image hai biến thể vào
   `docs/operations/discovery.md` (FR-012a, FR-012b)
-- [ ] T003 [P] Thêm vào `deploy/docker-compose.yml`: service `searxng` (image `searxng/searxng:2026.11.18-b867c56a5`, `mem_limit 256m`, mạng
+- [X] T003 [P] Thêm vào `deploy/docker-compose.yml`: service `searxng` (image `searxng/searxng:2026.11.18-b867c56a5`, `mem_limit 256m`, mạng
   nội bộ, không publish cổng, `GRANIAN_HOST=0.0.0.0`, `SEARXNG_SECRET` từ env, volume `searxng-config`), volume `erasure-ledger`, profile tùy
   chọn `browser-fetcher`; thêm biến vào `deploy/env/.env.example` không có giá trị thật (FR-006, FR-006b, FR-013f)
-- [ ] T004 [P] Tạo `deploy/searxng/settings.base.yml`: `use_default_settings.engines.keep_only: []`, `search.formats: [html, json]`,
+  *[Ghi chú triển khai: service `browser-fetcher` thêm cùng image ở T128; SearXNG không nạp plugin (`plugins: {}`) vì plugin
+  tracker_url_remover tự tải dữ liệu từ Internet – phát hiện khi chạy thử]*
+- [X] T004 [P] Tạo `deploy/searxng/settings.base.yml`: `use_default_settings.engines.keep_only: []`, `search.formats: [html, json]`,
   `server.limiter: false`, `public_instance: false`, `image_proxy: false` (FR-006c, FR-006d)
-- [ ] T005 [P] Thêm mã lỗi E1 vào `frontend/src/api/error-codes.json` + bản dịch VI/EN: `NO_COMPLIANT_SEARCH_SOURCE`, `SOURCE_NOT_ALLOWED`,
+- [X] T005 [P] Thêm mã lỗi E1 vào `frontend/src/api/error-codes.json` + bản dịch VI/EN: `NO_COMPLIANT_SEARCH_SOURCE`, `SOURCE_NOT_ALLOWED`,
   `SOURCE_VERIFICATION_INCOMPLETE`, `SOURCE_CONFIG_INVALID`, `SOURCE_EXISTS`, `RUN_BUDGET_EXCEEDS_DAILY_LIMIT`, `WEIGHTS_INVALID`,
   `DISCOVERY_RUN_NOT_FOUND`, `NICHE_NOT_FOUND`, `EVIDENCE_NOT_FOUND`, `EVIDENCE_ALREADY_ERASED`, `ERASURE_LEDGER_NOT_APPLIED`,
   `PII_ENGINE_NOT_APPROVED` (FR-004, FR-006c, FR-006d, FR-006e, FR-006g, FR-013e, FR-013f, FR-018, FR-012a)
-- [ ] T006 [P] Mở rộng `backend/scripts/traceability_report.py`: nhiều spec (001 dùng `TC_FR…/TC_SC…`, 002 dùng `TC_E1_FR…/TC_E1_SC…`);
+- [X] T006 [P] Mở rộng `backend/scripts/traceability_report.py`: nhiều spec (001 dùng `TC_FR…/TC_SC…`, 002 dùng `TC_E1_FR…/TC_E1_SC…`);
   `--strict` lỗi khi FR/SC Must của bất kỳ spec nào thiếu test; báo cáo riêng test có trạng thái `BLOCKED`; test hồi quy spec 001 vẫn 58/58 trong
   `backend/tests/unit/test_traceability_report.py` (SC-011)
-- [ ] T007 [P] Tạo khung gói `backend/src/nichepilot/modules/discovery/__init__.py`, `backend/src/nichepilot/tools/sources/__init__.py`,
+- [X] T007 [P] Tạo khung gói `backend/src/nichepilot/modules/discovery/__init__.py`, `backend/src/nichepilot/tools/sources/__init__.py`,
   `backend/src/nichepilot/tools/privacy/__init__.py`, `backend/src/nichepilot/tools/fetchers/__init__.py`, thư mục test và marker pytest
   `discovery`, `live_sources`, `perf`, `pii_ner`, `browser` (bốn marker sau deselected mặc định) trong `backend/pyproject.toml`; hook
   `backend/tests/conftest.py` ghi kết quả skip có lý do bắt đầu `BLOCKED:` thành trạng thái BLOCKED trong báo cáo (SC-011, SC-013)
-- [ ] T008 [P] Thêm `nichepilot.modules.discovery` vào hợp đồng `modules-independent` trong `backend/.importlinter` (FR-006, FR-028)
-- [ ] T009 [P] Tạo trang HTML cố định tự soạn (diễn đàn, đánh giá, bản sao khác tên miền, trang chứa PII mẫu, tên người không theo mẫu, trang
+- [X] T008 [P] Thêm `nichepilot.modules.discovery` vào hợp đồng `modules-independent` trong `backend/.importlinter` (FR-006, FR-028)
+  *[Ghi chú triển khai: dùng hợp đồng `forbidden` một chiều (module E0 không import discovery) thay cho `independence`, vì discovery
+  cần dùng service công khai của evidence/audit/settings (Constitution VIII)]*
+- [X] T009 [P] Tạo trang HTML cố định tự soạn (diễn đàn, đánh giá, bản sao khác tên miền, trang chứa PII mẫu, tên người không theo mẫu, trang
   CAPTCHA giả, robots.txt mẫu, trang lỗi) trong `backend/tests/fixtures/discovery/` (FR-005, FR-012a, FR-015, FR-031)
-- [ ] T010 [P] Tạo `frontend/src/i18n/locales/vi/discovery.json`, `frontend/src/i18n/locales/en/discovery.json` (gồm
+- [X] T010 [P] Tạo `frontend/src/i18n/locales/vi/discovery.json`, `frontend/src/i18n/locales/en/discovery.json` (gồm
   `discovery.opportunity.disclaimer`) và đăng ký namespace trong `frontend/src/i18n/index.ts` (FR-026, FR-019c)
-- [ ] T011 [P] Thêm mục "E1 – Technology Evaluation" vào `docs/architecture/system-architecture.md` trỏ tới
+  *[Ghi chú triển khai: khóa `discovery.*` đặt trong `frontend/src/i18n/locales/{vi,en}.json` hiện có để test i18n E0 bao phủ]*
+- [X] T011 [P] Thêm mục "E1 – Technology Evaluation" vào `docs/architecture/system-architecture.md` trỏ tới
   `specs/002-niche-discovery/technology-evaluation.md` (7 tiêu chí, nghĩa vụ AGPL của SearXNG, Crawl4AI loại, spaCy chưa phê duyệt) (FR-005, FR-006, FR-012a)
 
 **Checkpoint**: `uv sync` OK trên Python 3.13 (không cài `pii-ner`); `docker compose config` hợp lệ; `searxng` chạy trong mạng nội bộ,
@@ -548,7 +553,7 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 **Goal**: lịch khám phá định kỳ (nguồn `ALLOWED`), đánh giá lại ngách đang theo dõi; không sửa Scheduler E0.
 
 - [ ] T120 [P] [US7] Test lịch E0 với `job_type = discovery.run`: đúng 1 lượt/mốc; `ensure_run` tạo đúng một `discovery_runs` kể cả khi job được
-  giao lại (idempotent); `trigger = SCHEDULED` lấy từ `agent_jobs`; chỉ nguồn `ALLOWED`; không nguồn → `NO_COMPLIANT_SEARCH_SOURCE`; ngân sách
+  giao lại (idempotent); `trigger = SCHEDULE` lấy từ `agent_jobs`; chỉ nguồn `ALLOWED`; không nguồn → `NO_COMPLIANT_SEARCH_SOURCE`; ngân sách
   chưa cấu hình → lịch bị từ chối theo E0 trong `backend/tests/integration/discovery/test_discovery_schedule.py` (TC_E1_FR033_01,
   TC_E1_FR033_02, TC_E1_SC017_04) (FR-033, SC-017)
 - [ ] T121 [P] [US7] Test `POST /api/v1/niches/{niche_id}/reevaluate` + lịch `discovery.reevaluate`: đánh giá mới, giữ đánh giá cũ, so sánh thay đổi,
