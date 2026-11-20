@@ -3,6 +3,15 @@
 Hợp đồng nội bộ giữa các thành phần E1 và với E0. Chữ ký Python mang tính hợp đồng (tên, đầu vào/ra, lỗi); chi tiết cài đặt thuộc
 `/speckit-implement` (chưa được phép).
 
+## 0. Phân lớp (khớp `backend/.importlinter` của E0)
+
+- `tools/` (adapter nguồn, fetcher, `PiiEngine`, tool `source.query`/`page.fetch`/`robots.fetch`) không import `modules/`.
+- `modules/discovery` (policy, truy cập tên miền, chấm điểm, xóa) không import `tools/`/`ai/`.
+- `jobs/agents/niche_discovery.py` điều phối: lấy policy hợp lệ + kiểm tra robots/khoảng cách (modules) → gọi tool qua Tool Registry →
+  lưu kết quả đã che (modules) → gọi AI Gateway.
+- Tool Registry E0 lưu input/output tool vào `tool_calls` → **mọi văn bản bên ngoài phải được che PII trong handler trước khi trả**;
+  văn bản thô không bao giờ là output của tool.
+
 ## 1. SourceAdapter (lớp `tools`, FR-006, FR-006c…g, research R-13)
 
 ```python
@@ -18,11 +27,13 @@ class SourceResult:
     hits: list[SourceHit]          # url, title, snippet, published_at, source_policy_id
     source_status: SourceStatus    # OK | NO_RESULTS | UNAVAILABLE | RATE_LIMITED | ACCESS_RESTRICTED
 
-class SourcePolicyService:          # modules/discovery/sources/policy.py
+class SourcePolicyService:          # modules/discovery/sources/policy.py (agent chuyển kết quả thành input của tool `source.query`)
     def usable_for_run(self, *, trigger: Literal["MANUAL", "SCHEDULED"],
                        include_unverified: bool) -> list[UsableSourcePolicy]: ...
 ```
 
+- Tool `source.query` nhận snapshot policy (`source_key`, `adapter_type`, `config`, `compliance_status`, `run_allows_unverified`) và từ chối
+  `PROHIBITED`, hoặc `UNVERIFIED` khi `run_allows_unverified = false` (lớp 2). Snippet kết quả được che PII trong handler.
 - `UsableSourcePolicy` chỉ tạo được qua `usable_for_run` (kiểu đóng): `SCHEDULED` → chỉ `enabled ∧ ALLOWED`; `MANUAL` +
   `include_unverified` → thêm `enabled ∧ UNVERIFIED ∧ warning_acknowledged`; `PROHIBITED` không bao giờ. Adapter không nhận
   `source_policies` thô → không có đường gọi nguồn chưa qua kiểm tra (test kiến trúc).
@@ -47,18 +58,20 @@ class FetchOutcome:
     status: Literal["SUCCESS", "FAILED", "SKIPPED"]
     reason: str | None          # ROBOTS_DISALLOWED, RATE_LIMITED, ACCESS_RESTRICTED, HTTP_ERROR, TIMEOUT, NON_HTML, TOO_LARGE
     http_status: int | None
-    text: str | None            # nội dung chính (CHƯA che PII) – chỉ tồn tại trong bộ nhớ, không log, không checkpoint
+    text: RedactedText | None   # nội dung chính ĐÃ che PII (che trong handler); văn bản thô chỉ là biến cục bộ của handler
+    redaction: RedactionResult | None
     published_at: datetime | None
     final_url: str | None
 ```
 
-Thứ tự bắt buộc: robots.txt (cache 24 h trong `domain_access_state`) → khoảng cách tối thiểu
+Agent gọi `DomainAccessService.permit(url)` (modules) trước mỗi lần gọi tool `page.fetch`; thứ tự bắt buộc: robots.txt (tool
+`robots.fetch`, cache 24 h trong `domain_access_state`) → khoảng cách tối thiểu
 `max(per_domain_interval_s, Crawl-delay, Retry-After)` → HTTP GET (User-Agent nhận diện được, không giả trình duyệt; timeout 20 s;
 ≤ 3 MB; chỉ `text/html`) → trafilatura (bỏ `author`). 429/503 → thử lại tối đa 2 lần theo `Retry-After`, sau đó `SKIPPED`.
 Trang yêu cầu đăng nhập/paywall/CAPTCHA → `SKIPPED ACCESS_RESTRICTED`. `PlaywrightPageFetcher` (profile `browser-fetcher`, tắt mặc định) cài đặt cùng interface; không dùng thành phần lẩn tránh
 phát hiện bot (stealth). Crawl4AI không dùng (research R-03).
 
-## 3. PiiEngine (lớp `modules/discovery/privacy`, FR-012a…c)
+## 3. PiiEngine (lớp `tools/privacy`, FR-012a…c)
 
 ```python
 class PiiEngine(Protocol):           # thay thế được (ví dụ Presidio sau này)
@@ -83,7 +96,7 @@ class RedactionResult:
 
 ```python
 async def erase(target: EvidenceRef | SourceRef, *, reason: str, actor_id: UUID) -> ErasureResult
-def apply_erasure_ledger(*, strict: bool = True) -> LedgerApplyResult   # CLI: python -m nichepilot.ops.apply_erasure_ledger --strict
+def apply_erasure_ledger(*, strict: bool = True) -> LedgerApplyResult   # CLI: python -m nichepilot.jobs.erasure_ledger --strict
 async def ledger_health() -> LedgerHealth                              # dùng cho API gate + /system/status
 ```
 
@@ -111,7 +124,7 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 
 `compute_confidence` không có tham số Opportunity (FR-020) – kiểm tra bằng test chữ ký. Công thức chi tiết: [scoring-rubric.md](./scoring-rubric.md).
 
-## 6. Agent và job (lớp `ai`/`jobs`)
+## 6. Agent và job (lớp `jobs`, `jobs/agents/` như DiagnosticAgent E0)
 
 | Job type | Agent | Giới hạn (định nghĩa agent E0) | Ghi chú |
 |---|---|---|---|
@@ -120,8 +133,8 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 | `discovery.recompute` | (không AI) | max_steps 10, max_ai_calls 0 | Sau đổi trọng số / xóa bằng chứng |
 
 - Checkpoint chỉ chứa ID, hash, bộ đếm (trang, thời gian hoạt động), con trỏ hàng đợi URL – không chứa văn bản.
-- Lớp `modules/discovery` không import `ai`/`tools`. Agent gọi `DiscoveryService` (modules) và tool qua Tool Registry; phù hợp
-  hợp đồng import-linter E0.
+- Agent (lớp `jobs`) gọi `modules/discovery`, AI Gateway và tool qua Tool Registry; `allowed_tools` = {`source.query`, `page.fetch`,
+  `robots.fetch`}, mọi tool `external_effect = false`.
 
 ## 7. Task type AI (Model Task Profile – seed)
 

@@ -126,6 +126,8 @@ ngay sau khi trích nội dung**, trước mọi ghi DB/log/checkpoint và trư�
    bản đã che nhưng **không** tính vào ngưỡng, **không** gửi AI.
 6. Kiểm tra lại sau khi che: còn khớp mẫu email/điện thoại → `UNSAFE` → bỏ đoạn (`page_fetch_log.reason = PII_UNSAFE`).
 - Hàm tạo prompt AI chỉ nhận kiểu `RedactedText` có `status = REDACTED`; log chỉ ghi số lượng thay thế; checkpoint chỉ chứa ID/hash.
+- Vị trí: che PII **trong handler** của tool `page.fetch`/`source.query` (lớp `tools/privacy`), vì Tool Registry E0 lưu output tool vào
+  bảng `tool_calls` và `redact_payload` chỉ che secret (kiểm tra `backend/src/nichepilot/tools/registry.py`, 2026-11-20).
 - Giới hạn: không đạt 100% (Q8) → bộ mẫu kiểm thử (SC-016) + xóa theo yêu cầu (R-09).
 
 **Đánh giá tài nguyên đã đo (2026-11-20, venv tách biệt Python 3.13)**: spaCy 3.8.18 + model `en_core_web_sm` 3.8.0 thêm ≈ 291 MB vào
@@ -196,7 +198,7 @@ nhãn (≥ 40 cặp) để đạt SC-010 (≥ 90% đúng, 0 gộp nhầm "không
   bản sổ sống là nguồn chuẩn, restore không bao giờ ghi đè sổ sống bằng bản cũ hơn.
 - **Trạng thái trong DB**: bảng `erasure_ledger_state` (một dòng: `ledger_id`, `applied_seq`, `applied_hash`, `status` ∈ {`OK`,
   `BLOCKED`}).
-- **Áp dụng trước khi phục vụ**: lệnh `python -m nichepilot.ops.apply_erasure_ledger --strict` chạy (1) trong service `migrate` sau
+- **Áp dụng trước khi phục vụ**: lệnh `python -m nichepilot.jobs.erasure_ledger --strict` chạy (1) trong service `migrate` sau
   `alembic upgrade` – api/worker phụ thuộc `migrate` `service_completed_successfully`, nên lỗi → api/worker không khởi động; (2) trong
   `restore.sh` ngay sau `pg_restore`, trong cùng quy trình (api/worker đang dừng).
 - **Thất bại an toàn** (thoát mã ≠ 0, đặt `status = BLOCKED`, ghi log vận hành): sổ không tồn tại nhưng DB có `ledger_id`/yêu cầu xóa;
@@ -219,7 +221,7 @@ nhãn (≥ 40 cặp) để đạt SC-010 (≥ 90% đúng, 0 gộp nhầm "không
 `discovery.normalize` (chuẩn hóa cho dedup). Mặc định model tiết kiệm (Haiku 5.5) cho `extract`/`normalize`, Sonnet 5.5 cho
 `candidates`/`assess` – vẫn `verified = false` cho tới khi chủ sở hữu xác minh; gọi có phí vẫn tắt.
 Model chỉ là **dữ liệu seed** của Model Task Profile (E0): business logic chỉ nêu task type, không chứa model ID (kiểm tra bằng test
-grep model ID trong `modules/discovery` và `ai/agents`). Đổi model qua API Model Task Profile, có audit (quyết định 2026-11-20).
+grep model ID trong `modules/discovery` và `jobs/agents`). Đổi model qua API Model Task Profile, có audit (quyết định 2026-11-20).
 
 Ước tính chi phí một lượt (20 ứng viên, giá tham khảo chưa xác minh từ `enable-real-api.md` §3): ~20 lời gọi `extract` (≈ 6k token vào,
 1k ra, Haiku) + ~20 `assess` (≈ 8k vào, 1,5k ra, Sonnet) + vài lời gọi khác ≈ 20×$0,0011 + 20×$0,031 + ~$0,05 ≈ **$0,7** < $2. Đây là

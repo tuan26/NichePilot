@@ -115,24 +115,28 @@ backend/src/nichepilot/
 │   ├── service.py                   # DiscoveryService: tạo lượt, truy vấn xếp hạng, quyết định
 │   ├── sources/policy.py            # SourcePolicyService (usable_for_run, cảnh báo, audit; không tự bật/nâng trạng thái)
 │   ├── sources/searxng_config.py    # sinh settings.yml SearXNG (keep_only) từ policy
-│   ├── privacy/engine.py            # PiiEngine (interface) + RegexSpacyPiiEngine; NEEDS_REVIEW/UNSAFE
-│   ├── privacy/erasure.py           # EvidenceErasureService, ledger (hash chain, fsync), apply --strict, ledger_health
+│   ├── access.py                    # DomainAccessService: robots cache, khoảng cách theo tên miền (domain_access_state)
+│   ├── erasure.py                   # EvidenceErasureService, ledger (hash chain, fsync), apply --strict, ledger_health
 │   ├── evidence_rules.py            # ngưỡng, nhóm độc lập (eTLD+1 + SimHash)
 │   ├── scoring/opportunity.py       # Opportunity + Coverage
 │   ├── scoring/confidence.py        # Confidence (N,Q,D,F,K,V)
 │   ├── dedup.py                     # rapidfuzz token_set_ratio
 │   └── ranking.py                   # 3 danh sách: cơ hội / ưu tiên affiliate / cần nghiên cứu thêm
-├── tools/                           # MỞ RỘNG – thêm tool chỉ đọc (Tool Registry E0)
+├── tools/                           # MỞ RỘNG – thêm tool chỉ đọc (Tool Registry E0); không import modules
+│   ├── privacy/pii.py               # PiiEngine (interface) + RegexSpacyPiiEngine; NEEDS_REVIEW/UNSAFE
+│   ├── builtin/source_query.py      # tool `source.query` – gọi SourceAdapter, che PII snippet trước khi trả
+│   ├── builtin/page_fetch.py        # tool `page.fetch` – tải + trích + che PII TRONG handler; chỉ trả văn bản đã che
+│   ├── builtin/robots_fetch.py      # tool `robots.fetch` – tải robots.txt (protego)
 │   ├── sources/base.py              # SourceAdapter, SourceResult, registry theo adapter_type
 │   ├── sources/searxng_engine.py    # adapter_type searxng_engine
 │   ├── sources/http_json_api.py     # adapter_type http_json_api (khung, auth qua tên biến môi trường)
 │   ├── sources/dataset.py           # open_dataset / licensed_data (interface + mock)
-│   ├── page_fetch.py                # PageFetcher (robots/protego, rate per domain, httpx + trafilatura)
-│   ├── page_fetch_playwright.py     # tùy chọn, chỉ trong image browser-fetcher
+│   ├── fetchers/http_fetcher.py     # PageFetcher mặc định (httpx + trafilatura)
+│   ├── fetchers/playwright_fetcher.py # tùy chọn, chỉ trong image browser-fetcher
 │   └── mock_sources.py              # MockSourceAdapter/MockPageFetcher (dev/test, MOCK)
-├── ops/apply_erasure_ledger.py      # MỚI – CLI dùng bởi migrate và restore.sh
-├── ai/agents/niche_discovery.py     # MỚI – NicheDiscoveryAgent (định nghĩa agent: bước, checkpoint)
-├── jobs/discovery_jobs.py           # MỚI – đăng ký job type discovery.run / reevaluate / recompute
+├── jobs/agents/niche_discovery.py   # MỚI – NicheDiscoveryAgent (AgentDefinition E0, job type discovery.run)
+├── jobs/agents/niche_reevaluate.py  # MỚI – discovery.reevaluate; discovery.recompute (không AI)
+├── jobs/erasure_ledger.py           # MỚI – CLI `python -m nichepilot.jobs.erasure_ledger --strict` (migrate, restore.sh)
 └── api/v1/discovery.py              # MỚI – router (contracts/openapi.yaml)
 
 backend/alembic/versions/0009_discovery.py, 0010_discovery_seed.py
@@ -154,9 +158,13 @@ deploy/scripts/backup.sh             # + sao bản ledger kèm dump
 docs/operations/discovery.md         # vận hành E1 (nguồn, xác minh ToS, xóa bằng chứng)
 ```
 
-**Structure Decision**: giữ cấu trúc web app của E0; E1 là một module trong `modules/` + tool trong `tools/` + agent trong `ai/agents/`
-+ job type trong `jobs/`, đúng hợp đồng lớp import-linter `api > jobs > (ai, tools, modules) > core`. `modules/discovery` không import
-`ai`/`tools`; agent (lớp `ai`) điều phối qua interface trong `core` – xem contracts/internal-interfaces.md §6.
+**Structure Decision**: giữ cấu trúc web app của E0 và hợp đồng import-linter `api > jobs > (ai : tools : modules) > core`
+(`backend/.importlinter`; ba gói giữa là các lớp độc lập, không import lẫn nhau). Agent nằm ở `jobs/agents/` như `DiagnosticAgent` của E0
+nên được dùng AI Gateway, Tool Registry và `modules/discovery`. `tools/` không import `modules/` → che PII đặt trong `tools/privacy`
+và chạy **bên trong handler** của tool `page.fetch`/`source.query`, vì Tool Registry E0 lưu đầu ra tool vào bảng `tool_calls`
+(`redact_payload` chỉ che secret, không che PII – đã kiểm tra `tools/registry.py`). Kiểm tra robots/khoảng cách tên miền và lọc nguồn theo
+policy do agent thực hiện qua `modules/discovery` trước khi gọi tool; tool kiểm tra lại trạng thái tuân thủ trong input (phòng thủ 2
+lớp). Bổ sung `nichepilot.modules.discovery` vào hợp đồng độc lập module.
 
 ## Luồng xử lý một lượt khám phá (job `discovery.run`)
 
