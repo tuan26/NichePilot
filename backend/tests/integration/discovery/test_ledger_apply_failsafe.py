@@ -137,3 +137,36 @@ async def test_TC_E1_FR013f_06_apply_erases_atomically_or_rolls_back(clean_db: A
         ).scalar_one()
     assert status == "ACTIVE"  # rollback: ev2 chưa bị xóa nửa vời
     assert (await _state(clean_db))[1:3] == (2, "BLOCKED")
+
+
+async def test_TC_E1_FR013f_12_unwritable_ledger_dir_blocks_with_code(clean_db: AsyncEngine, tmp_path: Path) -> None:
+    """Phát hiện khi chạy smoke trên stack thật (2026-11-20): volume không ghi được → BLOCKED + mã lỗi, không traceback."""
+    import os
+
+    if os.geteuid() == 0:
+        pytest.skip("root bỏ qua quyền file – không mô phỏng được thư mục chỉ đọc")
+    ro = tmp_path / "ro"
+    ro.mkdir()
+    ro.chmod(0o500)
+    try:
+        with pytest.raises(LedgerError) as exc:
+            await apply_erasure_ledger(async_sessionmaker(clean_db), Ledger(ro))
+        assert exc.value.code == "LEDGER_IO_ERROR"
+        assert (await _state(clean_db))[2:] == ("BLOCKED", "LEDGER_IO_ERROR")
+    finally:
+        ro.chmod(0o700)
+
+
+async def test_TC_E1_FR013f_13_io_error_is_mapped_to_ledger_error(
+    clean_db: AsyncEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger = Ledger(tmp_path)
+
+    def boom(_lid: object) -> None:
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(ledger, "init", boom)
+    with pytest.raises(LedgerError) as exc:
+        await apply_erasure_ledger(async_sessionmaker(clean_db), ledger)
+    assert exc.value.code == "LEDGER_IO_ERROR"
+    assert (await _state(clean_db))[2:] == ("BLOCKED", "LEDGER_IO_ERROR")

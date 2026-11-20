@@ -7,15 +7,24 @@ Endpoint dữ liệu nghiên cứu dùng `LedgerGate`: erasure ledger chưa áp 
 
 from __future__ import annotations
 
+import uuid
+from decimal import Decimal
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
-from nichepilot.api.deps import SessionDep, UserDep
+from nichepilot.api.deps import MetaDep, SessionDep, SettingsDep, UserDep
+from nichepilot.api.v1.jobs import CreateJobRequest, create_job
 from nichepilot.core.errors import AppError
 from nichepilot.discovery_wiring import DiscoveryServices
+from nichepilot.jobs.scheduler import budget_configured
+from nichepilot.modules.discovery.schemas import DiscoveryRunParams
+from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs
+from nichepilot.modules.discovery.sources.policy import SourcePolicyService
+from nichepilot.modules.settings.service import get_setting_values
 
 router = APIRouter(tags=["discovery"])
 
@@ -67,3 +76,89 @@ async def discovery_status(_user: UserDep, session: SessionDep, ds: DiscoveryDep
         "usable_sources": int(usable),
         "source_mode": ds.backends.data_origin,
     }
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US1 – lượt khám phá (T055/T066; FR-001…FR-004, FR-006e, FR-026)
+# ---------------------------------------------------------------------------------------------------------------------
+class DiscoveryRunCreate(BaseModel):
+    """Không có trường chọn nguồn chưa xác minh (A1) – trường lạ → 422."""
+
+    model_config = ConfigDict(extra="forbid")
+    market: str = Field(pattern=r"^[A-Z]{2}$")
+    research_language: str = Field(default="en", pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
+    seed_topic: str | None = Field(default=None, max_length=200)
+    max_candidates: int = Field(default=20, ge=1, le=50)
+    budget_usd: Decimal = Field(default=Decimal("2.00"), gt=0, max_digits=14, decimal_places=6)
+    time_limit_minutes: int = Field(default=90, ge=5, le=240)
+    page_limit: int = Field(default=300, ge=10, le=2000)
+    per_domain_interval_s: float = Field(default=2.0, ge=1)
+
+
+@router.post("/discovery/runs", status_code=status.HTTP_201_CREATED, dependencies=[LedgerGate])
+async def create_discovery_run(
+    body: DiscoveryRunCreate,
+    request: Request,
+    response: Response,
+    user: UserDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    meta: MetaDep,
+    ds: DiscoveryDep,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key", max_length=128)] = None,
+) -> dict[str, Any]:
+    if not await budget_configured(session):
+        raise AppError("BUDGET_NOT_CONFIGURED")
+    daily = Decimal(str((await get_setting_values(session, ["budget.daily_usd"]))["budget.daily_usd"]))
+    if body.budget_usd > daily:
+        raise AppError("RUN_BUDGET_EXCEEDS_DAILY_LIMIT")
+    usable = await SourcePolicyService(session).usable_for_run()
+    if not usable:  # FR-006e: chỉ nguồn ALLOWED đang bật; từ chối sớm – không job, không lời gọi AI
+        raise AppError("NO_COMPLIANT_SEARCH_SOURCE")
+    params = DiscoveryRunParams(
+        market=body.market,
+        research_language=body.research_language,
+        seed_topic=body.seed_topic,
+        max_candidates=body.max_candidates,
+        time_limit_s=body.time_limit_minutes * 60,
+        page_limit=body.page_limit,
+        per_domain_interval_s=body.per_domain_interval_s,
+    ).model_dump(exclude_none=True)
+    job = await create_job(  # tái dùng E0: idempotency, audit job.created, xếp hàng sau commit
+        CreateJobRequest(
+            job_type="discovery.run",
+            params=params,
+            idempotency_key=f"discovery:{idempotency_key}" if idempotency_key else None,
+            budget_limit_usd=body.budget_usd,
+        ),
+        request,
+        response,
+        user,
+        session,
+        settings,
+        meta,
+    )
+    job_id = uuid.UUID(job["id"])
+    async with ds.sessionmaker() as s, s.begin():
+        await create_run_record(s, job_id=job_id, params=params, usable=usable, source_mode=ds.backends.data_origin)
+        run = await get_run_by_job(s, job_id)
+    assert run is not None
+    return run
+
+
+@router.get("/discovery/runs", dependencies=[LedgerGate])
+async def list_discovery_runs(
+    _user: UserDep,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    include_mock: bool = True,
+) -> dict[str, Any]:
+    return {"items": await list_runs(session, limit=limit, include_mock=include_mock), "next_cursor": None}
+
+
+@router.get("/discovery/runs/{run_id}", dependencies=[LedgerGate])
+async def get_discovery_run(run_id: uuid.UUID, _user: UserDep, session: SessionDep) -> dict[str, Any]:
+    run = await get_run(session, run_id)
+    if run is None:
+        raise AppError("DISCOVERY_RUN_NOT_FOUND")
+    return run

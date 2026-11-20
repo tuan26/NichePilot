@@ -99,14 +99,16 @@ class JobContext:
         messages: Sequence[LLMMessage],
         tools: Sequence[ToolSpec] = (),
         output_model: type[BaseModel] | None = None,
+        task_type: str | None = None,
     ) -> GatewayResult:
+        # E1 (X6): task_type tùy chọn để mỗi bước dùng Model Task Profile riêng; mặc định = task type của agent (E0).
         if self.ai_call_count >= self.definition.max_ai_calls:
             raise AppError("MAX_AI_CALLS_EXCEEDED")
         if self.tokens_used >= self.definition.token_budget:
             raise AppError("JOB_TOKEN_BUDGET_EXCEEDED")
         self.ai_call_count += 1
         result = await self.gateway.call(
-            self.definition.task_type,
+            task_type or self.definition.task_type,
             system=system,
             messages=messages,
             tools=tools,

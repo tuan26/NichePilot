@@ -125,6 +125,58 @@
   "discovery": {
     "opportunity": {
       "disclaimer": "The Opportunity Score is a research priority score, not a revenue forecast or verified profitability."
+    },
+    "runs": {
+      "title": "Discovery runs",
+      "description": "Run automatic niche discovery. Only data sources verified as ALLOWED are used; simulated data is always labelled.",
+      "market": "Market (country code)",
+      "seedTopic": "Seed topic (optional)",
+      "seedPlaceholder": "Leave empty to explore all domains",
+      "maxCandidates": "Max niches",
+      "start": "Start discovery",
+      "allowedOnly": "Uses ALLOWED sources only – source checks cannot be bypassed.",
+      "empty": "No discovery runs yet.",
+      "openDomain": "All domains",
+      "outcome": "Outcome",
+      "inProgress": "In progress",
+      "pages": "Pages",
+      "pagesValue": "{{ok}} succeeded · {{skipped}} skipped · {{failed}} failed",
+      "candidates": "Candidate niches",
+      "cost": "AI cost",
+      "costReal": "Real ${{usd}}",
+      "costMock": "Simulated ${{usd}}",
+      "sources": "Data sources",
+      "noSources": "No sources",
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel"
+    },
+    "outcome": {
+      "COMPLETED": "Completed",
+      "PARTIAL_COMPLETED": "Partially completed"
+    },
+    "stopReason": {
+      "ALL_CANDIDATES_SUFFICIENT": "All niches have enough evidence",
+      "CANDIDATES_EXHAUSTED": "All candidates processed",
+      "TIME_LIMIT_REACHED": "Time limit reached",
+      "PAGE_LIMIT_REACHED": "Page limit reached",
+      "NO_COMPLIANT_SEARCH_SOURCE": "No ALLOWED source",
+      "SOURCES_UNAVAILABLE": "Sources unavailable",
+      "CANCELLED": "Cancelled"
+    },
+    "jobStatus": {
+      "QUEUED": "Queued",
+      "RUNNING": "Running",
+      "PAUSED": "Paused",
+      "PAUSED_BUDGET": "Paused (budget)",
+      "RETRY_SCHEDULED": "Retry scheduled",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
     }
+  },
+  "nav": {
+    "status": "Status",
+    "discovery": "Niche discovery"
   }
 }

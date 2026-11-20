@@ -125,6 +125,58 @@
   "discovery": {
     "opportunity": {
       "disclaimer": "Opportunity Score là điểm ưu tiên nghiên cứu, không phải dự báo doanh thu hay khả năng sinh lợi đã xác minh."
+    },
+    "runs": {
+      "title": "Lượt khám phá",
+      "description": "Chạy lượt khám phá ngách tự động. Chỉ nguồn dữ liệu đã xác minh ALLOWED được dùng; dữ liệu giả lập luôn được gắn nhãn.",
+      "market": "Thị trường (mã quốc gia)",
+      "seedTopic": "Lĩnh vực gợi ý (tùy chọn)",
+      "seedPlaceholder": "Để trống để khám phá mọi lĩnh vực",
+      "maxCandidates": "Số ngách tối đa",
+      "start": "Chạy lượt khám phá",
+      "allowedOnly": "Chỉ dùng nguồn ALLOWED – không có tùy chọn bỏ qua kiểm tra nguồn.",
+      "empty": "Chưa có lượt khám phá nào.",
+      "openDomain": "Mọi lĩnh vực",
+      "outcome": "Kết quả",
+      "inProgress": "Đang chạy",
+      "pages": "Trang",
+      "pagesValue": "{{ok}} thành công · {{skipped}} bỏ qua · {{failed}} lỗi",
+      "candidates": "Ngách ứng viên",
+      "cost": "Chi phí AI",
+      "costReal": "Thật ${{usd}}",
+      "costMock": "Giả lập ${{usd}}",
+      "sources": "Nguồn dữ liệu",
+      "noSources": "Không có nguồn",
+      "pause": "Tạm dừng",
+      "resume": "Tiếp tục",
+      "cancel": "Hủy"
+    },
+    "outcome": {
+      "COMPLETED": "Hoàn tất",
+      "PARTIAL_COMPLETED": "Hoàn tất một phần"
+    },
+    "stopReason": {
+      "ALL_CANDIDATES_SUFFICIENT": "Mọi ngách đã đủ bằng chứng",
+      "CANDIDATES_EXHAUSTED": "Đã xử lý hết ngách ứng viên",
+      "TIME_LIMIT_REACHED": "Đạt giới hạn thời gian",
+      "PAGE_LIMIT_REACHED": "Đạt giới hạn số trang",
+      "NO_COMPLIANT_SEARCH_SOURCE": "Không có nguồn ALLOWED",
+      "SOURCES_UNAVAILABLE": "Nguồn không khả dụng",
+      "CANCELLED": "Đã hủy"
+    },
+    "jobStatus": {
+      "QUEUED": "Đang chờ",
+      "RUNNING": "Đang chạy",
+      "PAUSED": "Tạm dừng",
+      "PAUSED_BUDGET": "Tạm dừng do ngân sách",
+      "RETRY_SCHEDULED": "Chờ thử lại",
+      "SUCCEEDED": "Thành công",
+      "FAILED": "Thất bại",
+      "CANCELLED": "Đã hủy"
     }
+  },
+  "nav": {
+    "status": "Trạng thái",
+    "discovery": "Khám phá ngách"
   }
 }

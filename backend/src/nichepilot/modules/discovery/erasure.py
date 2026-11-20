@@ -305,6 +305,9 @@ async def apply_erasure_ledger(
     except LedgerError as exc:
         await _block(sm, exc.code)
         raise
+    except OSError as exc:  # volume không đọc/ghi được (quyền, đĩa đầy…) → thất bại an toàn, mã lỗi rõ ràng
+        await _block(sm, "LEDGER_IO_ERROR")
+        raise LedgerError("LEDGER_IO_ERROR", type(exc).__name__) from None
 
 
 async def ledger_health(sm: async_sessionmaker[AsyncSession], ledger: Ledger) -> LedgerHealth:

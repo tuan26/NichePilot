@@ -1,7 +1,7 @@
 // Trang trạng thái hệ thống (T056 – FR-002, FR-057, UI-05): loading / error / empty states.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api, errorKey } from '@/api/client'
 import type { ComponentState, SystemStatus } from '@/api/types'
 import { Layout } from '@/app/Layout'
@@ -49,9 +49,14 @@ export function StatusPage() {
     <Layout
       syncProfile
       actions={
-        <Button variant="outline" size="sm" onClick={() => logout.mutate()}>
-          {t('app.logout')}
-        </Button>
+        <>
+          <Link to="/discovery/runs" className="text-sm text-slate-600 underline" data-testid="nav-discovery">
+            {t('nav.discovery')}
+          </Link>
+          <Button variant="outline" size="sm" onClick={() => logout.mutate()}>
+            {t('app.logout')}
+          </Button>
+        </>
       }
     >
       <div className="mb-6 flex flex-wrap items-center gap-3">

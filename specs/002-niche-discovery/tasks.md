@@ -288,49 +288,53 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
 
 ### Tests cho User Story 1 (viết trước, phải FAIL)
 
-- [ ] T056 [P] [US1] Contract test `POST/GET /api/v1/discovery/runs`, `GET /api/v1/discovery/runs/{run_id}` (mặc định 20/$2/90 phút/300 trang;
+- [X] T056 [P] [US1] Contract test `POST/GET /api/v1/discovery/runs`, `GET /api/v1/discovery/runs/{run_id}` (mặc định 20/$2/90 phút/300 trang;
   `Idempotency-Key`; giới hạn trường theo openapi; không có trường nào chọn nguồn chưa xác minh – trường lạ → 422) trong
   `backend/tests/contract/discovery/test_runs_api.py` (TC_E1_FR001_01, TC_E1_FR002_01, TC_E1_FR003_01) (FR-001, FR-002, FR-003)
-- [ ] T057 [P] [US1] Test từ chối sớm: ngân sách chưa cấu hình → `BUDGET_NOT_CONFIGURED`; vượt hạn mức ngày → `RUN_BUDGET_EXCEEDS_DAILY_LIMIT`;
+- [X] T057 [P] [US1] Test từ chối sớm: ngân sách chưa cấu hình → `BUDGET_NOT_CONFIGURED`; vượt hạn mức ngày → `RUN_BUDGET_EXCEEDS_DAILY_LIMIT`;
   chỉ có nguồn `UNVERIFIED`/`PROHIBITED` → `NO_COMPLIANT_SEARCH_SOURCE`; không job nào được tạo, 0 lời gọi AI trong
   `backend/tests/integration/discovery/test_run_preconditions.py` (TC_E1_FR004_01, TC_E1_FR006e_01, TC_E1_SC017_02) (FR-004, FR-006e, SC-017)
-- [ ] T058 [P] [US1] Test luồng `discovery.run` với mock: preflight → plan_queries → check_sources → search → fetch → extract; ≥ 3 lĩnh vực khi
+- [X] T058 [P] [US1] Test luồng `discovery.run` với mock: preflight → plan_queries → check_sources → search → fetch → extract; ≥ 3 lĩnh vực khi
   không seed topic; nguồn lỗi ghi trạng thái, không tạo dữ liệu thay thế; nguồn có `policy_verified_at` trong
   `backend/tests/integration/discovery/test_discovery_run_flow.py` (TC_E1_FR002_02, TC_E1_FR006a_01, TC_E1_FR006b_01, TC_E1_SC002_01)
   (FR-002, FR-006a, FR-006b, SC-002)
-- [ ] T059 [P] [US1] Test nội dung ngoài chứa chỉ dẫn (prompt injection) không đổi hành vi/tool; nội dung bọc `<untrusted_content>` trong
+- [X] T059 [P] [US1] Test nội dung ngoài chứa chỉ dẫn (prompt injection) không đổi hành vi/tool; nội dung bọc `<untrusted_content>` trong
   `backend/tests/integration/discovery/test_untrusted_content.py` (TC_E1_FR012_01) (FR-012)
-- [ ] T060 [P] [US1] Vitest màn hình 1 (đang tải/rỗng/lỗi, nhãn MOCK, chi phí REAL/MOCK, thông báo `NO_COMPLIANT_SEARCH_SOURCE`, không có
+- [X] T060 [P] [US1] Vitest màn hình 1 (đang tải/rỗng/lỗi, nhãn MOCK, chi phí REAL/MOCK, thông báo `NO_COMPLIANT_SEARCH_SOURCE`, không có
   tùy chọn dùng nguồn chưa xác minh) trong `frontend/tests/unit/discovery-runs-page.test.tsx` (TC_E1_FR026_01) (FR-026)
-- [ ] T061 [P] [US1] Test thu thập thật (marker `live_sources`, deselected) trong `backend/tests/live_sources/test_real_collection.py`: khi
+  *[Ghi chú triển khai: test view thuần bằng `react-dom/server` (`frontend/tests/unit/discovery-runs-page.test.ts`) – không thêm jsdom/testing-library]*
+- [X] T061 [P] [US1] Test thu thập thật (marker `live_sources`, deselected) trong `backend/tests/live_sources/test_real_collection.py`: khi
   không có nguồn `ALLOWED` đang bật → `pytest.skip("BLOCKED: no ALLOWED source …")` được báo cáo là BLOCKED, không bao giờ PASS; khi có →
   kiểm tra ≥ 80% ứng viên có nguồn thật, 0 vượt CAPTCHA/robots (TC_E1_SC013_01) (SC-013, FR-006b)
+  *[Kết quả: BLOCKED – chưa có nguồn ALLOWED; test không bao giờ báo PASS khi thiếu nguồn]*
 
 ### Implementation cho User Story 1
 
-- [ ] T062 [US1] `DiscoveryService.create_run` (kiểm tra ngân sách E0 + hạn mức ngày, nguồn `ALLOWED`; tạo job E0 idempotent; audit
+- [X] T062 [US1] `DiscoveryService.create_run` (kiểm tra ngân sách E0 + hạn mức ngày, nguồn `ALLOWED`; tạo job E0 idempotent; audit
   `discovery.run_created`) trong `backend/src/nichepilot/modules/discovery/service.py` theo `data-model.md discovery_runs.market`,
   `data-model.md discovery_runs.research_language`, `data-model.md discovery_runs.seed_topic`, `data-model.md discovery_runs.max_candidates`,
   `data-model.md discovery_runs.budget_usd`, `data-model.md discovery_runs.time_limit_s`, `data-model.md discovery_runs.page_limit`,
   `data-model.md discovery_runs.per_domain_interval_s`, `data-model.md discovery_runs.idempotency_key`,
   `data-model.md discovery_runs.source_policy_ids`, `data-model.md discovery_runs.weights_version_id`,
   `data-model.md discovery_runs.source_mode` (FR-001, FR-002, FR-003, FR-004, FR-006e)
-- [ ] T063 [US1] Bước `plan_queries` (task type `discovery.candidates` qua AI Gateway) và `check_sources` (`usable_for_run()`; rỗng →
+  *[Ghi chú triển khai: `create_run_record` dùng chung cho API và `ensure_run` của agent; API tái dùng `create_job` của E0 (idempotency, audit, hàng đợi)]*
+- [X] T063 [US1] Bước `plan_queries` (task type `discovery.candidates` qua AI Gateway) và `check_sources` (`usable_for_run()`; rỗng →
   `NO_COMPLIANT_SEARCH_SOURCE`) trong `backend/src/nichepilot/jobs/agents/niche_discovery.py` (FR-002, FR-006d, FR-006e)
-- [ ] T064 [US1] Bước `search` và `fetch` (`source.query`; `DomainAccessService.permit` → `page.fetch`; lưu nguồn/bằng chứng đã che với
+  *[Ghi chú triển khai: `JobContext.call_ai` của E0 thêm tham số tùy chọn `task_type` (mặc định = task type của agent – hành vi E0 không đổi) để mỗi bước dùng Model Task Profile riêng (X6)]*
+- [X] T064 [US1] Bước `search` và `fetch` (`source.query`; `DomainAccessService.permit` → `page.fetch`; lưu nguồn/bằng chứng đã che với
   `data-model.md research_sources.source_policy_id`, `data-model.md research_sources.policy_verified_at`,
   `data-model.md research_evidence.redaction_status`, `data-model.md research_evidence.redaction_counts`, `data-model.md research_evidence.pii_engine`;
   ghi `data-model.md page_fetch_log.run_id`, `data-model.md page_fetch_log.url_hash`, `data-model.md page_fetch_log.domain`,
   `data-model.md page_fetch_log.outcome`, `data-model.md page_fetch_log.reason`, `data-model.md page_fetch_log.http_status`,
   `data-model.md page_fetch_log.source_id`) trong `backend/src/nichepilot/jobs/agents/niche_discovery.py` (FR-005, FR-006a, FR-012a, FR-031)
-- [ ] T065 [US1] Bước `extract` cơ bản (task type `discovery.extract`, chỉ nhận `RedactedText` REDACTED, bọc `<untrusted_content>`) tạo ngách
+- [X] T065 [US1] Bước `extract` cơ bản (task type `discovery.extract`, chỉ nhận `RedactedText` REDACTED, bọc `<untrusted_content>`) tạo ngách
   theo `data-model.md niches.name`, `data-model.md niches.micro_niche`, `data-model.md niches.country`, `data-model.md niches.customer_group`,
   `data-model.md niches.core_problem`, liên kết `data-model.md niche_run_links.role` trong `backend/src/nichepilot/jobs/agents/niche_discovery.py`
   (FR-002, FR-012, FR-016)
-- [ ] T066 [US1] Endpoint `POST/GET /api/v1/discovery/runs`, `GET /api/v1/discovery/runs/{run_id}` trong
+- [X] T066 [US1] Endpoint `POST/GET /api/v1/discovery/runs`, `GET /api/v1/discovery/runs/{run_id}` trong
   `backend/src/nichepilot/api/v1/discovery.py` (FR-001, FR-003, FR-026)
-- [ ] T067 [P] [US1] Kiểu API và hook TanStack Query trong `frontend/src/api/types.ts`, `frontend/src/api/discovery.ts` (FR-026)
-- [ ] T068 [US1] Màn hình 1 `frontend/src/pages/discovery/DiscoveryRunsPage.tsx` (lịch sử, trạng thái, outcome + lý do, chi phí REAL/MOCK,
+- [X] T067 [P] [US1] Kiểu API và hook TanStack Query trong `frontend/src/api/types.ts`, `frontend/src/api/discovery.ts` (FR-026)
+- [X] T068 [US1] Màn hình 1 `frontend/src/pages/discovery/DiscoveryRunsPage.tsx` (lịch sử, trạng thái, outcome + lý do, chi phí REAL/MOCK,
   tạo lượt, chạy/tạm dừng/tiếp tục/hủy qua `/api/v1/jobs/*`) + route trong `frontend/src/app/router.tsx` (FR-026, FR-027, FR-032)
 
 **Checkpoint**: US1 chạy độc lập với mock; quickstart §1–§2 PASS.

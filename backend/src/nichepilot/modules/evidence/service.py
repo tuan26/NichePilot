@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -56,6 +56,8 @@ class Evidence:
     source_id: uuid.UUID | None
     excerpt: str | None
     data_origin: str
+    redaction_status: str | None = None  # E1 (X2)
+    lifecycle_status: str = "ACTIVE"
 
 
 class EvidenceService:
@@ -73,6 +75,10 @@ class EvidenceService:
         title: str | None = None,
         publisher: str | None = None,
         fetched_at: datetime | None = None,
+        registered_domain: str | None = None,
+        simhash: int | None = None,
+        source_policy_id: uuid.UUID | None = None,
+        policy_verified_at: date | None = None,
     ) -> uuid.UUID:
         if source_type not in SOURCE_TYPES:
             raise EvidenceError(f"source_type không hợp lệ: {source_type}")
@@ -87,6 +93,11 @@ class EvidenceService:
             "fetched_at": fetched_at or datetime.now(UTC),
             "content_hash": hashlib.sha256(raw).hexdigest(),
             "data_origin": data_origin,
+            # E1 (X2) – tùy chọn
+            "registered_domain": registered_domain,
+            "simhash": simhash,
+            "source_policy_id": source_policy_id,
+            "policy_verified_at": policy_verified_at,
         }
         async with self.sessionmaker() as s, s.begin():
             new_id = (
@@ -122,6 +133,10 @@ class EvidenceService:
         subject_type: str | None = None,
         subject_id: uuid.UUID | None = None,
         job_id: uuid.UUID | None = None,
+        redaction_status: str | None = None,
+        redaction_counts: dict[str, int] | None = None,
+        pii_engine: str | None = None,
+        content_hash: str | None = None,
     ) -> uuid.UUID:
         if verification_status not in VERIFICATION_STATUSES:
             raise EvidenceError("verification_status không hợp lệ")
@@ -143,6 +158,10 @@ class EvidenceService:
             verified_at=datetime.now(UTC) if verification_status == "VERIFIED" else None,
             collected_by_job_id=job_id,
             data_origin=data_origin,
+            redaction_status=redaction_status,
+            redaction_counts=redaction_counts,
+            pii_engine=pii_engine,
+            content_hash=content_hash,
         )
         async with self.sessionmaker() as s, s.begin():
             s.add(row)
@@ -173,6 +192,16 @@ class EvidenceService:
         async with self.sessionmaker() as s:
             rows = (await s.execute(stmt.order_by(ResearchEvidence.created_at))).scalars().all()
         return [
-            Evidence(r.id, r.claim_key, r.value, r.verification_status, r.source_id, r.excerpt, r.data_origin)
+            Evidence(
+                r.id,
+                r.claim_key,
+                r.value,
+                r.verification_status,
+                r.source_id,
+                r.excerpt,
+                r.data_origin,
+                r.redaction_status,
+                r.lifecycle_status,
+            )
             for r in rows
         ]

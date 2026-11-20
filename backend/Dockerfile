@@ -45,7 +45,8 @@ RUN --mount=type=secret,id=extra_ca,required=false \
     if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
     uv sync --frozen --no-dev \
     && groupadd --system app && useradd --system --gid app --home /app app \
-    && mkdir -p /var/log/nichepilot && chown app:app /var/log/nichepilot
+    && mkdir -p /var/log/nichepilot /var/lib/nichepilot/erasure-ledger /var/lib/nichepilot/searxng \
+    && chown app:app /var/log/nichepilot /var/lib/nichepilot/erasure-ledger /var/lib/nichepilot/searxng
 ENV PATH="/app/.venv/bin:$PATH"
 USER app
 EXPOSE 8000

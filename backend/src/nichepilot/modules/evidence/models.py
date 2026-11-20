@@ -89,7 +89,7 @@ class ResearchEvidence(UUIDPkMixin, TimestampMixin, Base):
     data_origin: Mapped[str] = mapped_column(Text)
     # E1 (X2) – NULL được cho bằng chứng E0 cũ; E1 không bao giờ lưu nội dung chưa che PII
     redaction_status: Mapped[str | None] = mapped_column(Text)
-    redaction_counts: Mapped[dict[str, int] | None] = mapped_column(JSONB)
+    redaction_counts: Mapped[dict[str, int] | None] = mapped_column(JSONB(none_as_null=True))
     pii_engine: Mapped[str | None] = mapped_column(Text)
     lifecycle_status: Mapped[str] = mapped_column(Text, server_default=text("'ACTIVE'"))
     erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

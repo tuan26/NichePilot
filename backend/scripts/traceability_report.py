@@ -83,7 +83,8 @@ def parse_spec(spec: Path) -> dict[str, Requirement]:
 def pending_requirements(tasks: Path) -> set[str]:
     """Yêu cầu PENDING: được tham chiếu trong tasks.md nhưng chưa bắt buộc có test.
 
-    Bắt buộc có test khi (a) một task đã [X] chứa mã test `TC_…` của yêu cầu, hoặc (b) mọi task tham chiếu yêu cầu đã [X].
+    Bắt buộc có test khi (a) một task đã [X] chứa mã test `TC_…` của yêu cầu, hoặc
+    (b) mọi task tham chiếu yêu cầu đã [X].
     Không có tasks.md → rỗng (mọi yêu cầu bắt buộc).
     """
     if not tasks.is_file():
