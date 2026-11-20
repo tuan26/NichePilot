@@ -21,7 +21,7 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
 
 - Q: Nguồn dữ liệu thật trong E1? → A: Phương án A **bổ sung SearXNG**: kiến trúc Source Adapter thay thế được; E1 triển khai
   adapter tìm kiếm thật bằng **SearXNG** (tự host, mã nguồn mở) và adapter thu thập nội dung website công khai (ưu tiên
-  **Crawl4AI** hoặc công cụ phù hợp được đánh giá trong plan); kiểm tra robots.txt, điều khoản sử dụng, giới hạn tốc độ; lưu URL,
+  **Crawl4AI** hoặc công cụ phù hợp được đánh giá trong plan – *sau đánh giá, Crawl4AI bị loại: xem 2026-11-20 (b) I1*); kiểm tra robots.txt, điều khoản sử dụng, giới hạn tốc độ; lưu URL,
   thời điểm thu thập, bằng chứng; có Mock Source Adapter cho kiểm thử; không cần API key tìm kiếm trả phí; không vượt CAPTCHA
   hay giới hạn truy cập; SearXNG không trả kết quả → ghi lỗi/thiếu dữ liệu, không tự tạo dữ liệu thay thế. Reddit API, YouTube
   API, Google Trends và nguồn chuyên biệt để feature sau. E1 MUST thu thập được dữ liệu thị trường thực tế (không chỉ chạy giả
@@ -44,7 +44,7 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   truy vấn, khả năng tích hợp SearXNG) và lưu URL điều khoản, ngày xác minh, trạng thái cho phép; nguồn chưa rõ điều khoản tắt;
   không vượt CAPTCHA/rate limit/cơ chế hạn chế; chủ sở hữu được thêm nguồn kèm cảnh báo + audit nhưng không được bật nguồn đã xác
   định bị cấm; không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE`, không tạo dữ liệu thay thế; Source Adapter độc lập để bổ sung
-  API tìm kiếm chính thức sau này.
+  API tìm kiếm chính thức sau này. *(Phần cho phép bật nguồn chưa xác minh được thay thế bởi 2026-11-20 (b) – A1.)*
 - Q: Một ngách ứng viên cần tối thiểu bao nhiêu bằng chứng thật để vào bảng xếp hạng và được tính vào giới hạn 20 ngách? → A: B
   (có bổ sung): ≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập; mỗi bằng chứng có URL, nội dung liên quan, thời điểm thu
   thập, trạng thái xác minh; khác tên miền nhưng sao chép cùng nội dung không tính là độc lập; AI đánh giá chất lượng, độ liên quan,
@@ -98,6 +98,20 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
 - Giới hạn mạng: không thay đổi mạng của môi trường dùng chung; nguồn chưa xác minh giữ `UNVERIFIED`; lập danh sách nguồn cần xác minh
   (URL chính thức + nội dung cần kiểm tra); cấu hình nguồn không cần sửa code; không tự xác nhận `ALLOWED` khi chưa có bằng chứng;
   không tự bật `UNVERIFIED` để chạy thử dữ liệu thật. Chưa xác minh được nguồn **không** phải lỗi implementation.
+
+### Session 2026-11-20 (b) (chủ sở hữu quyết định sau `/speckit-analyze`)
+
+- **A1 – Nguồn `UNVERIFIED`**: bỏ hoàn toàn tùy chọn dùng nguồn `UNVERIFIED`, kể cả lượt chạy thủ công. `ALLOWED` dùng được trong phạm vi
+  đã xác minh; `UNVERIFIED` và `PROHIBITED` không được dùng. Không cho phép bỏ qua kiểm tra bằng nút xác nhận cảnh báo. Chỉ chuyển sang
+  `ALLOWED` khi đủ bằng chứng về điều khoản, phương thức truy cập và phạm vi sử dụng. Không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE`.
+  *(Thay thế phần "chủ sở hữu MAY bật nguồn `UNVERIFIED`" của Q4 và của phiên 2026-11-20.)*
+- **I1 – Crawl4AI**: loại khỏi phạm vi E1. Dùng SearXNG (tìm kiếm), `trafilatura` (trích xuất HTML), Playwright trực tiếp cho trang cần
+  JavaScript (tùy chọn, tắt mặc định). Không dùng công cụ stealth, vượt CAPTCHA hay chống phát hiện bot.
+- **I2 – spaCy `en_core_web_sm`**: chưa chấp thuận cho production tới khi xác minh điều kiện sử dụng thương mại của model và dữ liệu liên
+  quan. Giữ interface `PiiEngine`; dev/test chỉ dùng spaCy khi điều kiện giấy phép cho phép; production không tự tải/kích hoạt model chưa
+  được phê duyệt; regex + phonenumbers cho PII xác định được; nội dung có nguy cơ chứa tên người hoặc PII không xử lý an toàn được →
+  `NEEDS_REVIEW`, không gửi AI; không coi regex là đủ cho mọi loại PII; đề xuất phương án thay thế có giấy phép rõ ràng.
+- Sửa toàn bộ phát hiện C1–C5, H1–H2, U1–U3, A2, L1 của `/speckit-analyze`; không đổi ngưỡng nghiệp vụ đã thống nhất.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -385,8 +399,8 @@ sử điểm cũ còn nguyên.
   sản phẩm/so sánh) MUST được truy cập qua một giao diện thay thế được, có phiên bản giả lập dùng cho phát triển/kiểm thử, và
   có chính sách truy cập riêng (giới hạn tần suất, số lần thử lại, thời gian chờ). Nguồn **thật** trong E1: (a) tìm kiếm qua một
   máy tìm kiếm tổng hợp **tự host, mã nguồn mở** (SearXNG), không cần API key trả phí; (b) thu thập nội dung trang web công khai
-  bằng HTTP client + `trafilatura` (mặc định, không cần trình duyệt); trình thu thập có trình duyệt cho trang cần JavaScript là tùy
-  chọn, tắt mặc định (plan). Adapter giả lập dùng cho kiểm thử. Reddit API,
+  bằng HTTP client + `trafilatura` (mặc định, không cần trình duyệt); Playwright trực tiếp cho trang cần JavaScript là tùy chọn, tắt mặc
+  định, không dùng thành phần stealth/chống phát hiện bot (Clarification 2026-11-20 (b) – I1). Adapter giả lập dùng cho kiểm thử. Reddit API,
   YouTube API, Google Trends và nguồn chuyên biệt ngoài phạm vi E1. *(Clarification Q1)*
 - **FR-006a**: Khi nguồn tìm kiếm không trả kết quả hoặc không khả dụng, hệ thống MUST ghi nhận lỗi/trạng thái thiếu dữ liệu cho
   bước đó và MUST NOT tự tạo dữ liệu thay thế (kể cả nhờ AI "đoán" nguồn). *(Clarification Q1, Constitution I)*
@@ -396,16 +410,15 @@ sử điểm cũ còn nguyên.
 - **FR-006c**: Mỗi nguồn dữ liệu bên ngoài (máy tìm kiếm mà SearXNG truy vấn, API chính thức, nguồn dữ liệu mở hoặc dữ liệu được cấp
   phép) MUST có hồ sơ tuân thủ gồm: URL điều khoản sử dụng, ngày xác minh, người xác minh và căn cứ (trích đoạn/ghi chú), **phương
   thức truy cập được phép**, **phạm vi sử dụng được phép**, giới hạn truy vấn đã biết, và trạng thái (`ALLOWED` / `UNVERIFIED` /
-  `PROHIBITED`). `ALLOWED` chỉ được gán khi có căn cứ đã ghi; có API miễn phí MUST NOT được coi là căn cứ cho phép dùng cho mọi mục
-  đích. `UNVERIFIED` tắt mặc định; `PROHIBITED` MUST NOT bật được dưới bất kỳ hình thức nào. *(Clarification Q4, 2026-11-20,
-  Constitution X, NFR-11)*
-- **FR-006d**: Chỉ nguồn `ALLOWED` được dùng trong lượt chạy **tự động** (theo lịch, đánh giá lại theo lịch). Hệ thống MUST NOT tự
-  bật nguồn `UNVERIFIED` hay tự nâng trạng thái nguồn. Chủ sở hữu MAY bật nguồn `UNVERIFIED` (cảnh báo rủi ro điều khoản trước khi
-  bật, audit ai/khi nào/nguồn/trạng thái trước-sau); nguồn đó chỉ được dùng trong lượt **do chủ sở hữu khởi chạy thủ công** có chọn rõ
-  "dùng nguồn chưa xác minh" cho lượt đó, và bằng chứng thu được MUST mang dấu nguồn `UNVERIFIED`. *(Clarification Q4, 2026-11-20)*
-- **FR-006e**: Khi không có nguồn `ALLOWED` nào được bật và khả dụng (và lượt không được chủ sở hữu chọn dùng nguồn chưa xác minh),
-  lượt khám phá MUST dừng bước tìm kiếm với mã `NO_COMPLIANT_SEARCH_SOURCE` hiển thị cho chủ sở hữu, MUST NOT tạo dữ liệu thay thế.
-  *(Clarification Q4, 2026-11-20)*
+  `PROHIBITED`). `ALLOWED` chỉ được gán khi có đủ căn cứ về điều khoản, phương thức truy cập và phạm vi sử dụng; có API miễn phí MUST
+  NOT được coi là căn cứ cho phép dùng cho mọi mục đích. *(Clarification Q4, 2026-11-20, 2026-11-20 (b), Constitution X, NFR-11)*
+- **FR-006d**: Chỉ nguồn `ALLOWED` (đang bật) được dùng trong **mọi** lượt khám phá – thủ công, theo lịch hay đánh giá lại. Nguồn
+  `UNVERIFIED` và `PROHIBITED` MUST NOT được dùng và MUST NOT bật được; không có cơ chế xác nhận cảnh báo để bỏ qua kiểm tra. Hệ thống MUST
+  NOT tự đổi trạng thái tuân thủ hay tự bật nguồn; mọi thay đổi do chủ sở hữu thực hiện và ghi audit (ai, khi nào, nguồn, trạng thái
+  trước/sau). Nguồn chuyển khỏi `ALLOWED` MUST bị tắt ngay. *(Clarification 2026-11-20 (b) – A1)*
+- **FR-006e**: Khi không có nguồn `ALLOWED` nào đang bật và khả dụng, lượt khám phá MUST bị từ chối (hoặc dừng bước tìm kiếm nếu nguồn bị
+  tắt/không khả dụng giữa chừng) với mã `NO_COMPLIANT_SEARCH_SOURCE` hiển thị cho chủ sở hữu, MUST NOT tạo dữ liệu thay thế.
+  *(Clarification Q4, 2026-11-20 (b))*
 - **FR-006f**: Hệ thống MUST NOT tự động vượt CAPTCHA, giới hạn tần suất hay cơ chế hạn chế truy cập của bất kỳ nguồn nào; gặp các
   cơ chế này → dừng truy cập nguồn đó và ghi lý do. *(Clarification Q4, Constitution X)*
 - **FR-006g**: Nguồn MUST được truy cập qua `SourceAdapter` chung, hỗ trợ các loại: engine của SearXNG, API chính thức, nguồn dữ liệu
@@ -429,14 +442,16 @@ sử điểm cũ còn nguyên.
   NFR-14, BR-08)*
 
 - **FR-012a**: Nội dung thu thập MUST qua bước che thông tin cá nhân (PII) **trước** khi ghi vào database và **trước** khi gửi tới
-  bất kỳ nhà cung cấp AI nào (qua interface PII engine thay thế được; E1 dùng regex + `phonenumbers` + spaCy cho tiếng Anh): email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
+  bất kỳ nhà cung cấp AI nào (qua interface PII engine thay thế được; production E1: regex + `phonenumbers` + nhận diện nguy cơ tên
+  người; model NER chỉ khi đã được chủ sở hữu phê duyệt giấy phép – Clarification 2026-11-20 (b) – I2): email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
   nhắc tên → `[PERSON]`, và các định danh cá nhân khác phát hiện được; giữ nội dung pain point và ngữ cảnh cần thiết. Bước che PII
   MUST kết hợp nhiều phương pháp (mẫu xác định + nhận diện ngữ cảnh) và có kiểm thử với bộ mẫu PII phổ biến. *(Clarification Q8,
   Constitution V)*
 - **FR-012b**: Nội dung PII chưa xử lý MUST NOT xuất hiện trong log, cache, checkpoint, báo cáo, audit hay dữ liệu gửi AI; nội dung thô
   chỉ tồn tại tạm thời trong bộ nhớ của bước thu thập. Khi bước che PII không chắc chắn xử lý an toàn, đoạn nội dung MUST bị bỏ qua hoặc
   đánh dấu "cần kiểm tra" (`NEEDS_REVIEW` – không lưu dạng chưa che, không gửi AI). Ngôn ngữ chưa có bộ nhận diện tên người →
-  `NEEDS_REVIEW`. *(Clarification Q8, 2026-11-20)*
+  `NEEDS_REVIEW`. Nội dung có nguy cơ chứa tên người mà không có bộ nhận diện đã phê duyệt → `NEEDS_REVIEW`; regex MUST NOT được coi là đủ
+  cho mọi loại PII. *(Clarification Q8, 2026-11-20, 2026-11-20 (b))*
 - **FR-012c**: Hệ thống MUST NOT dùng thông tin cá nhân để xây dựng hồ sơ cá nhân hay danh sách liên hệ. *(Clarification Q8)*
 **Bằng chứng và trạng thái xác minh**
 
@@ -580,7 +595,8 @@ sử điểm cũ còn nguyên.
   trạng thái che PII (đã che / cần kiểm tra), trạng thái hiệu lực (đang dùng / đã xóa theo yêu cầu – không còn trích đoạn), đánh giá
   liên quan/chất lượng của AI (`INFERRED` + lý do).
 - **Hồ sơ nguồn (Source Policy)**: loại nguồn/adapter, URL điều khoản, ngày xác minh, căn cứ, phương thức truy cập và phạm vi sử dụng
-  được phép, giới hạn đã biết, trạng thái `ALLOWED`/`UNVERIFIED`/`PROHIBITED`, bật/tắt, xác nhận cảnh báo; cấu hình không chứa secret.
+  được phép, giới hạn đã biết, chính sách truy cập riêng (tần suất, số lần thử lại, thời gian chờ), trạng thái
+  `ALLOWED`/`UNVERIFIED`/`PROHIBITED`, bật/tắt (chỉ khi `ALLOWED`); cấu hình không chứa credential.
 - **Yêu cầu xóa bằng chứng (Evidence Erasure Request)**: định danh bằng chứng hoặc nguồn, lý do, người thực hiện, thời điểm; không chứa
   nội dung đã xóa; dùng để áp dụng lại sau khi khôi phục backup.
 - **Quy tắc dữ liệu (Q5)**: bằng chứng thiếu URL, trích đoạn, thời điểm thu thập hoặc trạng thái xác minh không được tính vào
@@ -598,8 +614,6 @@ sử điểm cũ còn nguyên.
   và để áp dụng lại yêu cầu xóa sau restore.
 - **Báo cáo xếp hạng (Ranking Report)**: ảnh chụp danh sách ngách đã xếp hạng của một lượt hoặc project tại một thời điểm, kèm phiên
   bản trọng số và bộ lọc đã dùng.
-- **Chính sách nguồn (Source Policy)**: loại nguồn, trạng thái tuân thủ (`ALLOWED`/`UNVERIFIED`/`PROHIBITED`), URL điều khoản,
-  ngày xác minh, phương thức tích hợp, bật/tắt, giới hạn tần suất, số lần thử lại, thời gian chờ, yêu cầu tuân thủ.
 
 ## Success Criteria *(mandatory)*
 
@@ -609,18 +623,18 @@ sử điểm cũ còn nguyên.
   nhận cấu hình – chạy) và nhận danh sách ngách xếp hạng khi lượt chạy hoàn tất. *(AC-04)*
 - **SC-002**: Trong lượt khám phá không chọn lĩnh vực, các ngách ứng viên thuộc ít nhất 3 lĩnh vực khác nhau (kiểm tra với bộ dữ
   liệu kiểm thử chuẩn).
+- **SC-003**: 100% ngách trong báo cáo có đủ 16 trường đầu ra bắt buộc (giá trị hoặc `UNKNOWN`). *(BR-07)*
 - **SC-003a**: 100% ngách trong bảng xếp hạng có ≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nguồn độc lập; 100% ngách không đạt
   ngưỡng có trạng thái `INSUFFICIENT_EVIDENCE` và không được xếp hạng; trong bộ kiểm thử có bản sao nội dung khác tên miền, 0 cặp
   bản sao được tính là hai nguồn độc lập. *(Clarification Q5)*
-- **SC-003**: 100% ngách trong báo cáo có đủ 16 trường đầu ra bắt buộc (giá trị hoặc `UNKNOWN`). *(BR-07)*
 - **SC-004**: 100% kết luận được hiển thị có ít nhất một bằng chứng có nguồn và thời điểm thu thập, hoặc mang trạng thái `UNKNOWN`;
   0 số liệu search volume/CPC/keyword difficulty/thị trường do hệ thống tự tạo. *(AC-07, AC-09, NFR-04)*
+- **SC-005**: Opportunity Score của 100% ngách trong bộ kiểm thử khớp với tính toán thủ công theo công thức và phiên bản trọng số đã
+  lưu; chấm lại theo phiên bản trọng số mới không phát sinh lời gọi AI nào. *(AC-06)*
 - **SC-005a**: Trong bộ kiểm thử chấm điểm (đủ 6 tiêu chí; thiếu 1 và nhiều tiêu chí; Coverage đúng 60% và dưới 60%; Monetization
   `UNKNOWN`; dữ liệu mâu thuẫn/không hợp lệ): 100% Opportunity khớp công thức chuẩn hóa tính tay, 100% Coverage đúng, 100% trường hợp
   Coverage < 60% không có Opportunity chính thức, 100% ngách `MONETIZATION_UNVERIFIED` không có mặt trong danh sách ưu tiên affiliate,
   và thứ tự xếp hạng nhất quán qua các lần tính lại. *(Clarification Q7)*
-- **SC-005**: Opportunity Score của 100% ngách trong bộ kiểm thử khớp với tính toán thủ công theo công thức và phiên bản trọng số đã
-  lưu; chấm lại theo phiên bản trọng số mới không phát sinh lời gọi AI nào. *(AC-06)*
 - **SC-006**: Trong 100% kịch bản kiểm thử vượt hạn mức, không có lời gọi tốn phí nào được gửi vượt hạn mức lượt/ngày/tháng, và
   các ngách đã đánh giá trước khi tạm dừng được giữ nguyên. *(NFR-06)*
 - **SC-007**: Chạy lại cùng một lượt khám phá (hoặc tiếp tục sau sự cố) tạo 0 bản ghi trùng cho ngách, pain point, nguồn và bằng
@@ -634,7 +648,12 @@ sử điểm cũ còn nguyên.
   mạng tới nhà cung cấp/nguồn thật.
 - **SC-012**: Với cấu hình mặc định, chi phí AI thực tế của một lượt khám phá không vượt hạn mức đã cấu hình cho lượt đó, và chi phí
   được báo cáo tách REAL/MOCK. *(chỉ kiểm chứng phần chi phí thật khi chủ sở hữu cho phép gọi API thật)*
-
+- **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
+  đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
+  lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
+- **SC-014**: Chủ sở hữu hoàn thành luồng "chạy lượt khám phá → xem bảng xếp hạng → mở chi tiết ngách → ghi quyết định" trên giao
+  diện bằng tiếng Việt và tiếng Anh; 3 màn hình đều có trạng thái đang tải, rỗng, lỗi; luồng này có kiểm thử end-to-end đạt.
+  *(Clarification Q3)*
 - **SC-015**: Trong 100% kịch bản kiểm thử: lượt khám phá không vượt giới hạn thời gian và số trang đã cấu hình; khoảng cách giữa
   hai yêu cầu tới cùng tên miền không nhỏ hơn mức trần đã cấu hình hoặc mức chặt hơn do nguồn yêu cầu; dừng sớm khi đủ bằng chứng
   cho kết quả `COMPLETED`; chạm giới hạn cho `PARTIAL_COMPLETED` đúng lý do; tiếp tục từ checkpoint không thu thập lại trang đã có.
@@ -643,14 +662,8 @@ sử điểm cũ còn nguyên.
   lưu và dữ liệu gửi AI; 0 mẫu PII chưa che trong database, log, checkpoint; sau khi xóa bằng chứng, 100% ngách liên quan được tính lại
   đúng và bằng chứng đã xóa không xuất hiện lại sau khi khôi phục backup cũ hơn yêu cầu xóa; sổ xóa thiếu/hỏng → restore thất bại, API
   không trả dữ liệu. *(Clarification Q8, 2026-11-20)*
-- **SC-017**: 100% lượt chạy tự động chỉ dùng nguồn `ALLOWED`; 0 nguồn được hệ thống tự bật hoặc tự nâng trạng thái; 0 nguồn
-  `PROHIBITED` được dùng; mọi bằng chứng từ nguồn `UNVERIFIED` mang dấu nguồn tương ứng. *(Clarification 2026-11-20)*
-- **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
-  đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
-  lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
-- **SC-014**: Chủ sở hữu hoàn thành luồng "chạy lượt khám phá → xem bảng xếp hạng → mở chi tiết ngách → ghi quyết định" trên giao
-  diện bằng tiếng Việt và tiếng Anh; 3 màn hình đều có trạng thái đang tải, rỗng, lỗi; luồng này có kiểm thử end-to-end đạt.
-  *(Clarification Q3)*
+- **SC-017**: 100% lượt khám phá (thủ công, theo lịch, đánh giá lại) chỉ dùng nguồn `ALLOWED`; 0 nguồn `UNVERIFIED`/`PROHIBITED` được
+  dùng hoặc bật được; 0 nguồn được hệ thống tự bật hoặc tự nâng trạng thái. *(Clarification 2026-11-20 (b))*
 
 ## Assumptions
 

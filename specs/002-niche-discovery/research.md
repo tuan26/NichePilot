@@ -1,6 +1,6 @@
 # Research: E1 – Autonomous Niche Discovery
 
-**Ngày**: 2026-11-19, cập nhật 2026-11-20 (theo phê duyệt có điều kiện của chủ sở hữu) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
+**Ngày**: 2026-11-19, cập nhật 2026-11-20 (phê duyệt có điều kiện + quyết định A1/I1/I2) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
 Quy ước: chỉ ghi là "đã xác minh" những gì đã đọc được từ trang chính thức trong phiên này, kèm URL và ngày. Điều gì chưa đọc
 được ghi rõ `UNVERIFIED` / "chưa xác minh" – không điền từ trí nhớ (Constitution I).
@@ -24,12 +24,10 @@ kiếm ra ngoài.
 **Decision** (cập nhật 2026-11-20): mỗi nguồn có một bản ghi `source_policies` (data-model §2): URL điều khoản, ngày xác minh, người
 xác minh + căn cứ, **phương thức truy cập được phép**, **phạm vi sử dụng được phép**, giới hạn đã biết, trạng thái
 `ALLOWED`/`UNVERIFIED`/`PROHIBITED`. Seed: **tất cả `UNVERIFIED`, tắt**. Quy tắc:
-- Chỉ `ALLOWED` dùng được trong lượt **tự động** (lịch, đánh giá lại theo lịch). Hệ thống không bao giờ tự bật nguồn hay tự nâng
-  trạng thái; không có đường mã nào đặt `ALLOWED` ngoài API cập nhật của chủ sở hữu (kèm căn cứ bắt buộc, audit).
-- `UNVERIFIED`: chủ sở hữu có thể bật (cảnh báo + audit, Q4), nhưng chỉ dùng trong lượt chủ sở hữu khởi chạy thủ công với
-  `include_unverified_sources = true`; bằng chứng mang `source_compliance = UNVERIFIED`. Agent **không** bật nguồn `UNVERIFIED` để
-  chạy thử dữ liệu thật.
-- `PROHIBITED`: CHECK ở DB + kiểm tra ở service + adapter từ chối.
+- **Chỉ `ALLOWED` ∧ `enabled` được dùng trong mọi lượt** – thủ công, theo lịch, đánh giá lại (quyết định A1, 2026-11-20 (b)).
+  `UNVERIFIED` và `PROHIBITED` không dùng được và không bật được (CHECK `NOT enabled OR compliance_status = 'ALLOWED'`); không có nút
+  xác nhận cảnh báo để bỏ qua. Hệ thống không bao giờ tự bật nguồn hay tự nâng trạng thái; chỉ API của chủ sở hữu đặt `ALLOWED`, kèm
+  đủ căn cứ (điều khoản, phương thức truy cập, phạm vi sử dụng), audit. Nguồn chuyển khỏi `ALLOWED` bị tắt ngay.
 - Có API miễn phí ≠ được phép cho mọi mục đích: `permitted_use_scope` phải ghi rõ phạm vi (ví dụ: nghiên cứu nội bộ, lưu trích đoạn,
   hiển thị kèm ghi nguồn); thiếu → không thể đặt `ALLOWED`.
 - Không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE` (FR-006e).
@@ -114,33 +112,49 @@ dependency có điều kiện giấy phép chưa rõ trong production"), Crawl4A
   vượt. Không gửi cookie/đăng nhập; không theo paywall.
 - Trạng thái tên miền lưu trong DB để giữ đúng khoảng cách sau khi worker khởi động lại.
 
-## R-05 – Che PII (FR-012a…FR-012c, Q8, quyết định 2026-11-20)
+## R-05 – Che PII (FR-012a…FR-012c, Q8, quyết định I2 2026-11-20 (b))
 
-**Decision**: interface `PiiEngine` (thay thế được – ví dụ Presidio sau này) với cài đặt E1 `RegexSpacyPiiEngine`, chạy **trong bộ nhớ
-ngay sau khi trích nội dung**, trước mọi ghi DB/log/checkpoint và trước khi gửi AI:
-1. Bỏ metadata tác giả từ trích xuất (`author` của trafilatura không được lưu).
-2. Regex: email → `[EMAIL]`; `@handle`, `u/…`, `/user/…`, URL hồ sơ cá nhân → `[USER]`; "Posted by/by <Name>" → `[PERSON]`.
-3. `phonenumbers` (Apache-2.0) với vùng mặc định = thị trường của lượt → `[PHONE]`.
-4. Tiếng Anh: spaCy `en_core_web_sm` (chỉ thành phần `ner`; loại parser/tagger/lemmatizer) → thực thể `PERSON` → `[PERSON]`.
-5. Ngôn ngữ chưa có model hoặc kết quả không chắc chắn (model chưa nạp được, heuristic tên người còn khớp) → đoạn `NEEDS_REVIEW`: lưu
-   bản đã che nhưng **không** tính vào ngưỡng, **không** gửi AI.
-6. Kiểm tra lại sau khi che: còn khớp mẫu email/điện thoại → `UNSAFE` → bỏ đoạn (`page_fetch_log.reason = PII_UNSAFE`).
-- Hàm tạo prompt AI chỉ nhận kiểu `RedactedText` có `status = REDACTED`; log chỉ ghi số lượng thay thế; checkpoint chỉ chứa ID/hash.
+**Decision**: interface `PiiEngine` (thay thế được) và bộ chọn engine theo cấu hình có **danh sách phê duyệt**:
+
+| Engine | Thành phần | Dùng ở đâu | Trạng thái |
+|---|---|---|---|
+| `regex-phone` (mặc định, production) | regex (email, @handle, `u/…`, `/user/…`, URL hồ sơ, "Posted by/by <Name>") + `phonenumbers` (vùng = thị trường) + **bộ phát hiện nguy cơ tên người** (heuristic) | Mọi môi trường | Dùng được – giấy phép rõ (Apache-2.0, mã tự viết) |
+| `spacy-en-sm` (tùy chọn) | engine trên + spaCy `en_core_web_sm` (chỉ `ner`) → `[PERSON]` | Chỉ development/test, khi chủ sở hữu bật cờ cấu hình | **Chưa phê duyệt cho production** (I2); không cài trong image production |
+
+Quy tắc của `regex-phone`:
+1. Bỏ metadata tác giả (`author` của trafilatura).
+2. Thay `[EMAIL]`, `[PHONE]`, `[USER]`, `[PERSON]` (chỉ ở mẫu có cấu trúc rõ như "Posted by X").
+3. **Bộ phát hiện nguy cơ tên người**: cụm ≥ 2 từ viết hoa liên tiếp không ở đầu câu và không thuộc danh sách từ phổ biến/thương hiệu của
+   ngách, lời chào/chữ ký ("Thanks, X", "– X", "Hi X"), đại từ + tên riêng… → đoạn `NEEDS_REVIEW` (lưu bản đã che phần xác định được,
+   **không** tính ngưỡng, **không** gửi AI). Mục tiêu là thận trọng: thà đánh dấu thừa còn hơn gửi tên người cho AI.
+4. Kiểm tra lại sau khi che: còn mẫu email/điện thoại → `UNSAFE` → bỏ đoạn (`PII_UNSAFE`).
+5. Ngôn ngữ khác tiếng Anh: heuristic tên người chưa hiệu chỉnh → mọi đoạn có cụm viết hoa nghi ngờ → `NEEDS_REVIEW`.
+- Không coi regex là đủ cho mọi loại PII: đoạn chỉ được `REDACTED` khi bộ phát hiện nguy cơ không phát hiện gì; còn lại `NEEDS_REVIEW`.
+- Hàm tạo prompt AI chỉ nhận `RedactedText` có `status = REDACTED` (mypy + test kiến trúc). Log chỉ ghi số lượng; checkpoint chỉ ID/hash.
 - Vị trí: che PII **trong handler** của tool `page.fetch`/`source.query` (lớp `tools/privacy`), vì Tool Registry E0 lưu output tool vào
-  bảng `tool_calls` và `redact_payload` chỉ che secret (kiểm tra `backend/src/nichepilot/tools/registry.py`, 2026-11-20).
-- Giới hạn: không đạt 100% (Q8) → bộ mẫu kiểm thử (SC-016) + xóa theo yêu cầu (R-09).
+  `tool_calls` và `redact_payload` chỉ che secret (kiểm tra `backend/src/nichepilot/tools/registry.py`, 2026-11-20).
 
-**Đánh giá tài nguyên đã đo (2026-11-20, venv tách biệt Python 3.13)**: spaCy 3.8.18 + model `en_core_web_sm` 3.8.0 thêm ≈ 291 MB vào
-site-packages (65 MB → 356 MB, gồm numpy, thinc, blis, typer…); nạp model chỉ `ner` ≈ 0,9 s; **RSS ≈ 151 MB**; ≈ 0,04 s cho đoạn
-4.560 ký tự; nhận đúng 2/2 tên người trong mẫu. 300 trang/lượt → ước tính < 30 s CPU cho bước NER. Kết luận: phù hợp 4 core / 15 GB
-nếu chỉ nạp trong worker.
+**Bộ chọn engine (fail-closed)**: cấu hình `PII_ENGINE` (mặc định `regex-phone`) và `PII_APPROVED_ENGINES` (mặc định `regex-phone`).
+Production từ chối khởi động nếu `PII_ENGINE` không nằm trong danh sách phê duyệt, hoặc nếu engine cần model mà model không có sẵn trong
+image (không bao giờ tải model lúc chạy). Thêm engine vào danh sách phê duyệt là quyết định của chủ sở hữu (ghi vào tài liệu vận hành).
 
-**Điều kiện theo X8**: model tải từ GitHub releases (`explosion/spacy-models`, wheel 12,8 MB, không có trên PyPI) → **không** tải lúc
-chạy; cài trong Dockerfile worker từ URL ghim phiên bản + kiểm tra SHA-256. METADATA của wheel ghi `License: MIT`; file
-`LICENSES_SOURCES` ghi dữ liệu huấn luyện OntoNotes 5 "commercial (licensed by Explosion)" và WordNet 3.0 License (cho phép). Cần chủ
-sở hữu chấp nhận ghi chú nguồn dữ liệu này trước khi dùng production (xem R-12).
+**Hệ quả đã biết**: không có NER, tỷ lệ đoạn `NEEDS_REVIEW` cao hơn → ít bằng chứng hợp lệ hơn → nhiều ngách `INSUFFICIENT_EVIDENCE`. Đo bằng
+`metrics.needs_review_segments` (FR-032) để chủ sở hữu quyết định phương án thay thế. Ngưỡng nghiệp vụ (≥ 2 bằng chứng / ≥ 2 nguồn) không đổi.
 
-**Alternatives**: Presidio (MIT) – không bắt buộc trong E1, cắm được qua `PiiEngine`; chỉ regex – không đủ cho tên người.
+**Đo tài nguyên spaCy (2026-11-20, venv tách biệt)**: spaCy 3.8.18 + `en_core_web_sm` 3.8.0 thêm ≈ 291 MB; nạp chỉ `ner` ≈ 0,9 s; RSS ≈
+151 MB; ≈ 0,04 s/đoạn 4.560 ký tự; nhận đúng 2/2 tên trong mẫu. Model: METADATA `License: MIT`; `LICENSES_SOURCES` ghi dữ liệu huấn luyện
+OntoNotes 5 "commercial (licensed by Explosion)" → điều kiện sử dụng thương mại **chưa xác minh** (I2).
+
+**Phương án thay thế có giấy phép rõ ràng (đề xuất, cần xác minh – chưa chọn)**:
+1. **Gazetteer tên riêng từ dữ liệu công cộng**: ví dụ danh sách tên khai sinh của cơ quan an sinh xã hội Mỹ (dữ liệu chính phủ Mỹ, thường
+   thuộc phạm vi công cộng – **chưa xác minh** do mạng) kết hợp heuristic viết hoa → `[PERSON]`. Nhẹ (vài MB), không cần model ML.
+2. **Xác minh thương mại cho `en_core_web_sm`**: chủ sở hữu liên hệ/đọc điều khoản chính thức của Explosion về model được huấn luyện trên
+   OntoNotes; nếu được phép → thêm `spacy-en-sm` vào danh sách phê duyệt.
+3. **Model NER khác** có giấy phép mô hình và dữ liệu huấn luyện đều rõ (ví dụ model huấn luyện trên dữ liệu giấy phép mở) – cần đánh giá
+   theo 7 tiêu chí trước khi dùng.
+4. **Microsoft Presidio** (MIT) chỉ là khung; vẫn cần một bộ nhận diện tên (một trong các phương án trên) – không giải quyết giấy phép.
+
+**Alternatives rejected**: gửi văn bản chưa che cho AI để AI tự che – vi phạm FR-012a.
 
 ## R-06 – Ngưỡng bằng chứng và tính độc lập (FR-013b, FR-015, Q5)
 
@@ -209,6 +223,9 @@ nhãn (≥ 40 cặp) để đạt SC-010 (≥ 90% đúng, 0 gộp nhầm "không
   E1. `/health` (liveness) không đổi.
 - Sau xóa: job `discovery.recompute` tính lại ngưỡng/Confidence/xếp hạng (không gọi AI). `content_hash`/`url_hash` chặn thu thập lại.
 - Cache: E1 không có cache nội dung ngoài DB; nội dung thô chỉ trong bộ nhớ (R-05).
+- **Xóa khi lượt đang chạy**: agent không giữ trích đoạn qua các bước (checkpoint chỉ ID); mỗi bước `extract`/`assess`/`evaluate` đọc lại
+  bằng chứng qua `EvidenceService.query` (lọc `ACTIVE`) ngay trước khi dùng → bằng chứng bị xóa giữa chừng không được dùng ở bước kế tiếp;
+  URL/nội dung có `content_hash`/`url_hash` đã xóa bị bỏ qua khi thu thập (`page_fetch_log.reason = ERASED_CONTENT`).
 
 **Kiểm thử bắt buộc** (TC_E1_FR013f_*): restore backup cũ hơn yêu cầu xóa → bằng chứng vẫn `ERASED`, API không trả trích đoạn; sổ thiếu
 → restore thoát ≠ 0, API 503; chuỗi hash bị sửa → thất bại; lỗi giữa chừng → rollback, `BLOCKED`; API không phục vụ dữ liệu E1 trước khi
@@ -251,18 +268,19 @@ cho phép 3.13. Tương thích Windows/WSL2: chạy trong container Linux nên n
 | phonenumbers | 9.0.43 (2026-11-06) | Apache-2.0 | ≥ 2.5 | không | Đạt (dữ liệu metadata lớn ~ vài chục MB – đã tính trong 65 MB base) |
 | rapidfuzz | 3.14.6 (2026-08-30) | MIT | ≥ 3.11 | không | Đạt |
 | tldextract | 5.4.0 (2026-10-03) | BSD-3-Clause | ≥ 3.10 | idna (BSD-3), requests (Apache-2.0), requests-file (Apache-2.0), filelock (MIT) | Đạt có điều kiện: mặc định tải Public Suffix List lúc chạy → bắt buộc `suffix_list_urls=()` dùng snapshot đóng gói (không gọi mạng; test rào chắn socket) |
-| spacy | 3.8.18 (2026-10-26) | MIT | ≥ 3.10, < 3.16 | thinc, cymem, preshed, murmurhash, srsly, wasabi, catalogue, confection, weasel, spacy-legacy, spacy-loggers (MIT); blis (BSD); numpy (BSD-3 AND 0BSD AND MIT AND Zlib AND CC0-1.0); typer, rich, pydantic (MIT); smart_open, cloudpathlib (MIT); tqdm (MPL-2.0 AND MIT); Jinja2 (BSD) | Đạt – nặng (R-05: +291 MB, RSS ~151 MB); chỉ cài vào image worker |
-| en_core_web_sm (model) | 3.8.0 (GitHub releases) | MIT (METADATA) + ghi chú dữ liệu huấn luyện | – | – | **Chờ chủ sở hữu chấp nhận** ghi chú OntoNotes 5 "commercial (licensed by Explosion)" trước production; dev/test dùng được |
+| spacy (tùy chọn dev/test) | 3.8.18 (2026-10-26) | MIT | ≥ 3.10, < 3.16 | thinc, cymem, preshed, murmurhash, srsly, wasabi, catalogue, confection, weasel, spacy-legacy, spacy-loggers (MIT); blis (BSD); numpy (BSD-3 AND 0BSD AND MIT AND Zlib AND CC0-1.0); typer, rich, pydantic (MIT); smart_open, cloudpathlib (MIT); tqdm (MPL-2.0 AND MIT); Jinja2 (BSD) | Đạt về giấy phép thư viện; **chỉ nhóm dependency tùy chọn `pii-ner` cho dev/test**, không cài trong image production (I2) |
+| en_core_web_sm (model) | 3.8.0 (GitHub releases) | MIT (METADATA) + ghi chú dữ liệu huấn luyện | – | – | **Chưa phê duyệt** (I2): điều kiện thương mại của dữ liệu OntoNotes chưa xác minh; dev/test chỉ khi chủ sở hữu bật cờ; production cấm |
 | playwright (tùy chọn) | 1.65.2 (2026-11-14) | Apache-2.0 | ≥ 3.10 | greenlet (MIT) | Đạt – chỉ profile `browser-fetcher` |
-| crawl4ai | 0.9.5 (2026-10-14) | Apache-2.0 | ≥ 3.10 | gồm `playwright-stealth`, `patchright`, `unclecode-litellm==1.81.13` | **Không dùng** (R-03) |
+| crawl4ai (đã đánh giá – loại) | 0.9.5 (2026-10-14) | Apache-2.0 | ≥ 3.10 | gồm `playwright-stealth`, `patchright`, `unclecode-litellm==1.81.13` | **Loại khỏi E1** (I1) – không phải dependency |
 | SearXNG (image) | 2026.11.18-b867c56a5 | AGPL-3.0-or-later | – | – | Đạt – service riêng, không sửa mã (R-02) |
 
 Giấy phép MPL-2.0 (certifi, tqdm) là copyleft cấp file – dùng không sửa đổi không phát sinh nghĩa vụ công bố mã NichePilot; certifi đã
-có trong E0 qua httpx. Không gói nào có giấy phép không rõ, trừ ghi chú dữ liệu của model spaCy.
+có trong E0 qua httpx. Không gói nào có giấy phép không rõ, trừ ghi chú dữ liệu của model spaCy (chưa phê duyệt – chỉ dev/test tùy chọn).
 
-Tổng tài nguyên dự kiến thêm vào cấu hình mặc định: image worker +~290 MB (spaCy + model) +~65 MB (các gói nhẹ); RAM worker +~150–200 MB
-khi nạp NER; container SearXNG ~103 MiB nghỉ. Ước tính tổng RAM nghỉ E0 (324–361 MB) + E1 ≈ 0,6–0,7 GB < 3 GB (SC-002 E0). Phiên bản
-cụ thể được ghim trong `uv.lock` khi triển khai; mỗi lần nâng cấp xác minh lại bảng này.
+Tổng tài nguyên dự kiến thêm vào cấu hình mặc định (production): image worker +~65 MB (các gói nhẹ); container SearXNG ~103 MiB nghỉ.
+spaCy (+~291 MB, RSS ~151 MB) chỉ có trong image dev khi bật nhóm `pii-ner`. Ước tính tổng RAM nghỉ E0 (324–361 MB) + E1 ≈ 0,5 GB < 3 GB.
+Phiên bản cụ thể ghim trong `uv.lock` khi triển khai; mỗi lần nâng cấp xác minh lại bảng này. Đánh giá đủ 7 tiêu chí của Constitution VII:
+[technology-evaluation.md](./technology-evaluation.md).
 
 ## R-13 – SourceAdapter tổng quát (FR-006g, quyết định 2026-11-20)
 
@@ -270,12 +288,13 @@ cụ thể được ghim trong `uv.lock` khi triển khai; mỗi lần nâng c�
 
 | `adapter_type` | Dùng cho | Cấu hình (`source_policies.config`, không secret) | Trạng thái E1 |
 |---|---|---|---|
-| `searxng_engine` | máy tìm kiếm qua SearXNG | `engine_name`, `categories`, `language_map` | Triển khai |
+| `searxng_engine` | máy tìm kiếm qua SearXNG | `engine_name`, `categories`, `language_map` + chính sách truy cập chung | Triển khai |
 | `http_json_api` | API chính thức dạng REST/JSON công khai | `base_url`, `query_template`, `result_mapping` (JSONPath: url, title, snippet, published_at), `rate_limit`, `auth_env_var` (tên biến môi trường, tùy chọn) | Triển khai khung + test bằng mock; chưa nguồn thật nào được bật |
 | `open_dataset` | dữ liệu mở dạng file (CSV/JSONL) đã tải về volume | `path`, `license_url`, `field_mapping` | Interface + mock; triển khai khi có bộ dữ liệu cụ thể |
 | `licensed_data` | dữ liệu được cấp phép | như `open_dataset` + `license_reference` | Interface; chưa triển khai |
 
-- Mọi adapter trả `SourceResult` chung (`hits` + `source_status`) và gắn `source_policy_id`, `source_compliance` vào bằng chứng.
+- Mọi `config` có chính sách truy cập riêng của nguồn (FR-006): `rate_limit_per_minute`, `max_retries`, `timeout_s`.
+- Mọi adapter trả `SourceResult` chung (`hits` + `source_status`) và gắn `source_policy_id`, `policy_verified_at` vào nguồn.
 - `auth_env_var` chỉ lưu **tên** biến môi trường; giá trị đọc từ môi trường lúc chạy, không lưu DB, không trả qua API, không log.
 - Thêm nguồn mới thuộc loại có sẵn = `POST /api/v1/sources` + xác minh + bật (audit). Loại adapter mới cần code (và spec) – ngoài E1.
 - Reddit/YouTube/Google Trends vẫn ngoài phạm vi E1 (Q1); chỉ là ví dụ sau này cho `http_json_api`/adapter riêng.

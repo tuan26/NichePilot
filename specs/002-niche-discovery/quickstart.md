@@ -33,9 +33,9 @@ không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiệ
    `compliance_status = ALLOWED`, `verified_at`, `verification_note`, `allowed_access_methods`, `permitted_use_scope`, `enabled = true`.
    Thiếu mục → 422 `SOURCE_VERIFICATION_INCOMPLETE`. Agent/kiểm thử tự động **không** thực hiện bước này.
 2. Khởi động lại `searxng` khi phản hồi có `requires_service_restart = true` (cấu hình `keep_only` được sinh lại từ policy).
-3. Kiểm tra lượt theo lịch chỉ dùng nguồn `ALLOWED`: tạo lịch E0 `job_type = discovery.run` → `sources` của lượt chỉ có `ALLOWED`.
-   Nguồn `UNVERIFIED` (nếu chủ sở hữu tự bật, có cảnh báo) chỉ xuất hiện trong lượt thủ công có `include_unverified_sources = true`;
-   bằng chứng có `source_compliance = UNVERIFIED`.
+3. Mọi lượt (thủ công, theo lịch) chỉ dùng nguồn `ALLOWED`: `sources` của lượt chỉ có `ALLOWED`. Thử `PUT /api/v1/sources/{id}` với
+   `enabled = true` cho nguồn `UNVERIFIED` hoặc `PROHIBITED` → 409 `SOURCE_NOT_ALLOWED` (không có cách xác nhận cảnh báo để bỏ qua).
+   Tạo lịch E0 `job_type = discovery.run` → đến hạn có đúng một bản ghi `discovery_runs` với `trigger = SCHEDULED`.
 4. Tạo lượt: `POST /api/v1/discovery/runs {"market":"US","max_candidates":5,"page_limit":40,"time_limit_minutes":15}`.
 5. Quan sát màn hình 1: trạng thái job, trang đã thu thập/bỏ qua theo lý do, chi phí REAL/MOCK (REAL = $0 khi gọi có phí tắt).
 6. Kỳ vọng: nguồn/bằng chứng `REAL`, trích đoạn đã che PII; phân tích AI là `MOCK` (không có API key) → ngách gắn `MOCK`. Đây **không**
@@ -74,10 +74,32 @@ không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiệ
 | Đổi tên file ledger rồi restore | `restore.sh` thoát ≠ 0, `erasure_ledger_state.status = BLOCKED`; khởi động stack → `migrate` lỗi, api/worker không chạy |
 | Sửa một dòng ledger (hỏng hash chain) | Như trên, log nêu `seq` bị hỏng (không in nội dung) |
 | Ledger cũ hơn DB (`applied_seq` > seq cuối) | Như trên |
-| Ép API chạy khi `BLOCKED` | Endpoint dữ liệu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`; `/api/v1/system/status` báo `erasure_ledger` lỗi; `/health` vẫn `ok` |
+| Ép API chạy khi `BLOCKED` | Endpoint dữ liệu nghiên cứu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`; `GET /api/v1/discovery/status` báo `erasure_ledger = BLOCKED`; endpoint E0 (`/health`, `/api/v1/system/status`) không đổi; job `discovery.*` dừng ở bước `preflight` |
 | Ghi ledger thành công, DB lỗi giữa chừng | Lần chạy `apply_erasure_ledger` kế tiếp hoàn tất xóa |
 
 4. Kiểm tra log/checkpoint/audit/ledger không chứa trích đoạn đã xóa.
+
+## 6b. PII engine (quyết định I2)
+
+1. Production mặc định `PII_ENGINE=regex-phone`: trang fixture có tên người không theo mẫu → đoạn `NEEDS_REVIEW`, không có trong prompt gửi
+   AI; `metrics.needs_review_segments` tăng.
+2. Đặt `PII_ENGINE=spacy-en-sm` khi `APP_ENV=production` mà không có trong `PII_APPROVED_ENGINES` → API/worker từ chối khởi động với
+   `PII_ENGINE_NOT_APPROVED`. Image production không chứa spaCy/model.
+
+## 6c. Hiệu năng (U3)
+
+```bash
+cd backend && uv run pytest -m perf
+```
+
+Kỳ vọng: `GET /api/v1/niches` p95 < 500 ms với 5.000 ngách seed giả lập; `discovery.recompute` ≤ 60 s cho 1.000 ngách (0 lời gọi AI).
+
+## 6d. Lỗi mạng và DB khi đang chạy (C5)
+
+| Kịch bản | Kỳ vọng |
+|---|---|
+| Ngắt mạng ra ngoài của worker giữa bước `fetch` (mock adapter ném lỗi mạng) | Trang `FAILED/NETWORK_ERROR`; mọi nguồn lỗi → `PARTIAL_COMPLETED / SOURCES_UNAVAILABLE`; không dữ liệu thay thế |
+| Dừng PostgreSQL 20 s giữa bước | Worker thoát/khởi động lại theo E0, tiếp tục từ checkpoint; 0 bản ghi trùng |
 
 ## 7. Giao diện
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NichePilot API – E1 Autonomous Niche Discovery
-  version: 0.2.1-draft
+  version: 0.3.0-draft
   description: |
     Hợp đồng REST API của E1. Kế thừa toàn bộ quy ước E0 (specs/001-foundation-ai-infrastructure/contracts/openapi.yaml):
     - Phiên đăng nhập cookie `np_session`; request thay đổi dữ liệu gửi `X-CSRF-Token`.
@@ -11,7 +11,8 @@ info:
       với `job_type` ∈ {discovery.run, discovery.reevaluate}.
     - Opportunity Score là điểm ưu tiên nghiên cứu, KHÔNG phải dự báo doanh thu (FR-019c).
     - Không endpoint nào trả nội dung PII chưa che (FR-012b).
-    - Khi erasure ledger chưa được áp dụng đầy đủ (research R-09), mọi endpoint dữ liệu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`.
+    - Khi erasure ledger chưa được áp dụng đầy đủ (research R-09), mọi endpoint **dữ liệu nghiên cứu** E1 (runs, niches, evidence, report,
+      similarities) trả 503 `ERASURE_LEDGER_NOT_APPLIED`; endpoint cấu hình (sources, scoring/weights) và `/discovery/status` vẫn hoạt động.
     - Không endpoint nào trả giá trị secret của nguồn; cấu hình nguồn chỉ chứa tên biến môi trường (`auth_env_var`).
 servers:
   - url: /
@@ -36,6 +37,7 @@ paths:
           in: query
           schema: { type: boolean, default: true }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content:
@@ -61,6 +63,7 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/DiscoveryRunCreate" }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "201":
           description: Đã tạo lượt + job (trạng thái job PENDING)
           content:
@@ -74,10 +77,33 @@ paths:
         "409":
           description: |
             `BUDGET_NOT_CONFIGURED` | `RUN_BUDGET_EXCEEDS_DAILY_LIMIT` | `NO_COMPLIANT_SEARCH_SOURCE`
-            (không có nguồn `ALLOWED` bật và khả dụng, và không chọn `include_unverified_sources` – từ chối sớm, không tạo job)
-            | `UNVERIFIED_SOURCE_NOT_ENABLED` (chọn `include_unverified_sources` nhưng không có nguồn UNVERIFIED nào được bật)
+            (không có nguồn `ALLOWED` nào đang bật – từ chối sớm, không tạo job, 0 lời gọi AI). Nguồn `UNVERIFIED`/`PROHIBITED`
+            không bao giờ được dùng (FR-006d).
           content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
         "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/discovery/status:
+    get:
+      tags: [discovery]
+      summary: Trạng thái thành phần E1 – erasure ledger, SearXNG, PII engine (không sửa `/api/v1/system/status` của E0)
+      responses:
+        "200":
+          description: OK (luôn trả, kể cả khi ledger BLOCKED – để chủ sở hữu thấy lỗi)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [erasure_ledger, pii_engine]
+                properties:
+                  erasure_ledger:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [OK, BLOCKED, OUT_OF_SYNC] }
+                      applied_seq: { type: integer }
+                      ledger_tail_seq: { type: [integer, "null"] }
+                  searxng: { type: string, enum: [OK, UNAVAILABLE, NOT_CONFIGURED] }
+                  pii_engine: { type: string, description: "Tên engine đang dùng, ví dụ regex-phone/1" }
+                  usable_sources: { type: integer }
 
   /api/v1/discovery/runs/{run_id}:
     get:
@@ -85,6 +111,7 @@ paths:
       summary: Chi tiết lượt (cấu hình, trạng thái job, outcome, stop_reason, metrics, chi phí REAL/MOCK)
       parameters: [{ $ref: "#/components/parameters/RunId" }]
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content: { application/json: { schema: { $ref: "#/components/schemas/DiscoveryRun" } } }
@@ -98,6 +125,7 @@ paths:
         - { $ref: "#/components/parameters/RunId" }
         - { name: format, in: query, schema: { type: string, enum: [json, markdown], default: json } }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content:
@@ -129,6 +157,7 @@ paths:
         - { $ref: "#/components/parameters/Limit" }
         - { $ref: "#/components/parameters/Cursor" }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content:
@@ -150,6 +179,7 @@ paths:
       summary: Chi tiết ngách (màn hình 3) – 16 trường BR-07, pain point, persona, bằng chứng, lý do chấm điểm
       parameters: [{ $ref: "#/components/parameters/NicheId" }]
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content: { application/json: { schema: { $ref: "#/components/schemas/NicheDetail" } } }
@@ -161,6 +191,7 @@ paths:
       summary: Lịch sử đánh giá (bất biến) để so sánh thay đổi (FR-034)
       parameters: [{ $ref: "#/components/parameters/NicheId" }]
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content:
@@ -183,6 +214,7 @@ paths:
                 decision: { $ref: "#/components/schemas/DecisionStatus" }
                 reason: { type: string, maxLength: 2000 }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content: { application/json: { schema: { $ref: "#/components/schemas/NicheSummary" } } }
@@ -195,6 +227,7 @@ paths:
       summary: Tạo job `discovery.reevaluate` cho ngách (FR-034) – có giữ chỗ ngân sách
       parameters: [{ $ref: "#/components/parameters/NicheId" }]
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "202":
           description: Đã tạo job
           content: { application/json: { schema: { $ref: "#/components/schemas/JobRef" } } }
@@ -207,6 +240,7 @@ paths:
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [POSSIBLE, CONFIRMED_DUPLICATE, NOT_DUPLICATE], default: POSSIBLE } }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200":
           description: OK
           content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Similarity" } } } }
@@ -228,6 +262,7 @@ paths:
                 status: { type: string, enum: [CONFIRMED_DUPLICATE, NOT_DUPLICATE] }
                 keep_niche_id: { type: string, format: uuid, description: Bắt buộc khi CONFIRMED_DUPLICATE }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Similarity" } } } }
         "422": { $ref: "#/components/responses/ValidationError" }
 
@@ -248,6 +283,7 @@ paths:
                 reason: { type: string, minLength: 3, maxLength: 500 }
                 scope: { type: string, enum: [EVIDENCE, SOURCE], default: EVIDENCE, description: SOURCE = mọi bằng chứng của URL nguồn }
       responses:
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
         "202":
           description: Đã xóa; trả job tính lại
           content:
@@ -283,25 +319,26 @@ paths:
               additionalProperties: false
               properties:
                 source_key: { type: string, pattern: "^[a-z0-9_:.-]{2,64}$" }
-                display_name: { type: string, maxLength: 120 }
+                display_name: { type: string, minLength: 1, maxLength: 120 }
                 adapter_type: { $ref: "#/components/schemas/AdapterType" }
-                tos_url: { type: string, format: uri }
+                tos_url: { type: string, format: uri, pattern: "^https://", maxLength: 2000 }
                 config: { $ref: "#/components/schemas/SourceConfig" }
       responses:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SourcePolicy" } } } }
         "409": { description: "`SOURCE_EXISTS`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
-        "422": { description: "`VALIDATION_ERROR` | `SOURCE_CONFIG_INVALID` (sai schema của adapter, chứa trường giống secret)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+        "422": { description: "`VALIDATION_ERROR` | `SOURCE_CONFIG_INVALID` (sai schema của adapter hoặc chứa khóa bị cấm – internal-interfaces §1.1)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
   /api/v1/sources/{source_id}:
     put:
       tags: [sources]
       summary: Cập nhật hồ sơ tuân thủ / bật-tắt – chỉ chủ sở hữu; audit `source.updated` (trước/sau)
       description: |
-        - enabled=true với PROHIBITED → 409 `SOURCE_PROHIBITED`.
-        - enabled=true với UNVERIFIED cần `acknowledge_warning=true` → thiếu: 409 `SOURCE_WARNING_NOT_ACKNOWLEDGED`.
-          Nguồn UNVERIFIED đã bật chỉ được dùng trong lượt MANUAL có `include_unverified_sources=true` (FR-006d).
-        - compliance_status=ALLOWED cần `verified_at`, `verification_note` (≥ 10 ký tự), `allowed_access_methods` (≥ 1),
-          `permitted_use_scope` → thiếu: 422 `SOURCE_VERIFICATION_INCOMPLETE`. PROHIBITED cần `verified_at` + `verification_note`.
+        - enabled=true khi compliance_status ≠ ALLOWED (UNVERIFIED hoặc PROHIBITED) → 409 `SOURCE_NOT_ALLOWED`. Không có tham số
+          xác nhận cảnh báo nào để bỏ qua kiểm tra (FR-006d).
+        - compliance_status=ALLOWED cần `verified_at`, `verification_note` (10–2000 ký tự), `allowed_access_methods` (≥ 1),
+          `permitted_use_scope` (10–1000 ký tự) → thiếu: 422 `SOURCE_VERIFICATION_INCOMPLETE`. PROHIBITED cần `verified_at` +
+          `verification_note`. `verified_by` = người gọi.
+        - compliance_status chuyển khỏi ALLOWED → `enabled` tự đặt false trong cùng transaction.
         - Bật/tắt nguồn `searxng_engine` → hệ thống sinh lại cấu hình SearXNG; phản hồi có `requires_service_restart`.
       parameters:
         - { name: source_id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -315,17 +352,16 @@ paths:
               properties:
                 compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
                 verified_at: { type: string, format: date }
-                verification_note: { type: string, maxLength: 2000 }
+                verification_note: { type: string, minLength: 10, maxLength: 2000 }
                 allowed_access_methods: { type: array, items: { $ref: "#/components/schemas/AccessMethod" } }
-                permitted_use_scope: { type: string, maxLength: 1000 }
+                permitted_use_scope: { type: string, minLength: 10, maxLength: 1000 }
                 tos_url: { type: string, format: uri }
                 known_limits: { type: string, maxLength: 1000 }
                 config: { $ref: "#/components/schemas/SourceConfig" }
                 enabled: { type: boolean }
-                acknowledge_warning: { type: boolean }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SourcePolicy" } } } }
-        "409": { description: "`SOURCE_PROHIBITED` | `SOURCE_WARNING_NOT_ACKNOWLEDGED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+        "409": { description: "`SOURCE_NOT_ALLOWED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
         "422": { description: "`VALIDATION_ERROR` | `SOURCE_VERIFICATION_INCOMPLETE` | `SOURCE_CONFIG_INVALID`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
   /api/v1/scoring/weights:
@@ -390,17 +426,13 @@ components:
       required: [market]
       properties:
         market: { type: string, pattern: "^[A-Z]{2}$" }
-        research_language: { type: string, maxLength: 16, description: Mặc định theo cấu hình project }
+        research_language: { type: string, pattern: "^[a-z]{2}(-[A-Z]{2})?$", description: Mặc định theo cấu hình project }
         seed_topic: { type: [string, "null"], maxLength: 200, description: null = không chọn lĩnh vực (FR-002) }
         max_candidates: { type: integer, minimum: 1, maximum: 50, default: 20 }
         budget_usd: { type: string, pattern: "^\\d+(\\.\\d{1,6})?$", default: "2.00" }
         time_limit_minutes: { type: integer, minimum: 5, maximum: 240, default: 90 }
         page_limit: { type: integer, minimum: 10, maximum: 2000, default: 300 }
         per_domain_interval_s: { type: number, minimum: 1, default: 2, description: Mức trần; robots/Retry-After nghiêm hơn được ưu tiên }
-        include_unverified_sources:
-          type: boolean
-          default: false
-          description: Chỉ lượt thủ công; dùng thêm nguồn UNVERIFIED mà chủ sở hữu đã bật (cảnh báo hiển thị trên UI). Lịch E0 luôn false.
     RunMetrics:
       type: object
       properties:
@@ -434,8 +466,7 @@ components:
         weights_version: { type: integer }
         source_mode: { $ref: "#/components/schemas/DataOrigin" }
         trigger: { type: string, enum: [MANUAL, SCHEDULED] }
-        include_unverified_sources: { type: boolean }
-        sources: { type: array, items: { type: object, properties: { source_key: { type: string }, compliance_status: { $ref: "#/components/schemas/ComplianceStatus" } } } }
+        sources: { type: array, description: Nguồn ALLOWED được chốt cho lượt, items: { type: object, properties: { source_key: { type: string }, verified_at: { type: string, format: date } } } }
         outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, null] }
         stop_reason:
           type: [string, "null"]
@@ -529,7 +560,7 @@ components:
         quality: { type: [number, "null"] }
         independence_group: { type: string }
         counted_for_threshold: { type: boolean }
-        source_compliance: { type: string, enum: [ALLOWED, UNVERIFIED], description: Trạng thái nguồn lúc thu thập (FR-006d) }
+        policy_verified_at: { type: [string, "null"], format: date, description: Ngày xác minh ALLOWED của nguồn tại thời điểm thu thập }
         data_origin: { $ref: "#/components/schemas/DataOrigin" }
     Finding:
       type: object
@@ -583,13 +614,16 @@ components:
       type: object
       description: |
         Cấu hình theo adapter_type (internal-interfaces.md §1). Không chứa thông tin bí mật: khóa có tên gợi ý thông tin xác
-        thực (danh sách chặn định nghĩa trong mã) bị từ chối; xác thực chỉ qua `auth_env_var` (tên biến môi trường).
+        thực (danh sách chặn ở internal-interfaces.md §1.1) bị từ chối ở mọi cấp lồng nhau; xác thực chỉ qua `auth_env_var`
+        (tên biến môi trường). FR-006: mỗi nguồn có chính sách truy cập riêng (`rate_limit_per_minute`, `max_retries`, `timeout_s`).
       properties:
         engine_name: { type: string }
         base_url: { type: string, format: uri }
         query_template: { type: string }
         result_mapping: { type: object, additionalProperties: { type: string } }
         rate_limit_per_minute: { type: integer, minimum: 1 }
+        max_retries: { type: integer, minimum: 0, maximum: 5, default: 2 }
+        timeout_s: { type: integer, minimum: 1, maximum: 60, default: 20 }
         auth_env_var: { type: string, pattern: "^[A-Z][A-Z0-9_]{2,63}$" }
         path: { type: string }
         license_url: { type: string, format: uri }
@@ -611,8 +645,8 @@ components:
         compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
         known_limits: { type: [string, "null"] }
         enabled: { type: boolean }
-        usable_in_scheduled_runs: { type: boolean, description: "= enabled ∧ ALLOWED" }
-        warning_acknowledged_at: { type: [string, "null"], format: date-time }
+        usable: { type: boolean, description: "= enabled ∧ compliance_status = ALLOWED (dùng được trong mọi lượt)" }
+        verified_by: { type: [string, "null"], format: uuid }
         requires_service_restart: { type: boolean }
 
     RankingReport:

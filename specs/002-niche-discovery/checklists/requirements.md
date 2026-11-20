@@ -40,4 +40,6 @@
 - Cập nhật 2026-11-20 theo phê duyệt có điều kiện Technical Plan: thêm FR-006g, SC-017, sửa FR-006, FR-006c–e, FR-012a–b, FR-013f
   (session Clarifications 2026-11-20); spec không còn ưu tiên Crawl4AI (plan R-03 loại vì phụ thuộc lẩn tránh phát hiện bot). Rà lại
   16/16 mục: vẫn đạt.
+- Cập nhật 2026-11-20 (b): quyết định A1 (chỉ nguồn `ALLOWED`, bỏ mọi đường dùng `UNVERIFIED`), I1 (loại Crawl4AI), I2 (spaCy model chưa
+  phê duyệt production); SC sắp xếp lại theo thứ tự; gộp entity Source Policy trùng lặp. Rà lại 16/16 mục: vẫn đạt.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

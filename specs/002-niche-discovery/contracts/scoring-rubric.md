@@ -5,7 +5,8 @@ Mọi số dưới đây là tham số mặc định, cấu hình được qua p
 
 ## 1. Ngưỡng bằng chứng (FR-013b, FR-015)
 
-Bằng chứng **hợp lệ** cho ngưỡng: `purpose = PAIN_POINT`, `lifecycle_status = ACTIVE`, `redaction_status = REDACTED`,
+Bằng chứng **hợp lệ** cho ngưỡng (FR-013a, FR-013b): có đủ URL nguồn, trích đoạn (đã che), thời điểm thu thập và trạng thái xác minh
+(thiếu bất kỳ trường nào → không tính), `purpose = PAIN_POINT`, `lifecycle_status = ACTIVE`, `redaction_status = REDACTED`,
 `relevance ≥ 0,6`, `quality ≥ 0,5`, `copy_suspected = false`, `data_origin = REAL` (lượt mock: tính riêng, gắn MOCK).
 
 **Nhóm độc lập**: hai bằng chứng cùng nhóm nếu cùng `registered_domain` (eTLD+1) **hoặc** khoảng cách Hamming SimHash ≤ 3 (bản sao
@@ -64,6 +65,10 @@ Confidence = 100 × (0,125 + 0,14 + 0,1 + 0,075 + 0,15 + 0,07) = **66,00**.
 Nếu bỏ thêm reach (null): Coverage = 55 < 60 → Opportunity null, `INSUFFICIENT_SCORING_DATA` (Confidence vẫn tính, V = 0,55).
 
 ## 4. Danh sách xếp hạng (FR-024)
+
+Đạt ngưỡng bằng chứng **không** có nghĩa là ngách sinh lợi (FR-013d): `EVIDENCE_SUFFICIENT` chỉ cho phép ngách vào bảng cơ hội nghiên cứu;
+danh sách ưu tiên affiliate còn đòi hỏi `SIGNALS_FOUND`; báo cáo/UI luôn kèm chú thích `discovery.opportunity.disclaimer`.
+
 
 | Danh sách | Điều kiện | Sắp xếp |
 |---|---|---|

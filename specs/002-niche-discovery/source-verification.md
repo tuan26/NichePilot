@@ -6,7 +6,8 @@ Trạng thái hiện tại của **mọi** nguồn: `UNVERIFIED`, tắt. Việc 
 cập được các trang điều khoản (chủ sở hữu không đồng ý mở rộng mạng của môi trường dùng chung, 2026-11-20). Xác minh sẽ làm sau trên
 môi trường có quyền truy cập phù hợp. Chưa xác minh được **không** phải lỗi implementation; kiểm thử tự động dùng adapter giả lập.
 
-Quy tắc: chỉ đặt `ALLOWED` khi đã đọc văn bản chính thức và ghi đủ các mục ở §2. Không suy từ trí nhớ, blog hay việc "có API miễn
+Quy tắc: chỉ đặt `ALLOWED` khi đã đọc văn bản chính thức và ghi đủ các mục ở §2. Chỉ nguồn `ALLOWED` được dùng; `UNVERIFIED` và
+`PROHIBITED` không bật được và không có cách bỏ qua (quyết định A1, 2026-11-20 (b)). Không suy từ trí nhớ, blog hay việc "có API miễn
 phí". Văn bản cấm hoặc yêu cầu điều kiện không đáp ứng được → `PROHIBITED` (hoặc giữ `UNVERIFIED` kèm ghi chú nếu mơ hồ).
 
 ## 1. Danh sách nguồn
@@ -48,7 +49,8 @@ S12–S13 không phải nguồn dữ liệu; liệt kê vì đang chờ đọc t
 ## 3. Cách cập nhật sau khi xác minh (không cần sửa code)
 
 1. Dashboard → **Nguồn dữ liệu** (hoặc `PUT /api/v1/sources/{id}`) nhập các mục §2; API từ chối `ALLOWED` nếu thiếu `verified_at`,
-   `verification_note`, `allowed_access_methods` hoặc `permitted_use_scope`.
+   `verification_note`, `allowed_access_methods` hoặc `permitted_use_scope` (422 `SOURCE_VERIFICATION_INCOMPLETE`); bật nguồn chưa
+   `ALLOWED` → 409 `SOURCE_NOT_ALLOWED`.
 2. Bật nguồn → hệ thống sinh lại `settings.yml` của SearXNG (với `searxng_engine`) và hướng dẫn khởi động lại `searxng`.
 3. Audit `source.updated` ghi trạng thái trước/sau.
 4. Cập nhật bảng R-01 trong research.md (hoặc báo cáo vận hành) bằng kết quả đã ghi.
