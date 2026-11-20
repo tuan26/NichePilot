@@ -44,3 +44,5 @@ backup:
 restore:
 	@test -n "$(FILE)" || (echo "Dùng: make restore FILE=backups/<file>.dump" && exit 1)
 	$(COMPOSE) --profile ops run --rm --entrypoint /scripts/restore.sh backup /backups/$(notdir $(FILE))
+	# E1 (X4): áp dụng lại erasure ledger trước khi dữ liệu được dùng; lỗi → make thất bại, dữ liệu vẫn bị chặn
+	$(COMPOSE) run --rm --no-deps migrate python -m nichepilot.jobs.erasure_ledger --strict

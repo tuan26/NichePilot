@@ -2,6 +2,8 @@
 
 Quy tắc: VERIFIED bắt buộc có nguồn; UNKNOWN không có giá trị (không bịa dữ liệu); trích đoạn giới hạn độ dài;
 truy vấn mặc định loại dữ liệu MOCK để mock không bao giờ lẫn vào nghiên cứu thật.
+E1 (X3, FR-013e): truy vấn mặc định chỉ trả bằng chứng `ACTIVE` – bằng chứng đã xóa không được dùng ở bất kỳ phân tích nào;
+`include_erased=True` chỉ dành cho audit.
 """
 
 from __future__ import annotations
@@ -154,8 +156,11 @@ class EvidenceService:
         subject_type: str | None = None,
         subject_id: uuid.UUID | None = None,
         include_mock: bool = False,
+        include_erased: bool = False,
     ) -> list[Evidence]:
         stmt = select(ResearchEvidence).where(ResearchEvidence.project_id == project_id)
+        if not include_erased:
+            stmt = stmt.where(ResearchEvidence.lifecycle_status == "ACTIVE")
         if not include_mock:
             stmt = stmt.where(ResearchEvidence.data_origin == "REAL")
         if claim_key is not None:

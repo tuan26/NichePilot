@@ -19,4 +19,10 @@ if [ "$tables" != "0" ]; then
   exit 3
 fi
 pg_restore --no-owner --no-privileges --exit-on-error --single-transaction --dbname="$PGDATABASE" "$FILE"
+# E1 (X4, FR-013f): dữ liệu vừa khôi phục bị CHẶN cho tới khi erasure ledger được áp dụng lại
+# (make restore chạy tiếp `python -m nichepilot.jobs.erasure_ledger --strict`; service migrate cũng chạy bước này).
+if [ "$(psql -XAtq -c "SELECT to_regclass('public.erasure_ledger_state') IS NOT NULL")" = "t" ]; then
+  psql -X -q -v ON_ERROR_STOP=1 -c "UPDATE erasure_ledger_state SET status = 'BLOCKED', last_error = 'RESTORED_PENDING_LEDGER_APPLY', updated_at = now()"
+  echo "Dữ liệu nghiên cứu E1 tạm bị chặn – cần áp dụng erasure ledger (make restore tự chạy bước này)."
+fi
 echo "Đã khôi phục $FILE vào database '$PGDATABASE'."

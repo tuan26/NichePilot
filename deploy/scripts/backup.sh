@@ -36,6 +36,12 @@ chmod 600 "$partial"
 mv "$partial" "$BACKUP_DIR/${name}.dump"
 trap - EXIT
 echo "Đã tạo backup: $BACKUP_DIR/${name}.dump"
+# E1 (X4): sao kèm erasure ledger (chỉ ID/hash, không nội dung). Bản sổ sống trong volume vẫn là nguồn chuẩn khi restore.
+if [ -f "${LEDGER_DIR:-/ledger}/ledger.jsonl" ]; then
+  cp "${LEDGER_DIR:-/ledger}/ledger.jsonl" "$BACKUP_DIR/${name}.ledger.jsonl"
+  chmod 600 "$BACKUP_DIR/${name}.ledger.jsonl"
+  echo "Đã sao erasure ledger: $BACKUP_DIR/${name}.ledger.jsonl"
+fi
 
 # Xoay vòng: tên chứa timestamp UTC nên sắp xếp theo tên = theo thời gian.
 ls -1 "$BACKUP_DIR" | grep -E '^nichepilot-[0-9TZ-]+\.dump$' | sort -r | tail -n +"$((RETENTION + 1))" | while read -r old; do

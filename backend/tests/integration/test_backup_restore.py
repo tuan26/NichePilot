@@ -29,7 +29,9 @@ def _docker_ok() -> bool:
     return subprocess.run(["docker", "image", "inspect", IMAGE], capture_output=True).returncode == 0  # noqa: S603, S607
 
 
-def _run(script: str, db_url: str, backups: Path, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+def _run(
+    script: str, db_url: str, backups: Path, *args: str, ledger: Path | None = None, **env: str
+) -> subprocess.CompletedProcess[str]:
     u = urlparse(db_url.replace("postgresql+psycopg://", "postgresql://"))
     envs = {
         "PGHOST": u.hostname or "localhost",
@@ -41,6 +43,8 @@ def _run(script: str, db_url: str, backups: Path, *args: str, **env: str) -> sub
         **env,
     }
     cmd = ["docker", "run", "--rm", "--network", "host", "-v", f"{SCRIPTS}:/scripts:ro", "-v", f"{backups}:/backups"]
+    if ledger is not None:  # E1 (X4): volume erasure-ledger gắn chỉ đọc như service `backup`
+        cmd += ["-v", f"{ledger}:/ledger:ro"]
     for k, v in envs.items():
         cmd += ["-e", f"{k}={v}"]
     cmd += [IMAGE, f"/scripts/{script}", *args]
@@ -95,6 +99,47 @@ async def test_TC_SC012_01_backup_restore_roundtrip(clean_db: AsyncEngine, migra
         again = _run("restore.sh", target_url, backups, f"/backups/{dumps[-1].name}")
         assert again.returncode != 0 and "not empty" in (again.stderr + again.stdout)
     finally:
+        async with clean_db.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await conn.execute(text(f'DROP DATABASE IF EXISTS "{target}" WITH (FORCE)'))
+
+
+@pytest.mark.skipif(not _docker_ok(), reason="BLOCKED: cần Docker và image postgres:17-alpine")
+async def test_TC_E1_FR013f_11_restore_blocks_e1_data_until_ledger_reapplied(
+    clean_db: AsyncEngine, migrated_db: str, tmp_path: Path
+) -> None:
+    """E1 (T040, X4): backup sao kèm erasure ledger; restore đặt BLOCKED; áp dụng ledger --strict → OK."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from nichepilot.modules.discovery.erasure import Ledger, apply_erasure_ledger, ledger_health
+
+    ledger_dir = tmp_path / "ledger"
+    await apply_erasure_ledger(async_sessionmaker(clean_db), Ledger(ledger_dir))  # khởi tạo sổ trên DB nguồn
+    os.chmod(ledger_dir, 0o755)
+    os.chmod(ledger_dir / "ledger.jsonl", 0o644)
+    backups = tmp_path / "backups"
+    backups.mkdir()
+    r = _run("backup.sh", migrated_db, backups, ledger=ledger_dir)
+    assert r.returncode == 0, r.stderr
+    copies = list(backups.glob("nichepilot-*.ledger.jsonl"))
+    assert len(copies) == 1 and stat.S_IMODE(os.stat(copies[0]).st_mode) == 0o600
+    dump = sorted(backups.glob("nichepilot-*.dump"))[-1]
+    target = f"restore_e1_{uuid.uuid4().hex[:8]}"
+    async with clean_db.connect() as conn:
+        await conn.execution_options(isolation_level="AUTOCOMMIT")
+        await conn.execute(text(f'CREATE DATABASE "{target}"'))
+    target_url = migrated_db.rsplit("/", 1)[0] + f"/{target}"
+    eng = create_async_engine(target_url)
+    try:
+        r = _run("restore.sh", target_url, backups, f"/backups/{dump.name}")
+        assert r.returncode == 0, r.stderr
+        sm = async_sessionmaker(eng)
+        health = await ledger_health(sm, Ledger(ledger_dir))
+        assert health.status == "BLOCKED" and health.error == "RESTORED_PENDING_LEDGER_APPLY"
+        await apply_erasure_ledger(sm, Ledger(ledger_dir))
+        assert (await ledger_health(sm, Ledger(ledger_dir))).status == "OK"
+    finally:
+        await eng.dispose()
         async with clean_db.connect() as conn:
             await conn.execution_options(isolation_level="AUTOCOMMIT")
             await conn.execute(text(f'DROP DATABASE IF EXISTS "{target}" WITH (FORCE)'))

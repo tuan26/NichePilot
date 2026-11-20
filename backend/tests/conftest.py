@@ -18,6 +18,19 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+SEED_SOURCE_KEYS = [
+    "searxng:wikipedia",
+    "api:stackexchange",
+    "api:hn-algolia",
+    "searxng:mojeek",
+    "searxng:marginalia",
+    "searxng:mwmbl",
+    "searxng:duckduckgo",
+    "searxng:brave",
+    "searxng:startpage",
+    "searxng:google",
+    "searxng:bing",
+]
 REPO_DIR = BACKEND_DIR.parent
 SPEC_DIR = REPO_DIR / "specs" / "001-foundation-ai-infrastructure"
 
@@ -95,6 +108,19 @@ async def engine(migrated_db: str) -> AsyncIterator[AsyncEngine]:
     await eng.dispose()
 
 
+# E1 – bảng nghiệp vụ theo thứ tự khóa ngoại (con trước cha). niche_evaluations bất biến (trigger) → dọn riêng.
+E1_TABLES = [
+    "niche_run_links",
+    "niche_similarity",
+    "niche_evidence_links",
+    "niche_findings",
+    "pain_points",
+    "buyer_personas",
+    "competitors",
+    "page_fetch_log",
+    "evidence_erasure_requests",
+    "domain_access_state",
+]
 MUTABLE_TABLES = [
     "research_evidence",
     "research_sources",
@@ -121,6 +147,36 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as conn:
         result = await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
         existing = set(result.scalars())  # đọc trọn một lần
+        if "niches" in existing:
+            for table in E1_TABLES:
+                await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số
+            await conn.execute(text("UPDATE niches SET latest_evaluation_id = NULL"))
+            await conn.execute(text("ALTER TABLE niche_evaluations DISABLE TRIGGER trg_niche_evaluations_immutable"))
+            await conn.execute(text("DELETE FROM niche_evaluations"))
+            await conn.execute(text("ALTER TABLE niche_evaluations ENABLE TRIGGER trg_niche_evaluations_immutable"))
+            await conn.execute(text("DELETE FROM niches WHERE merged_into_id IS NOT NULL"))
+            await conn.execute(text("DELETE FROM niches"))
+            await conn.execute(text("DELETE FROM discovery_runs"))
+            await conn.execute(text("DELETE FROM research_evidence"))
+            await conn.execute(text("DELETE FROM research_sources"))
+            # giữ seed: nguồn S1–S11 về UNVERIFIED/tắt, xóa nguồn do test tạo; trọng số về v1; sổ xóa về trạng thái đầu
+            await conn.execute(
+                text(
+                    "UPDATE source_policies SET compliance_status = 'UNVERIFIED', enabled = false, verified_at = NULL,"
+                    " verified_by = NULL, verification_note = NULL, allowed_access_methods = '{}',"
+                    " permitted_use_scope = NULL, updated_by = NULL WHERE source_key = ANY(:k)"
+                ),
+                {"k": SEED_SOURCE_KEYS},
+            )
+            await conn.execute(text("DELETE FROM source_policies WHERE NOT (source_key = ANY(:k))"), {"k": SEED_SOURCE_KEYS})
+            await conn.execute(text("DELETE FROM scoring_weights_versions WHERE version > 1"))
+            await conn.execute(text("UPDATE scoring_weights_versions SET is_active = true, created_by = NULL"))
+            await conn.execute(
+                text(
+                    "UPDATE erasure_ledger_state SET ledger_id = NULL, applied_seq = 0, applied_hash = NULL,"
+                    " status = 'OK', last_error = NULL, checked_at = NULL"
+                )
+            )
         for table in MUTABLE_TABLES:
             if table in existing and table != "audit_logs":
                 await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số

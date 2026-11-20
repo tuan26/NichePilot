@@ -40,7 +40,8 @@ services:
   migrate:
     <<: *backend
     restart: "no"
-    command: ["alembic", "upgrade", "head"]
+    # E1 (X4): áp dụng erasure ledger TRƯỚC khi api/worker khởi động; lỗi → thoát ≠ 0 → api/worker không chạy
+    command: ["sh", "-c", "alembic upgrade head && python -m nichepilot.jobs.erasure_ledger --strict"]
     depends_on:
       postgres: { condition: service_healthy }
     mem_limit: 256m
@@ -123,6 +124,7 @@ services:
     volumes:
       - ./scripts:/scripts:ro
       - ../backups:/backups
+      - erasure-ledger:/ledger:ro  # E1 (X4): sao kèm bản sổ xóa vào backup
     depends_on:
       postgres: { condition: service_healthy }
     restart: unless-stopped
