@@ -37,4 +37,7 @@
 - Spec nêu tên SearXNG (tự host, OSS) và ưu tiên Crawl4AI vì đó là **quyết định của chủ sở hữu** (Clarification Q1), không phải
   lựa chọn công nghệ do spec tự đặt; đánh giá chi tiết (giấy phép, tài nguyên, điều khoản) thuộc plan.
 - Sau /speckit-clarify (Q4–Q8, 2026-11-19): 0 [NEEDS CLARIFICATION]; 16/16 mục đạt.
+- Cập nhật 2026-11-20 theo phê duyệt có điều kiện Technical Plan: thêm FR-006g, SC-017, sửa FR-006, FR-006c–e, FR-012a–b, FR-013f
+  (session Clarifications 2026-11-20); spec không còn ưu tiên Crawl4AI (plan R-03 loại vì phụ thuộc lẩn tránh phát hiện bot). Rà lại
+  16/16 mục: vẫn đạt.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

@@ -1,6 +1,6 @@
 # Data Model: E1 – Autonomous Niche Discovery
 
-**Ngày**: 2026-11-19 | Liên quan: [spec.md](./spec.md), [research.md](./research.md), E0 `specs/001-foundation-ai-infrastructure/data-model.md`
+**Ngày**: 2026-11-19, cập nhật 2026-11-20 | Liên quan: [spec.md](./spec.md), [research.md](./research.md), E0 `specs/001-foundation-ai-infrastructure/data-model.md`
 
 Quy ước chung (giữ như E0 – DATA-01, DATA-02, DATA-06): khóa chính UUID, `created_at`/`updated_at`, khóa ngoại và unique rõ ràng;
 mọi bảng nghiệp vụ có `project_id` (project mặc định); bảng chứa kết quả AI/nghiên cứu có `data_origin ∈ {REAL, MOCK}`; mọi thay đổi
@@ -16,6 +16,8 @@ qua migration (dự kiến `0009_discovery`, `0010_discovery_seed`, và `0009` g
 | `simhash` | BIGINT | SimHash 64-bit của nội dung chuẩn hóa; NULL cho nguồn cũ |
 | `lifecycle_status` | TEXT | `ACTIVE` \| `ERASED`, mặc định `ACTIVE` |
 | `erased_at` | timestamptz | NOT NULL ⇔ `ERASED`; khi `ERASED`, `url`/`canonical_url` thay bằng `erased:<sha256>` |
+| `source_policy_id` | UUID | FK `source_policies`, NULL cho nguồn E0/không qua adapter E1 |
+| `source_compliance` | TEXT | trạng thái của nguồn **tại thời điểm thu thập**: `ALLOWED` \| `UNVERIFIED` (FR-006d, SC-017) |
 
 ### `research_evidence` (E0 §14) – thêm cột
 
@@ -49,24 +51,31 @@ sung lọc mặc định `lifecycle_status = ACTIVE` (mở rộng interface, kh�
 
 Seed v1 = BR-03 (25/20/20/15/10/10). Tạo phiên bản mới có audit `scoring.weights_version_created`; không sửa phiên bản cũ.
 
-### `search_source_policies` (FR-006c…FR-006f)
+### `source_policies` (FR-006c…FR-006g, research R-13)
 
 | Cột | Kiểu | Ràng buộc |
 |---|---|---|
 | id | UUID | PK |
-| engine_key | TEXT | UNIQUE (tên engine SearXNG hoặc `api:<tên>`) |
+| source_key | TEXT | UNIQUE, `^[a-z0-9_:.-]{2,64}$` |
 | display_name | TEXT | |
-| integration_method | TEXT | `SEARXNG_ENGINE` \| `OFFICIAL_API` |
+| adapter_type | TEXT | `searxng_engine` \| `http_json_api` \| `open_dataset` \| `licensed_data` |
+| config | JSONB | cấu hình adapter **không chứa secret** (validate theo schema của `adapter_type`); xác thực chỉ qua `auth_env_var` = tên biến môi trường |
 | tos_url | TEXT | NOT NULL |
-| verified_at | DATE | NULL khi `UNVERIFIED` chưa đọc được |
-| verification_note | TEXT | trích đoạn/kết luận ngắn, người xác minh |
-| compliance_status | TEXT | `ALLOWED` \| `UNVERIFIED` \| `PROHIBITED` |
-| known_limits | TEXT | giới hạn truy vấn đã biết |
-| enabled | BOOLEAN | CHECK `NOT (enabled AND compliance_status = 'PROHIBITED')` |
-| warning_acknowledged_at | timestamptz | NOT NULL khi bật nguồn `UNVERIFIED` (FR-006d) |
-| updated_by | UUID | FK users |
+| verified_at | DATE | |
+| verified_by | UUID | FK users |
+| verification_note | TEXT | căn cứ (trích đoạn ≤ 1000 ký tự + vị trí) |
+| allowed_access_methods | TEXT[] | ⊆ {`SEARXNG_ENGINE`, `OFFICIAL_API`, `DATASET_DOWNLOAD`} |
+| permitted_use_scope | TEXT | phạm vi sử dụng được phép |
+| known_limits | TEXT | |
+| compliance_status | TEXT | `ALLOWED` \| `UNVERIFIED` \| `PROHIBITED`, mặc định `UNVERIFIED` |
+| enabled | BOOLEAN | mặc định false; CHECK `NOT (enabled AND compliance_status = 'PROHIBITED')` |
+| warning_acknowledged_at | timestamptz | CHECK `NOT (enabled AND compliance_status = 'UNVERIFIED' AND warning_acknowledged_at IS NULL)` |
+| updated_by, updated_at | | audit `source.created` / `source.updated` (trước/sau) |
 
-Seed: các nguồn ở research R-01, tất cả `UNVERIFIED`, `enabled = false`.
+CHECK `compliance_status <> 'ALLOWED' OR (verified_at IS NOT NULL AND verification_note IS NOT NULL AND cardinality(allowed_access_methods) > 0
+AND permitted_use_scope IS NOT NULL)`. Không có cột/route nào cho phép hệ thống tự đổi `compliance_status` hay `enabled` (chỉ API của
+chủ sở hữu). Seed (`0010_discovery_seed`): các nguồn S1–S11 của [source-verification.md](./source-verification.md), tất cả `UNVERIFIED`,
+`enabled = false`.
 
 ### `discovery_runs`
 
@@ -83,6 +92,9 @@ Seed: các nguồn ở research R-01, tất cả `UNVERIFIED`, `enabled = false`
 | time_limit_s | INT | mặc định 5400 |
 | page_limit | INT | mặc định 300 |
 | per_domain_interval_s | NUMERIC | mặc định 2, ≥ 1 (mức trần) |
+| trigger | TEXT | `MANUAL` \| `SCHEDULED` |
+| include_unverified_sources | BOOLEAN | mặc định false; CHECK `NOT (include_unverified_sources AND trigger = 'SCHEDULED')` (FR-006d) |
+| source_policy_ids | UUID[] | nguồn được chốt lúc bắt đầu lượt |
 | weights_version_id | UUID | FK scoring_weights_versions (chốt lúc bắt đầu) |
 | source_mode | TEXT | `REAL` \| `MOCK` (adapter nguồn) |
 | outcome | TEXT | NULL khi chưa kết thúc; `COMPLETED` \| `PARTIAL_COMPLETED` |
@@ -183,7 +195,13 @@ UNIQUE(niche_id, normalized_title).
 ### `evidence_erasure_requests` (FR-013e, FR-013f)
 
 (`id`, `target_type` = `EVIDENCE`\|`SOURCE`, `target_id`, `content_hash`, `reason`, `requested_by`, `requested_at`, `applied_at`,
-`ledger_seq`) – không có nội dung. Đồng bộ với sổ ngoài DB (volume `erasure-ledger`, research R-09).
+`ledger_seq` UNIQUE) – không có nội dung. Sổ chuẩn nằm ngoài DB (volume `erasure-ledger`, research R-09).
+
+### `erasure_ledger_state` (một dòng – X4)
+
+(`id` = 1 CHECK, `ledger_id` UUID, `applied_seq` BIGINT, `applied_hash` TEXT, `status` = `OK`\|`BLOCKED`, `checked_at`, `last_error`
+TEXT không chứa nội dung). `status = BLOCKED` hoặc lệch với đuôi sổ → API trả 503 `ERASURE_LEDGER_NOT_APPLIED` cho dữ liệu E1, worker
+không nhận job E1.
 
 ## 3. Trạng thái
 
@@ -201,4 +219,5 @@ UNIQUE(niche_id, normalized_title).
 3. Bảng xếp hạng cơ hội: `evidence_status = EVIDENCE_SUFFICIENT` ∧ `scoring_status = SCORED` ∧ `data_origin = REAL` (mặc định);
    danh sách ưu tiên affiliate: thêm `monetization_status = SIGNALS_FOUND` ∧ không cờ `MONETIZATION_RISK`.
 4. Mọi đánh giá lưu đủ dữ liệu để tính lại bằng tay (trọng số, Coverage, điểm thành phần, tham số Confidence).
-5. `MOCK` nếu bất kỳ đầu vào AI hoặc nguồn nào của bản ghi là mock; dữ liệu `MOCK` không vào báo cáo/xếp hạng mặc định.
+5. Lượt `SCHEDULED` chỉ dùng nguồn `ALLOWED`; bằng chứng từ nguồn `UNVERIFIED` giữ `source_compliance = UNVERIFIED` và được hiển thị rõ.
+6. `MOCK` nếu bất kỳ đầu vào AI hoặc nguồn nào của bản ghi là mock; dữ liệu `MOCK` không vào báo cáo/xếp hạng mặc định.

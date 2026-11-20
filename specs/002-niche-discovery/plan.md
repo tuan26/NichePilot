@@ -1,16 +1,18 @@
 # Implementation Plan: E1 – Autonomous Niche Discovery
 
-**Branch**: `claude/inspiring-wright-06dzhw` (feature dir `specs/002-niche-discovery`) | **Date**: 2026-11-19 | **Spec**: [spec.md](./spec.md)
+**Branch**: `claude/inspiring-wright-06dzhw` (feature dir `specs/002-niche-discovery`) | **Date**: 2026-11-19, cập nhật 2026-11-20 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification `specs/002-niche-discovery/spec.md` (đã clarify Q1–Q8, 2026-11-19)
+**Input**: Feature specification `specs/002-niche-discovery/spec.md` (đã clarify Q1–Q8, 2026-11-19; quyết định phê duyệt 2026-11-20)
 
-**Trạng thái**: `DRAFT – CHỜ CHỦ SỞ HỮU PHÊ DUYỆT`. Chưa chạy `/speckit-tasks`, chưa `/speckit-implement`. Không có lời gọi API có phí.
+**Trạng thái**: `APPROVED WITH CONDITIONS` (chủ sở hữu, 2026-11-20) – plan đã cập nhật theo điều kiện; được phép `/speckit-tasks`,
+`/speckit-analyze`. Chưa `/speckit-implement`. Không có lời gọi API có phí.
 
 ## Summary
 
 E1 bổ sung một module nghiệp vụ `discovery` chạy trên nền E0 (Job Runtime, AI Gateway + giữ chỗ ngân sách, Tool Registry,
-EvidenceService, audit, i18n) để tự động: (1) tìm vấn đề khách hàng thật qua **SearXNG** tự host (chỉ truy vấn máy tìm kiếm có hồ sơ
-tuân thủ `ALLOWED`, hoặc `UNVERIFIED` do chủ sở hữu tự bật có cảnh báo + audit), (2) tải trang công khai tôn trọng robots.txt và
+EvidenceService, audit, i18n) để tự động: (1) tìm vấn đề khách hàng thật qua `SourceAdapter` chung – SearXNG tự host và (sau này) API chính
+thức/dữ liệu mở/dữ liệu cấp phép; lượt tự động chỉ dùng nguồn `ALLOWED`, nguồn `UNVERIFIED` chỉ dùng khi chủ sở hữu tự bật và chọn
+cho lượt thủ công, (2) tải trang công khai tôn trọng robots.txt và
 mức trần 1 request/2 giây/tên miền, trích nội dung chính, **che PII trước khi lưu hoặc gửi AI**, (3) dùng AI (qua Gateway) gom pain
 point, persona, giải pháp, đối thủ, tín hiệu monetization, đánh giá độc lập/chất lượng bằng chứng, (4) **mã xác định** áp ngưỡng
 bằng chứng (≥ 2 bằng chứng pain point hợp lệ từ ≥ 2 nhóm nguồn độc lập), tính Opportunity (chuẩn hóa trọng số trên tiêu chí hợp lệ,
@@ -25,25 +27,26 @@ Giới hạn mỗi lượt: 20 ngách ứng viên, $2 ngân sách AI, 90 phút t
 
 **Primary Dependencies** (E0 giữ nguyên): FastAPI, SQLAlchemy 2.1 async + psycopg 3, Alembic, Procrastinate, anthropic/openai SDK,
 structlog, httpx; React + Vite + Tailwind + shadcn + i18next + TanStack Query.
-**Mới cho E1** (cần duyệt – research R-02…R-08):
+**Mới cho E1** (X8 – đã xác minh giấy phép/phiên bản/tương thích Python 3.13 ngày 2026-11-20, chi tiết research R-12):
 
-| Thành phần | Giấy phép | Vai trò | Ghi chú |
-|---|---|---|---|
-| SearXNG (container chính thức, không sửa mã) | AGPL-3.0 | Metasearch tự host | Dịch vụ riêng trong Compose; gọi qua HTTP JSON API nội bộ; không phân phối lại mã đã sửa |
-| `trafilatura` | Apache-2.0 | Trích nội dung chính từ HTML | Mặc định – nhẹ, không cần trình duyệt |
-| Crawl4AI (tùy chọn, profile `crawl4ai`) | Apache-2.0 | Trang cần JavaScript | Tắt mặc định (cần Chromium, shm 1 GB); câu chữ ghi công trong README chưa rõ → chờ chủ sở hữu quyết định |
-| `protego` | BSD-3 (cần xác minh khi thêm) | Phân tích robots.txt (Crawl-delay) | Bổ sung so với research R-04 (stdlib `urllib.robotparser` là phương án thay) |
-| `phonenumbers` | Apache-2.0 | Nhận diện số điện thoại theo quốc gia | |
-| spaCy + `en_core_web_sm` | MIT (giấy phép model cần xác minh khi thêm) | Nhận diện tên người (tiếng Anh) | Ngôn ngữ khác: heuristic + `NEEDS_REVIEW` (R-05); dự phòng Presidio |
-| `rapidfuzz` | MIT | So khớp mờ tên ngách | |
-| `tldextract` | BSD-3 (cần xác minh khi thêm) | eTLD+1 cho tính độc lập nguồn | Dùng snapshot Public Suffix List đóng gói, không tải lúc chạy |
-| SimHash (tự viết ~40 dòng) | – | Phát hiện nội dung sao chép | Không thêm phụ thuộc |
+| Thành phần | Phiên bản xác minh | Giấy phép | Vai trò | Điều kiện |
+|---|---|---|---|---|
+| SearXNG (image chính thức, không sửa mã) | `2026.11.18-b867c56a5` | AGPL-3.0-or-later (nhãn OCI) | Metasearch tự host | Service riêng, mạng nội bộ; RAM nghỉ đo được ≈ 103 MiB; `keep_only` engine theo policy |
+| `trafilatura` | 2.3.1 | Apache-2.0 (deps: Apache/BSD/MIT/MPL-2.0) | Trích nội dung chính – **mặc định** | – |
+| Playwright + Chromium (tùy chọn) | 1.65.2 | Apache-2.0 | Trang cần JavaScript | Profile `browser-fetcher`, **tắt mặc định**, không cài vào image worker; tài nguyên đo khi bật |
+| `protego` | 0.7.0 | BSD-3-Clause | robots.txt theo RFC 9309 | `urllib.robotparser` của Python 3.13 thiếu wildcard RFC 9309 |
+| `phonenumbers` | 9.0.43 | Apache-2.0 | `[PHONE]` | – |
+| spaCy + `en_core_web_sm` | 3.8.18 + 3.8.0 | MIT; model MIT + ghi chú dữ liệu OntoNotes "licensed by Explosion" | `[PERSON]` tiếng Anh | Đo: +291 MB image, RSS ≈ 151 MB; cài từ wheel ghim + SHA-256, không tải lúc chạy; **production chờ chủ sở hữu chấp nhận ghi chú dữ liệu model** |
+| `rapidfuzz` | 3.14.6 | MIT | So khớp mờ | – |
+| `tldextract` | 5.4.0 | BSD-3-Clause | eTLD+1 | Bắt buộc `suffix_list_urls=()` (không tải PSL lúc chạy) |
+| SimHash (tự viết) | – | – | Phát hiện bản sao | – |
+| ~~Crawl4AI~~ | 0.9.5 | Apache-2.0 | – | **Không dùng**: phụ thuộc bắt buộc `playwright-stealth`, `patchright` (lẩn tránh phát hiện bot – trái FR-006f), README mâu thuẫn về ghi công (R-03) |
 
 **Storage**: PostgreSQL 17 (bảng mới ở [data-model.md](./data-model.md), migration `0009_discovery`, `0010_discovery_seed`);
 sổ xóa bằng chứng `erasure-ledger` là file append-only trên volume riêng (R-09).
 
 **Testing**: pytest (unit, integration testcontainers `postgres:17-alpine`, contract), Vitest, Playwright E2E. Nguồn bên ngoài trong
-test dùng **adapter giả lập** (`MockSearchAdapter`, `MockPageFetcher` với HTML cố định) – dữ liệu gắn `MOCK`; AI dùng
+test dùng **adapter giả lập** (`MockSourceAdapter`, `MockPageFetcher` với HTML cố định) – dữ liệu gắn `MOCK`; AI dùng
 `MockAIProvider`. Rào chắn socket của E0 giữ nguyên: test không truy cập mạng. Bộ kiểm thử thu thập thật (`tests/live_sources`)
 deselected mặc định, chỉ chạy khi chủ sở hữu bật và có ít nhất một nguồn `ALLOWED`.
 
@@ -55,9 +58,10 @@ deselected mặc định, chỉ chạy khi chủ sở hữu bật và có ít nh
 (`discovery.recompute`, không AI) ≤ 60 s cho 1.000 ngách.
 
 **Constraints**: ≤ $2 AI/lượt, $3/ngày, $30/tháng (E0); 1 request/2 s/tên miền (trần); 300 trang/lượt; RAM nghỉ toàn hệ thống
-≤ 3 GB (SearXNG ≈ 150–250 MB; Crawl4AI không bật mặc định); không lưu PII chưa che; không vượt CAPTCHA.
+≤ 3 GB (đo 2026-11-20: SearXNG ≈ 103 MiB nghỉ, spaCy NER ≈ 151 MB RSS; ước tính E0 + E1 ≈ 0,6–0,7 GB nghỉ); CPU 4 core / RAM
+15 GB của chủ sở hữu; trình duyệt không bật mặc định; không lưu PII chưa che; không vượt CAPTCHA.
 
-**Scale/Scope**: 1 chủ sở hữu, 1 project; ~20 ngách/lượt, vài lượt/tuần; 7 user story, FR-001…FR-036, SC-001…SC-016.
+**Scale/Scope**: 1 chủ sở hữu, 1 project; ~20 ngách/lượt, vài lượt/tuần; 7 user story, FR-001…FR-036 (gồm FR-006g), SC-001…SC-017.
 
 ## Constitution Check
 
@@ -71,15 +75,15 @@ deselected mặc định, chỉ chạy khi chủ sở hữu bật và có ít nh
 | IV. Human-in-the-Loop (KTL) | AI chỉ đề xuất; chủ sở hữu quyết định; không đăng ký/xuất bản | PASS – endpoint quyết định chỉ do người dùng gọi; tool thu thập là chỉ đọc, `external_effect = false` |
 | V. AI Safety | Nội dung ngoài là dữ liệu không tin cậy (FR-012) | PASS – nội dung bọc trong khối dữ liệu có nhãn, schema đầu ra bắt buộc, giới hạn bước/lời gọi (R-11), tool allowlist |
 | VI. Cost-Aware (KTL) | $2/lượt, Gateway + giữ chỗ E0 | PASS – mọi lời gọi qua Gateway; ước tính ≈ $0,7/lượt (chưa đo); gọi có phí vẫn tắt; không tự tăng ngân sách |
-| VII. OSS-First | Đánh giá SearXNG, Crawl4AI, trafilatura | PASS có điều kiện – phụ thuộc mới liệt kê ở trên cần duyệt; Crawl4AI chỉ tùy chọn |
-| VIII. Module & API-First | Module riêng, API cho mọi chức năng | PASS – `modules/discovery`, tool `searxng_search`/`page_fetch`, import-linter giữ lớp E0 |
+| VII. OSS-First | Đánh giá SearXNG, Crawl4AI, trafilatura | PASS – X8 duyệt có điều kiện; giấy phép/phiên bản/tương thích đã xác minh (R-12); Crawl4AI bị loại có lý do; điều kiện còn lại: ghi chú dữ liệu model spaCy trước production |
+| VIII. Module & API-First | Module riêng, API cho mọi chức năng | PASS – `modules/discovery`, `SourceAdapter` tổng quát (nguồn = cấu hình, không sửa code), import-linter giữ lớp E0 |
 | IX. TDD & truy vết (KTL) | Mỗi FR Must có TC | PASS – mã test `TC_E1_FRxxx_nn`, mở rộng `traceability_report.py` cho spec 002 (xem Complexity) |
-| X. Security-by-Design | PII, secret | PASS – che PII trước DB/AI/log; không secret mới (SearXNG `server.secret_key` sinh lúc cài, nằm ngoài repo); CI secret scanning giữ nguyên |
-| XI. Self-hosted, tiết kiệm | ≤ 3 GB RAM | PASS – SearXNG nhẹ; Crawl4AI tắt mặc định |
+| X. Security-by-Design | PII, secret, tuân thủ nguồn | PASS – `PiiEngine` trước DB/AI/log/checkpoint; nguồn tự động chỉ `ALLOWED`, không đường mã tự bật nguồn; secret nguồn chỉ qua tên biến môi trường; `SEARXNG_SECRET` sinh lúc cài, ngoài repo; erasure ledger fail-safe; CI secret scanning giữ nguyên |
+| XI. Self-hosted, tiết kiệm | ≤ 3 GB RAM | PASS – số đo thật (SearXNG 103 MiB, NER 151 MB); trình duyệt tắt mặc định |
 | XII. Song ngữ | 3 màn hình VI/EN | PASS – khóa i18n mới, test `i18n-keys` áp dụng |
 
-Không có vi phạm cần biện minh; các mở rộng E0 dưới đây là **bổ sung** (không sửa hành vi đã nghiệm thu) nhưng vẫn cần chủ sở hữu duyệt
-theo yêu cầu "không thay đổi kiến trúc E0 khi chưa được phê duyệt".
+Constitution Check lại 2026-11-20 sau khi cập nhật theo phê duyệt: 12/12 PASS, không vi phạm cần biện minh. Các mở rộng E0 (X1–X8)
+là bổ sung, đã được chủ sở hữu duyệt có điều kiện; điều kiện được ghi ở Complexity Tracking.
 
 ## Project Structure
 
@@ -89,12 +93,13 @@ theo yêu cầu "không thay đổi kiến trúc E0 khi chưa được phê duy�
 specs/002-niche-discovery/
 ├── spec.md
 ├── plan.md              # File này
-├── research.md          # Phase 0 (R-01…R-11)
+├── research.md          # Phase 0 (R-01…R-13)
+├── source-verification.md # Nguồn cần xác minh (BLOCKED do mạng)
 ├── data-model.md        # Phase 1
 ├── quickstart.md        # Phase 1 – kịch bản kiểm chứng
 ├── contracts/
 │   ├── openapi.yaml             # REST API E1
-│   ├── internal-interfaces.md   # SearchAdapter, PageFetcher, PiiRedactor, agent, tool, job types
+│   ├── internal-interfaces.md   # SourceAdapter, PageFetcher, PiiEngine, erasure ledger, agent, job types
 │   └── scoring-rubric.md        # Công thức Opportunity/Coverage/Confidence/dedup + ví dụ tính tay
 ├── checklists/requirements.md
 └── tasks.md             # Chưa tạo (/speckit-tasks)
@@ -108,18 +113,24 @@ backend/src/nichepilot/
 │   ├── models.py                    # ORM bảng E1 (data-model §2)
 │   ├── schemas.py                   # Pydantic: đầu ra AI (schema bắt buộc), DTO API
 │   ├── service.py                   # DiscoveryService: tạo lượt, truy vấn xếp hạng, quyết định
-│   ├── sources/policy.py            # SearchSourcePolicyService (ALLOWED/UNVERIFIED/PROHIBITED, cảnh báo, audit)
-│   ├── privacy/redactor.py          # PiiRedactor (EMAIL/PHONE/USER/PERSON), NEEDS_REVIEW
-│   ├── privacy/erasure.py           # EvidenceErasureService + ledger (append-only, reapply)
+│   ├── sources/policy.py            # SourcePolicyService (usable_for_run, cảnh báo, audit; không tự bật/nâng trạng thái)
+│   ├── sources/searxng_config.py    # sinh settings.yml SearXNG (keep_only) từ policy
+│   ├── privacy/engine.py            # PiiEngine (interface) + RegexSpacyPiiEngine; NEEDS_REVIEW/UNSAFE
+│   ├── privacy/erasure.py           # EvidenceErasureService, ledger (hash chain, fsync), apply --strict, ledger_health
 │   ├── evidence_rules.py            # ngưỡng, nhóm độc lập (eTLD+1 + SimHash)
 │   ├── scoring/opportunity.py       # Opportunity + Coverage
 │   ├── scoring/confidence.py        # Confidence (N,Q,D,F,K,V)
 │   ├── dedup.py                     # rapidfuzz token_set_ratio
 │   └── ranking.py                   # 3 danh sách: cơ hội / ưu tiên affiliate / cần nghiên cứu thêm
 ├── tools/                           # MỞ RỘNG – thêm tool chỉ đọc (Tool Registry E0)
-│   ├── searxng_search.py            # SearchAdapter (SearXNG JSON API, lọc engine theo policy)
-│   ├── page_fetch.py                # PageFetcher (robots, rate per domain, trafilatura; Crawl4AI tùy chọn)
-│   └── mock_sources.py              # MockSearchAdapter/MockPageFetcher (dev/test, MOCK)
+│   ├── sources/base.py              # SourceAdapter, SourceResult, registry theo adapter_type
+│   ├── sources/searxng_engine.py    # adapter_type searxng_engine
+│   ├── sources/http_json_api.py     # adapter_type http_json_api (khung, auth qua tên biến môi trường)
+│   ├── sources/dataset.py           # open_dataset / licensed_data (interface + mock)
+│   ├── page_fetch.py                # PageFetcher (robots/protego, rate per domain, httpx + trafilatura)
+│   ├── page_fetch_playwright.py     # tùy chọn, chỉ trong image browser-fetcher
+│   └── mock_sources.py              # MockSourceAdapter/MockPageFetcher (dev/test, MOCK)
+├── ops/apply_erasure_ledger.py      # MỚI – CLI dùng bởi migrate và restore.sh
 ├── ai/agents/niche_discovery.py     # MỚI – NicheDiscoveryAgent (định nghĩa agent: bước, checkpoint)
 ├── jobs/discovery_jobs.py           # MỚI – đăng ký job type discovery.run / reevaluate / recompute
 └── api/v1/discovery.py              # MỚI – router (contracts/openapi.yaml)
@@ -135,9 +146,11 @@ frontend/src/pages/discovery/
 frontend/src/i18n/locales/{vi,en}/discovery.json
 frontend/tests/e2e/discovery.spec.ts
 
-deploy/docker-compose.yml            # + service `searxng` (profile mặc định), `crawl4ai` (profile tùy chọn), volume `erasure-ledger`
-deploy/searxng/settings.yml          # engines tắt mặc định; bật theo policy; limiter tắt (mạng nội bộ)
-deploy/scripts/restore.sh            # + bước áp lại erasure ledger sau restore
+deploy/docker-compose.yml            # + service `searxng`, `browser-fetcher` (profile tùy chọn), volume `erasure-ledger`, `searxng-config`;
+                                     #   migrate: alembic upgrade && apply_erasure_ledger --strict
+deploy/searxng/settings.base.yml     # keep_only rỗng, formats html+json, limiter/public_instance/image_proxy tắt
+deploy/scripts/restore.sh            # + apply_erasure_ledger --strict sau pg_restore; lỗi → exit ≠ 0
+deploy/scripts/backup.sh             # + sao bản ledger kèm dump
 docs/operations/discovery.md         # vận hành E1 (nguồn, xác minh ToS, xóa bằng chứng)
 ```
 
@@ -151,9 +164,10 @@ Mỗi bước là một bước checkpoint của Job Runtime E0 (idempotent theo
 
 1. **plan_queries** – AI `discovery.candidates` đề xuất ≤ 20 ngách ứng viên + truy vấn tìm kiếm (theo thị trường/ngôn ngữ/lĩnh vực
    gợi ý). Không AI (mock) → kết quả `MOCK`.
-2. **check_sources** – lấy engine được bật từ policy; không có → kết thúc `PARTIAL_COMPLETED` / `NO_COMPLIANT_SEARCH_SOURCE`
-   (không gọi AI thêm).
-3. **search** (lặp theo ứng viên) – `searxng_search`; lưu URL ứng viên; lỗi nguồn → ghi trạng thái (FR-006a).
+2. **check_sources** – `SourcePolicyService.usable_for_run(trigger, include_unverified)`; rỗng → kết thúc `PARTIAL_COMPLETED` /
+   `NO_COMPLIANT_SEARCH_SOURCE` (không gọi AI thêm). (API tạo lượt đã từ chối sớm trường hợp này; bước này bắt trường hợp nguồn bị
+   tắt giữa chừng hoặc lượt theo lịch.)
+3. **search** (lặp theo ứng viên) – `SourceAdapter.query` cho từng nguồn hợp lệ; lưu URL ứng viên; lỗi nguồn → ghi trạng thái (FR-006a).
 4. **fetch** (lặp theo trang, ưu tiên ứng viên còn thiếu bằng chứng – FR-030b) – kiểm tra giới hạn thời gian/trang → robots →
    rate per domain → tải → trích nội dung → **che PII** → SimHash → lưu `research_sources` + trích đoạn ứng viên; ghi `page_fetch_log`.
 5. **extract** – AI `discovery.extract` trên trích đoạn đã che PII → pain point, persona, giải pháp, đối thủ, tín hiệu monetization
@@ -171,42 +185,49 @@ Bước 3–6 lặp có dừng sớm khi mọi ứng viên đã đủ bằng ch�
 | Nhóm yêu cầu | Thiết kế | Artifact |
 |---|---|---|
 | FR-001…FR-004 cấu hình/ngân sách lượt | `POST /discovery/runs`, kiểm tra hạn mức trước khi tạo job | openapi, data-model `discovery_runs` |
-| FR-005, FR-006…FR-006f nguồn | SearchSourcePolicy + SearXNG + adapter độc lập | research R-01/R-02, internal-interfaces §1 |
+| FR-005, FR-006…FR-006g nguồn | `source_policies` + `SourceAdapter` + SearXNG; lượt tự động chỉ `ALLOWED` | research R-01/R-02/R-13, internal-interfaces §1, source-verification.md |
 | FR-007…FR-011 phân tích | AI extract/assess với schema; `pain_points`, `buyer_personas`, `competitors`, `niche_findings` | data-model §2 |
-| FR-012…FR-012c PII | PiiRedactor trước DB/AI/log; `NEEDS_REVIEW` | research R-05, internal-interfaces §3 |
+| FR-012…FR-012c PII | `PiiEngine` (regex + phonenumbers + spaCy) trước DB/AI/log; `NEEDS_REVIEW` | research R-05, internal-interfaces §3 |
 | FR-013…FR-016 bằng chứng | `niche_evidence_links`, ngưỡng do mã tính, MOCK | research R-06, scoring-rubric §1 |
-| FR-013e/f xóa | EvidenceErasureService + ledger + restore hook | research R-09, internal-interfaces §4 |
+| FR-013e/f xóa | ledger hash chain + apply `--strict` trong migrate/restore + gate 503 | research R-09, internal-interfaces §4 |
 | FR-017…FR-021 chấm điểm | `niche_evaluations` bất biến, phiên bản trọng số | scoring-rubric §2–3 |
 | FR-022 dedup | `niche_similarity`, `dedup_key` | scoring-rubric §4 |
 | FR-023…FR-026 báo cáo, quyết định, UI | API + 3 màn hình | openapi, quickstart |
 | FR-027…FR-032 job, chi phí, độ bền | Job Runtime E0, `page_fetch_log`, `domain_access_state`, metrics | research R-04/R-11 |
 | FR-033, FR-034 lịch, đánh giá lại | Scheduler E0 với job type `discovery.run`/`discovery.reevaluate` | openapi (dùng `/schedules` E0) |
-| FR-035, FR-036 rủi ro, audit | `risk_flags`, audit action `discovery.*`, `niche.*`, `search_source.*`, `scoring.*`, `evidence.erased` | data-model |
+| FR-035, FR-036 rủi ro, audit | `risk_flags`, audit action `discovery.*`, `niche.*`, `source.*`, `scoring.*`, `evidence.erased` | data-model |
 
-## Complexity Tracking – điểm mở rộng E0 cần chủ sở hữu duyệt
+## Complexity Tracking – điểm mở rộng E0 (duyệt có điều kiện 2026-11-20)
 
-| # | Mở rộng | Lý do | Phương án đơn giản hơn đã cân nhắc |
+| # | Mở rộng | Quyết định | Điều kiện / cách đáp ứng |
 |---|---|---|---|
-| X1 | Thêm service `searxng` (Compose profile mặc định) và `crawl4ai` (profile tùy chọn) | FR-006b – dữ liệu thật; Q1 chọn SearXNG | Gọi trực tiếp máy tìm kiếm: nhiều điều khoản cấm hơn, không có lớp lọc engine |
-| X2 | Thêm cột vào `research_sources`/`research_evidence` (E0) | Tính độc lập, xóa bằng chứng, trạng thái che PII | Bảng phụ 1-1: thêm join cho mọi truy vấn bằng chứng, dễ quên lọc `ERASED` |
-| X3 | `EvidenceService.query` lọc mặc định `lifecycle_status = ACTIVE` | FR-013e | Lọc ở từng nơi gọi: rủi ro rò rỉ bằng chứng đã xóa |
-| X4 | Volume `erasure-ledger` + bước áp lại trong `restore.sh` | FR-013f – dữ liệu đã xóa không quay lại sau restore | Xóa khỏi mọi bản backup: không khả thi với backup đã nén/ngoài máy |
-| X5 | Mã lỗi mới (`NO_COMPLIANT_SEARCH_SOURCE`, `SOURCE_PROHIBITED`, `SOURCE_WARNING_NOT_ACKNOWLEDGED`, `RUN_BUDGET_EXCEEDS_DAILY_LIMIT`, `WEIGHTS_INVALID`, `NICHE_NOT_FOUND`, `EVIDENCE_ALREADY_ERASED`, `DISCOVERY_RUN_NOT_FOUND`) trong `error-codes.json` | Hợp đồng lỗi E0 (code ổn định + i18n) | – |
-| X6 | Task type mới trong Model Task Profile (seed) + định nghĩa agent mới | FR-028 | – (là dữ liệu cấu hình E0 đã hỗ trợ) |
-| X7 | Mở rộng `traceability_report.py` đọc nhiều spec (`TC_E1_` prefix) | Constitution IX | Script riêng cho E1: trùng logic |
-| X8 | Phụ thuộc mới (bảng Technical Context) | R-02…R-08 | Tự viết trích nội dung/robots/PII: kém tin cậy, trái OSS-First |
+| X1 | Service `searxng` (mặc định) và `browser-fetcher` (profile tùy chọn, Playwright) | Đồng ý | `searxng` chỉ mạng nội bộ, `keep_only` rỗng tới khi có nguồn bật; trình duyệt tắt mặc định (thay Crawl4AI – R-03) |
+| X2 | Thêm cột `research_sources`/`research_evidence` | Đồng ý | data-model §1 (gồm `source_policy_id`, `source_compliance`) |
+| X3 | `EvidenceService.query` lọc `ACTIVE` | Đồng ý | – |
+| X4 | Erasure ledger + áp dụng lại khi restore | Đồng ý có điều kiện | (a) bền vững: volume riêng, append-only, fsync, hash chain, bản sao kèm backup; (b) áp dụng **trước khi** dùng/phục vụ: chạy trong `migrate` (api/worker phụ thuộc) và trong `restore.sh`; (c) thất bại an toàn: thiếu/hỏng/lệch → exit ≠ 0, `BLOCKED`, API 503 `ERASURE_LEDGER_NOT_APPLIED`, worker không nhận job; (d) test TC_E1_FR013f_* (research R-09) |
+| X5 | Mã lỗi mới | Đồng ý | Bổ sung: `UNVERIFIED_SOURCE_NOT_ENABLED`, `SOURCE_VERIFICATION_INCOMPLETE`, `SOURCE_CONFIG_INVALID`, `SOURCE_EXISTS`, `ERASURE_LEDGER_NOT_APPLIED`, `EVIDENCE_NOT_FOUND` |
+| X6 | Task type AI + agent mới | Đồng ý | Model chỉ qua Model Task Profile; không hard-code |
+| X7 | `traceability_report.py` đọc nhiều spec | Đồng ý | – |
+| X8 | Dependency mới | Đồng ý có điều kiện | Đã xác minh (R-12). Thêm vào `pyproject.toml` từng gói kèm ghim phiên bản trong task riêng; spaCy model chỉ cài từ wheel ghim + SHA-256; Playwright chỉ trong image tùy chọn; production chờ chủ sở hữu chấp nhận ghi chú dữ liệu model spaCy – nếu không chấp nhận, PII engine chạy regex + phonenumbers và mọi đoạn tiếng Anh có khả năng chứa tên → `NEEDS_REVIEW` |
 
-## Rủi ro và việc cần chủ sở hữu quyết định trước `/speckit-tasks`
+## Mục BLOCKED do giới hạn mạng (không phải lỗi implementation)
 
-1. **Hồ sơ tuân thủ nguồn**: trong môi trường này chỉ đọc được điều khoản của Microsoft/Bing (có điều khoản cấm "impermissible
-   scraping") – mọi engine khác `UNVERIFIED` do mạng bị chặn (research R-01). Hệ quả: mặc định mọi lượt kết thúc
-   `NO_COMPLIANT_SEARCH_SOURCE` cho tới khi chủ sở hữu xác minh ít nhất một nguồn `ALLOWED` hoặc tự bật nguồn `UNVERIFIED` có cảnh báo.
-2. **Crawl4AI**: chấp nhận làm profile tùy chọn (khuyến nghị) hay mặc định; xác nhận cách hiểu yêu cầu ghi công.
-3. **Nhận diện tên người**: spaCy `en_core_web_sm` cho tiếng Anh + heuristic/`NEEDS_REVIEW` cho ngôn ngữ khác (R-05), hay Presidio.
-4. **Model cho task type mới** (Haiku 5.5 / Sonnet 5.5) – chỉ dùng khi giá đã xác minh; gọi có phí vẫn tắt.
-5. Duyệt các mở rộng X1–X8.
+Chi tiết: [source-verification.md](./source-verification.md) §4.
 
-## Kiểm tra tính nhất quán (Phase 1 – 2026-11-19)
+| Mục | Trạng thái | Ảnh hưởng |
+|---|---|---|
+| Xác minh điều khoản 11 nguồn (S1–S11) | BLOCKED | Mọi nguồn `UNVERIFIED`; lượt nguồn thật → `NO_COMPLIANT_SEARCH_SOURCE`; SC-013 chưa kiểm chứng được |
+| Đọc RFC 9309 (S12) | BLOCKED | Dùng phương án thận trọng (R-04) |
+| Truy vấn JSON thật qua SearXNG | NOT_TESTED (không được phép khi chưa có nguồn hợp lệ) | Định dạng phản hồi thật từng engine chưa kiểm chứng |
+| Claude/OpenAI API thật | NOT_TESTED (kế thừa E0) | Phân tích AI chạy `MockAIProvider`, kết quả `MOCK` |
+
+## Câu hỏi cần chủ sở hữu xác nhận (không chặn `/speckit-tasks`)
+
+1. Cách hiểu FR-006d: nguồn `UNVERIFIED` do chủ sở hữu bật **chỉ** dùng trong lượt thủ công có chọn rõ `include_unverified_sources`,
+   không bao giờ trong lượt theo lịch. Nếu muốn chặt hơn (cấm hẳn dùng nguồn `UNVERIFIED`), chỉ cần bỏ tùy chọn này.
+2. Chấp nhận ghi chú dữ liệu huấn luyện của model `en_core_web_sm` cho production (X8).
+
+## Kiểm tra tính nhất quán (Phase 1 – 2026-11-19, kiểm tra lại 2026-11-20)
 
 **Với Master Requirements**
 
@@ -234,5 +255,5 @@ E5–E8.
 nguyên; $2/lượt là giới hạn job E0 sẵn có. `AI_PAID_CALLS_ENABLED=false` giữ nguyên; chưa có model/giá đã xác minh nên E1 chạy với
 `MockAIProvider` cho tới khi chủ sở hữu bật API thật theo `docs/operations/enable-real-api.md`.
 
-**Không còn `NEEDS CLARIFICATION`** trong Technical Context. Các mục chờ quyết định là phê duyệt (X1–X8, mục "Rủi ro và việc cần
-chủ sở hữu quyết định"), không phải mơ hồ yêu cầu.
+**Không còn `NEEDS CLARIFICATION`** trong Technical Context. Hai câu hỏi xác nhận ở trên không chặn lập task (mặc định đã chọn phương án
+chặt hơn trong phạm vi quyết định của chủ sở hữu).

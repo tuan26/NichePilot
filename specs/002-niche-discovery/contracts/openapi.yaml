@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NichePilot API – E1 Autonomous Niche Discovery
-  version: 0.2.0-draft
+  version: 0.2.1-draft
   description: |
     Hợp đồng REST API của E1. Kế thừa toàn bộ quy ước E0 (specs/001-foundation-ai-infrastructure/contracts/openapi.yaml):
     - Phiên đăng nhập cookie `np_session`; request thay đổi dữ liệu gửi `X-CSRF-Token`.
@@ -11,6 +11,8 @@ info:
       với `job_type` ∈ {discovery.run, discovery.reevaluate}.
     - Opportunity Score là điểm ưu tiên nghiên cứu, KHÔNG phải dự báo doanh thu (FR-019c).
     - Không endpoint nào trả nội dung PII chưa che (FR-012b).
+    - Khi erasure ledger chưa được áp dụng đầy đủ (research R-09), mọi endpoint dữ liệu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`.
+    - Không endpoint nào trả giá trị secret của nguồn; cấu hình nguồn chỉ chứa tên biến môi trường (`auth_env_var`).
 servers:
   - url: /
 security:
@@ -19,7 +21,7 @@ tags:
   - name: discovery
   - name: niches
   - name: evidence
-  - name: search-sources
+  - name: sources
   - name: scoring
 
 paths:
@@ -72,7 +74,8 @@ paths:
         "409":
           description: |
             `BUDGET_NOT_CONFIGURED` | `RUN_BUDGET_EXCEEDS_DAILY_LIMIT` | `NO_COMPLIANT_SEARCH_SOURCE`
-            (không có nguồn tìm kiếm được bật – từ chối sớm, không tạo job)
+            (không có nguồn `ALLOWED` bật và khả dụng, và không chọn `include_unverified_sources` – từ chối sớm, không tạo job)
+            | `UNVERIFIED_SOURCE_NOT_ENABLED` (chọn `include_unverified_sources` nhưng không có nguồn UNVERIFIED nào được bật)
           content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
         "422": { $ref: "#/components/responses/ValidationError" }
 
@@ -259,41 +262,47 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: "`EVIDENCE_ALREADY_ERASED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
-  /api/v1/search-sources:
+  /api/v1/sources:
     get:
-      tags: [search-sources]
-      summary: Hồ sơ tuân thủ nguồn tìm kiếm (FR-006c)
+      tags: [sources]
+      summary: Hồ sơ tuân thủ nguồn dữ liệu (FR-006c)
       responses:
         "200":
           description: OK
-          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SourcePolicy" } } } }
     post:
-      tags: [search-sources]
-      summary: Chủ sở hữu thêm nguồn (FR-006d) – bắt đầu UNVERIFIED, tắt
+      tags: [sources]
+      summary: Chủ sở hữu thêm nguồn thuộc loại adapter đã có (FR-006g) – luôn bắt đầu UNVERIFIED, tắt; audit `source.created`
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [engine_key, display_name, integration_method, tos_url]
+              required: [source_key, display_name, adapter_type, tos_url, config]
+              additionalProperties: false
               properties:
-                engine_key: { type: string, pattern: "^[a-z0-9_:.-]{2,64}$" }
+                source_key: { type: string, pattern: "^[a-z0-9_:.-]{2,64}$" }
                 display_name: { type: string, maxLength: 120 }
-                integration_method: { type: string, enum: [SEARXNG_ENGINE, OFFICIAL_API] }
+                adapter_type: { $ref: "#/components/schemas/AdapterType" }
                 tos_url: { type: string, format: uri }
+                config: { $ref: "#/components/schemas/SourceConfig" }
       responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/SourcePolicy" } } } }
         "409": { description: "`SOURCE_EXISTS`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+        "422": { description: "`VALIDATION_ERROR` | `SOURCE_CONFIG_INVALID` (sai schema của adapter, chứa trường giống secret)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
-  /api/v1/search-sources/{source_id}:
+  /api/v1/sources/{source_id}:
     put:
-      tags: [search-sources]
-      summary: Cập nhật trạng thái xác minh / bật-tắt – audit `search_source.updated`
+      tags: [sources]
+      summary: Cập nhật hồ sơ tuân thủ / bật-tắt – chỉ chủ sở hữu; audit `source.updated` (trước/sau)
       description: |
         - enabled=true với PROHIBITED → 409 `SOURCE_PROHIBITED`.
-        - enabled=true với UNVERIFIED cần `acknowledge_warning=true` → nếu thiếu 409 `SOURCE_WARNING_NOT_ACKNOWLEDGED`.
-        - compliance_status=ALLOWED|PROHIBITED cần `verified_at` và `verification_note` (≥ 10 ký tự).
+        - enabled=true với UNVERIFIED cần `acknowledge_warning=true` → thiếu: 409 `SOURCE_WARNING_NOT_ACKNOWLEDGED`.
+          Nguồn UNVERIFIED đã bật chỉ được dùng trong lượt MANUAL có `include_unverified_sources=true` (FR-006d).
+        - compliance_status=ALLOWED cần `verified_at`, `verification_note` (≥ 10 ký tự), `allowed_access_methods` (≥ 1),
+          `permitted_use_scope` → thiếu: 422 `SOURCE_VERIFICATION_INCOMPLETE`. PROHIBITED cần `verified_at` + `verification_note`.
+        - Bật/tắt nguồn `searxng_engine` → hệ thống sinh lại cấu hình SearXNG; phản hồi có `requires_service_restart`.
       parameters:
         - { name: source_id, in: path, required: true, schema: { type: string, format: uuid } }
       requestBody:
@@ -302,18 +311,22 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               properties:
                 compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
                 verified_at: { type: string, format: date }
                 verification_note: { type: string, maxLength: 2000 }
+                allowed_access_methods: { type: array, items: { $ref: "#/components/schemas/AccessMethod" } }
+                permitted_use_scope: { type: string, maxLength: 1000 }
                 tos_url: { type: string, format: uri }
                 known_limits: { type: string, maxLength: 1000 }
+                config: { $ref: "#/components/schemas/SourceConfig" }
                 enabled: { type: boolean }
                 acknowledge_warning: { type: boolean }
       responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SearchSourcePolicy" } } } }
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SourcePolicy" } } } }
         "409": { description: "`SOURCE_PROHIBITED` | `SOURCE_WARNING_NOT_ACKNOWLEDGED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
-        "422": { $ref: "#/components/responses/ValidationError" }
+        "422": { description: "`VALIDATION_ERROR` | `SOURCE_VERIFICATION_INCOMPLETE` | `SOURCE_CONFIG_INVALID`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
   /api/v1/scoring/weights:
     get:
@@ -348,6 +361,7 @@ components:
     RunId: { name: run_id, in: path, required: true, schema: { type: string, format: uuid } }
     NicheId: { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
   responses:
+    LedgerNotApplied: { description: "`ERASURE_LEDGER_NOT_APPLIED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
     Unauthorized: { description: "`UNAUTHENTICATED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
     NotFound: { description: "`DISCOVERY_RUN_NOT_FOUND` | `NICHE_NOT_FOUND` | `EVIDENCE_NOT_FOUND`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
     ValidationError: { description: "`VALIDATION_ERROR`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
@@ -383,6 +397,10 @@ components:
         time_limit_minutes: { type: integer, minimum: 5, maximum: 240, default: 90 }
         page_limit: { type: integer, minimum: 10, maximum: 2000, default: 300 }
         per_domain_interval_s: { type: number, minimum: 1, default: 2, description: Mức trần; robots/Retry-After nghiêm hơn được ưu tiên }
+        include_unverified_sources:
+          type: boolean
+          default: false
+          description: Chỉ lượt thủ công; dùng thêm nguồn UNVERIFIED mà chủ sở hữu đã bật (cảnh báo hiển thị trên UI). Lịch E0 luôn false.
     RunMetrics:
       type: object
       properties:
@@ -415,6 +433,9 @@ components:
         page_limit: { type: integer }
         weights_version: { type: integer }
         source_mode: { $ref: "#/components/schemas/DataOrigin" }
+        trigger: { type: string, enum: [MANUAL, SCHEDULED] }
+        include_unverified_sources: { type: boolean }
+        sources: { type: array, items: { type: object, properties: { source_key: { type: string }, compliance_status: { $ref: "#/components/schemas/ComplianceStatus" } } } }
         outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, null] }
         stop_reason:
           type: [string, "null"]
@@ -508,6 +529,7 @@ components:
         quality: { type: [number, "null"] }
         independence_group: { type: string }
         counted_for_threshold: { type: boolean }
+        source_compliance: { type: string, enum: [ALLOWED, UNVERIFIED], description: Trạng thái nguồn lúc thu thập (FR-006d) }
         data_origin: { $ref: "#/components/schemas/DataOrigin" }
     Finding:
       type: object
@@ -555,21 +577,44 @@ components:
         niche_b_id: { type: string, format: uuid }
         score: { type: number }
         status: { type: string, enum: [POSSIBLE, CONFIRMED_DUPLICATE, NOT_DUPLICATE] }
-    SearchSourcePolicy:
+    AdapterType: { type: string, enum: [searxng_engine, http_json_api, open_dataset, licensed_data] }
+    AccessMethod: { type: string, enum: [SEARXNG_ENGINE, OFFICIAL_API, DATASET_DOWNLOAD] }
+    SourceConfig:
       type: object
-      required: [id, engine_key, display_name, integration_method, tos_url, compliance_status, enabled]
+      description: |
+        Cấu hình theo adapter_type (internal-interfaces.md §1). Không chứa thông tin bí mật: khóa có tên gợi ý thông tin xác
+        thực (danh sách chặn định nghĩa trong mã) bị từ chối; xác thực chỉ qua `auth_env_var` (tên biến môi trường).
+      properties:
+        engine_name: { type: string }
+        base_url: { type: string, format: uri }
+        query_template: { type: string }
+        result_mapping: { type: object, additionalProperties: { type: string } }
+        rate_limit_per_minute: { type: integer, minimum: 1 }
+        auth_env_var: { type: string, pattern: "^[A-Z][A-Z0-9_]{2,63}$" }
+        path: { type: string }
+        license_url: { type: string, format: uri }
+      additionalProperties: true
+    SourcePolicy:
+      type: object
+      required: [id, source_key, display_name, adapter_type, tos_url, compliance_status, enabled]
       properties:
         id: { type: string, format: uuid }
-        engine_key: { type: string }
+        source_key: { type: string }
         display_name: { type: string }
-        integration_method: { type: string, enum: [SEARXNG_ENGINE, OFFICIAL_API] }
+        adapter_type: { $ref: "#/components/schemas/AdapterType" }
+        config: { $ref: "#/components/schemas/SourceConfig" }
         tos_url: { type: string }
         verified_at: { type: [string, "null"], format: date }
         verification_note: { type: [string, "null"] }
+        allowed_access_methods: { type: array, items: { $ref: "#/components/schemas/AccessMethod" } }
+        permitted_use_scope: { type: [string, "null"] }
         compliance_status: { $ref: "#/components/schemas/ComplianceStatus" }
         known_limits: { type: [string, "null"] }
         enabled: { type: boolean }
+        usable_in_scheduled_runs: { type: boolean, description: "= enabled ∧ ALLOWED" }
         warning_acknowledged_at: { type: [string, "null"], format: date-time }
+        requires_service_restart: { type: boolean }
+
     RankingReport:
       type: object
       required: [run, research_ranking, affiliate_priority, needs_research, disclaimer_key, generated_at]

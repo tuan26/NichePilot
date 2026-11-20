@@ -1,6 +1,6 @@
 # Research: E1 – Autonomous Niche Discovery
 
-**Ngày**: 2026-11-19 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
+**Ngày**: 2026-11-19, cập nhật 2026-11-20 (theo phê duyệt có điều kiện của chủ sở hữu) | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
 Quy ước: chỉ ghi là "đã xác minh" những gì đã đọc được từ trang chính thức trong phiên này, kèm URL và ngày. Điều gì chưa đọc
 được ghi rõ `UNVERIFIED` / "chưa xác minh" – không điền từ trí nhớ (Constitution I).
@@ -9,97 +9,101 @@ Quy ước: chỉ ghi là "đã xác minh" những gì đã đọc được từ
 (policies.google.com, duckduckgo.com, search.brave.com, www.mojeek.com, mwmbl.org, about.marginalia-search.com,
 meta.wikimedia.org, www.mediawiki.org, api.stackexchange.com, hn.algolia.com, docs.searxng.org, docs.crawl4ai.com,
 www.rfc-editor.org) bị chính sách mạng chặn (lỗi DNS); www.startpage.com bị công cụ đọc web từ chối. Hai yêu cầu mở mạng cho
-môi trường đều bị dịch vụ môi trường từ chối. Vì vậy **R-01 là điều kiện chặn trước khi bật nguồn tìm kiếm thật** (xem R-01).
+môi trường đều bị dịch vụ môi trường từ chối. Chủ sở hữu (2026-11-20) **không** đồng ý thay đổi mạng của môi trường dùng chung:
+nguồn chưa xác minh giữ `UNVERIFIED`, việc xác minh làm sau trên môi trường có quyền truy cập phù hợp, và **không coi là lỗi
+implementation**. Danh sách nguồn cần xác minh: [source-verification.md](./source-verification.md).
+
+Truy cập được trong phiên 2026-11-20: PyPI JSON API (`pypi.org`), GitHub releases, Docker Hub (kéo image để đo tài nguyên) – dùng cho
+R-12 (xác minh dependency). Mọi phép đo chạy trong môi trường tách biệt (scratchpad / container mạng nội bộ), không gửi truy vấn tìm
+kiếm ra ngoài.
 
 ---
 
-## R-01 – Hồ sơ tuân thủ máy tìm kiếm thượng nguồn cho SearXNG (FR-006c…FR-006f)
+## R-01 – Hồ sơ tuân thủ nguồn (FR-006c…FR-006g)
 
-**Decision**: Mỗi máy tìm kiếm thượng nguồn có một bản ghi `search_source_policies` (URL điều khoản, ngày xác minh, phương thức
-tích hợp, giới hạn đã biết, trạng thái `ALLOWED`/`UNVERIFIED`/`PROHIBITED`). Seed ban đầu: **tất cả `UNVERIFIED`, tắt**. Chỉ
-chuyển `ALLOWED` sau khi đọc được điều khoản chính thức (chủ sở hữu hoặc agent khi được mở mạng), ghi audit. Khi không có nguồn
-`ALLOWED` nào được bật, lượt khám phá báo `NO_COMPLIANT_SEARCH_SOURCE` (FR-006e) – không tạo dữ liệu thay thế.
+**Decision** (cập nhật 2026-11-20): mỗi nguồn có một bản ghi `source_policies` (data-model §2): URL điều khoản, ngày xác minh, người
+xác minh + căn cứ, **phương thức truy cập được phép**, **phạm vi sử dụng được phép**, giới hạn đã biết, trạng thái
+`ALLOWED`/`UNVERIFIED`/`PROHIBITED`. Seed: **tất cả `UNVERIFIED`, tắt**. Quy tắc:
+- Chỉ `ALLOWED` dùng được trong lượt **tự động** (lịch, đánh giá lại theo lịch). Hệ thống không bao giờ tự bật nguồn hay tự nâng
+  trạng thái; không có đường mã nào đặt `ALLOWED` ngoài API cập nhật của chủ sở hữu (kèm căn cứ bắt buộc, audit).
+- `UNVERIFIED`: chủ sở hữu có thể bật (cảnh báo + audit, Q4), nhưng chỉ dùng trong lượt chủ sở hữu khởi chạy thủ công với
+  `include_unverified_sources = true`; bằng chứng mang `source_compliance = UNVERIFIED`. Agent **không** bật nguồn `UNVERIFIED` để
+  chạy thử dữ liệu thật.
+- `PROHIBITED`: CHECK ở DB + kiểm tra ở service + adapter từ chối.
+- Có API miễn phí ≠ được phép cho mọi mục đích: `permitted_use_scope` phải ghi rõ phạm vi (ví dụ: nghiên cứu nội bộ, lưu trích đoạn,
+  hiển thị kèm ghi nguồn); thiếu → không thể đặt `ALLOWED`.
+- Không có nguồn hợp lệ → `NO_COMPLIANT_SEARCH_SOURCE` (FR-006e).
 
-Kết quả xác minh trong phiên này (2026-11-19):
+Kết quả xác minh 2026-11-19 (không đổi – chưa có căn cứ mới):
 
-| Nguồn (engine SearXNG) | URL điều khoản / tài liệu | Đọc được? | Nội dung liên quan | Trạng thái đề xuất |
-|---|---|---|---|---|
-| Bing (Microsoft) | https://www.microsoft.com/en-us/servicesagreement | Có (một phần, ~40/132 nghìn ký tự đọc nguyên văn) | Mục 3.a.vi: "Don't circumvent any restrictions on access to, usage, or availability of the Services", kèm ví dụ "impermissible scraping"; mục 3.a.v: "automating inauthentic activity". Không có điều khoản nói rõ cho phép hay cấm meta-search gửi truy vấn tự động; "impermissible" không được định nghĩa | `UNVERIFIED` (không đủ căn cứ cho `ALLOWED`; chưa đủ căn cứ ghi `PROHIBITED`) – tắt |
-| Google | https://policies.google.com/terms, https://www.google.com/robots.txt | Không (mạng) | – | `UNVERIFIED` – tắt |
-| DuckDuckGo | https://duckduckgo.com/terms, https://duckduckgo.com/robots.txt | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Brave Search | https://search.brave.com/help/terms-of-service | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Mojeek | https://www.mojeek.com/about/terms, https://www.mojeek.com/services/search/web-search-api/ | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Startpage | https://www.startpage.com/en/terms-of-service/ | Không (công cụ từ chối) | – | `UNVERIFIED` – tắt |
-| Mwmbl | https://mwmbl.org | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Marginalia Search | https://about.marginalia-search.com/article/api/ | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Wikipedia (MediaWiki API) | https://meta.wikimedia.org/wiki/User-Agent_policy, https://www.mediawiki.org/wiki/API:Etiquette | Không (mạng) | – | `UNVERIFIED` – tắt |
-| Stack Exchange API | https://api.stackexchange.com/docs/throttle, https://stackapps.com/help/api-authentication | Không (mạng/công cụ) | – | `UNVERIFIED` – tắt |
-| Hacker News (Algolia API) | https://hn.algolia.com/api | Không (mạng) | – | `UNVERIFIED` – tắt |
+| Nguồn | Trạng thái | Ghi chú |
+|---|---|---|
+| Bing (Microsoft) | `UNVERIFIED` – tắt | Đọc được một phần Microsoft Services Agreement: §3.a.vi cấm "circumvent any restrictions…", ví dụ "impermissible scraping"; không định nghĩa "impermissible", không nói về meta-search |
+| Google, DuckDuckGo, Brave Search, Mojeek, Startpage, Mwmbl, Marginalia, Wikipedia/MediaWiki API, Stack Exchange API, Hacker News (Algolia) | `UNVERIFIED` – tắt | **BLOCKED**: không đọc được điều khoản do mạng (Startpage: công cụ đọc web từ chối) |
 
-**Hệ quả**: với cấu hình mặc định hiện tại, lượt khám phá dùng nguồn thật sẽ báo `NO_COMPLIANT_SEARCH_SOURCE` cho tới khi ít
-nhất một nguồn được xác minh `ALLOWED`. Đây là hành vi đúng theo Q4, nhưng **chưa đáp ứng được yêu cầu "E1 phải thu thập dữ liệu
-thị trường thực tế"** cho tới khi xác minh xong. Đề xuất cho chủ sở hữu (chọn một):
+Chi tiết URL chính thức, nội dung cần kiểm tra, mẫu ghi kết quả: [source-verification.md](./source-verification.md).
 
-1. Cho phép các host trong bảng trên ở Network access của môi trường (Allowed domains) → agent đọc lại điều khoản và cập nhật
-   bảng + seed trước `/speckit-tasks`; hoặc
-2. Chủ sở hữu tự đọc điều khoản và gửi kết luận (URL + ngày + trích đoạn) → agent ghi vào seed.
+**Hệ quả**: sau khi triển khai, lượt dùng nguồn thật báo `NO_COMPLIANT_SEARCH_SOURCE` cho tới khi chủ sở hữu xác minh ít nhất một nguồn.
+Kiểm thử tự động dùng adapter giả lập (MOCK) nên không bị chặn. Đây là trạng thái cấu hình, không phải lỗi implementation.
 
-Ưu tiên xác minh các nguồn có **API chính thức công khai** (Wikipedia/MediaWiki API, Stack Exchange API, Hacker News Algolia API,
-Mojeek API, Marginalia API) vì đây là các nguồn có khả năng cao nhất có điều khoản cho phép truy cập tự động theo phương thức tích
-hợp dự kiến. Máy tìm kiếm web tổng quát (Google, Bing, DuckDuckGo, Brave, Startpage) chỉ bật khi điều khoản cho phép rõ ràng.
-
-**Rationale**: Q4 yêu cầu chỉ bật nguồn đã xác minh; ghi `UNVERIFIED` khi chưa đọc được là cách duy nhất không bịa kết luận.
-
-**Alternatives considered**: (a) dùng cấu hình engine mặc định của SearXNG – bị loại theo Q4; (b) điền trạng thái từ hiểu biết
-trước đó của mô hình – vi phạm Constitution I.
+**Alternatives considered**: dùng engine mặc định của SearXNG – loại (Q4; R-02 cho thấy template mặc định có 353 engine và một số
+engine tự kết nối ra ngoài lúc khởi động); điền trạng thái từ hiểu biết trước đó của mô hình – vi phạm Constitution I.
 
 ## R-02 – SearXNG: triển khai và tích hợp
 
-**Decision**: Chạy image SearXNG chính thức, **không sửa mã**, như service `searxng` trong Docker Compose profile `research` (tắt mặc
-định, bật khi dùng nguồn thật), `mem_limit` 256m, chỉ mở trong mạng nội bộ Compose (không publish cổng). File `settings.yml` do
-NichePilot cung cấp: bật định dạng `json`, `keep_only` danh sách engine ứng viên trong bảng R-01, tắt mọi engine khác, `limiter`
-không cần (chỉ worker nội bộ truy cập). Adapter `SearxngSearchAdapter` gửi `GET /search?format=json&q=…&engines=<danh sách
-ALLOWED đang bật>&language=…` → **phòng thủ hai lớp**: SearXNG chỉ có engine ứng viên, và mỗi truy vấn chỉ nêu engine `ALLOWED`.
+**Decision**: image chính thức `searxng/searxng`, **không sửa mã**, ghim tag theo ngày (ví dụ `2026.11.18-b867c56a5`), service
+`searxng` trong Compose (X1 đã duyệt), `mem_limit 256m`, chỉ trong mạng nội bộ Compose (không publish cổng). `settings.yml` do
+NichePilot cung cấp, sinh từ `source_policies`:
+- `use_default_settings.engines.keep_only: [<engine của nguồn đang bật>]` – rỗng khi chưa nguồn nào được bật → SearXNG không truy vấn
+  engine nào; `search.formats: [html, json]`; `server.limiter: false`, `public_instance: false`, `image_proxy: false`;
+  `server.secret_key` từ biến môi trường `SEARXNG_SECRET` (sinh lúc cài, không commit).
+- Khi chủ sở hữu bật/tắt nguồn → service ghi lại `settings.yml` (volume cấu hình) và yêu cầu khởi động lại `searxng` (thao tác vận
+  hành có hướng dẫn) – không cần sửa code (FR-006g). Adapter vẫn truyền `engines=` chỉ gồm nguồn hợp lệ cho lượt (phòng thủ 2 lớp).
 
-- Giấy phép: **AGPL-3.0** – đã xác minh tại https://github.com/searxng/searxng (2026-11-19): "This project is licensed under the GNU
-  Affero General Public License (AGPL-3.0)". Dùng như dịch vụ riêng, không sửa mã → không phát sinh nghĩa vụ công bố mã của
-  NichePilot; nếu sau này sửa SearXNG thì phải công bố phần sửa cho người dùng mạng. Ghi vào Technology Evaluation (Constitution VII).
-- Cách bật `formats: [html, json]`, cấu trúc `settings.yml`, tham số `engines` và limiter: **chưa xác minh từ docs.searxng.org** (bị
-  chặn) → task triển khai đầu tiên của nhóm này là đọc tài liệu chính thức (hoặc mã nguồn trên GitHub, truy cập được) và ghi lại.
-- SearXNG không trả kết quả / lỗi / timeout → bước tìm kiếm ghi `SEARCH_UNAVAILABLE` hoặc `NO_RESULTS` cho ứng viên đó (FR-006a);
-  mọi engine `ALLOWED` lỗi → `NO_COMPLIANT_SEARCH_SOURCE` cho lượt (FR-006e).
+**Đã xác minh 2026-11-20** (kéo image `searxng/searxng:2026.11.18-b867c56a5`, chạy trong mạng Docker `--internal`):
+- Nhãn OCI `org.opencontainers.image.licenses = AGPL-3.0-or-later`, nguồn `https://github.com/searxng/searxng` (khớp xác minh
+  GitHub 2026-11-19).
+- Kích thước image ≈ 402 MB (Docker Hub báo ≈ 96 MB nén); **RAM nghỉ ≈ 103 MiB**, CPU ≈ 0,4% – phù hợp 4 core / 15 GB.
+- `searx/settings.yml` mặc định: `search.formats` chỉ `html` (phải bật `json`), `server.limiter: false`, `public_instance: false`,
+  `image_proxy: false`, `secret_key` bị ghi đè bởi `SEARXNG_SECRET`; 353 mục engine; `settings_loader.py` hỗ trợ
+  `use_default_settings.engines.keep_only`.
+- Với cấu hình mặc định, khi khởi động engine `radio browser` cố khởi tạo (kết nối mạng) → xác nhận phải dùng `keep_only`.
+- Trên host không có IPv6, server `granian` lỗi "Address family not supported" → cần `GRANIAN_HOST=0.0.0.0` (ghi vào Compose/tài
+  liệu vận hành; cần kiểm tra lại trên Windows/WSL2).
+- `/healthz` trả `OK`. Truy vấn JSON thật **không** được thử (không có nguồn được phép).
 
-**Alternatives**: API tìm kiếm trả phí (Brave/Bing API) – loại theo Q1 (không key trả phí); scrape trực tiếp trang tìm kiếm – loại
-(ToS, CAPTCHA).
+Nghĩa vụ AGPL: dùng như dịch vụ riêng, không sửa mã → không phát sinh nghĩa vụ công bố mã NichePilot; nếu sửa SearXNG phải công bố
+phần sửa. Ghi vào Technology Evaluation.
 
-## R-03 – Thu thập nội dung trang: Crawl4AI và phương án nhẹ hơn (Constitution VII)
+SearXNG lỗi/timeout → `SEARCH_UNAVAILABLE`/`NO_RESULTS` cho ứng viên (FR-006a); mọi nguồn hợp lệ lỗi → `NO_COMPLIANT_SEARCH_SOURCE`.
 
-Đã xác minh (2026-11-19):
-- **Crawl4AI** – https://github.com/unclecode/crawl4ai: Apache-2.0 ("attribution is recommended"; một mục khác ghi "you must include
-  one of the following attribution methods" – **mâu thuẫn trong README**, cần chủ sở hữu quyết định có ghi công hay không), bản
-  mới nhất v0.9.5 (14/10/2026), **cần trình duyệt** (`crawl4ai-setup` cài browser; Playwright Chromium), có Docker image chính
-  thức `unclecode/crawl4ai` chạy với `--shm-size=1g`, server cần `CRAWL4AI_API_TOKEN`. Tùy chọn tôn trọng robots.txt **không thấy
-  trong README** (chưa xác minh). Yêu cầu RAM khuyến nghị: chưa xác minh (docs bị chặn).
-- **trafilatura** – https://github.com/adbar/trafilatura: Apache-2.0 (từ v1.8.0; bản cũ GPLv3+), trích nội dung chính từ HTML
-  (extractor riêng + jusText/readability-lxml dự phòng); README không nhắc tới trình duyệt (suy luận: không cần trình duyệt).
+**Alternatives**: API tìm kiếm trả phí – loại (Q1); scrape trực tiếp trang kết quả tìm kiếm – loại (ToS, CAPTCHA).
 
-**Decision**: **Fetcher mặc định nhẹ**: HTTP client của worker (httpx, đã có) + `trafilatura` để trích nội dung chính – không cần
-trình duyệt, chạy trong worker, không thêm container. **Crawl4AI là adapter tùy chọn** cho trang cần JavaScript: service `crawl4ai`
-trong Compose profile `browser-crawler` (tắt mặc định), chỉ bật khi chủ sở hữu chọn; khi bật, NichePilot tự kiểm tra robots.txt
-và tốc độ **trước khi** gọi Crawl4AI (không phụ thuộc tùy chọn của Crawl4AI). Cả hai dùng chung interface `PageFetcher`.
+## R-03 – Thu thập nội dung trang (Constitution VII)
 
-**Rationale**: Crawl4AI kéo theo Chromium (RAM lớn, `shm 1g`) trái nguyên tắc "công cụ nặng chỉ bật khi cần" và mục tiêu RAM
-≤ 3 GB của E0; phần lớn trang diễn đàn/đánh giá/blog trả HTML tĩnh. **Cần chủ sở hữu duyệt**: chủ sở hữu "ưu tiên Crawl4AI hoặc
-công cụ phù hợp" – plan đề xuất trafilatura làm mặc định, Crawl4AI tùy chọn.
+**Decision** (chủ sở hữu duyệt 2026-11-20): **mặc định** HTTP client của worker (httpx, đã có trong E0) + `trafilatura` – không trình
+duyệt, không container mới. **Tùy chọn** cho trang cần JavaScript: `PlaywrightPageFetcher` dùng Playwright (Apache-2.0) + Chromium
+trong container riêng thuộc Compose profile `browser-fetcher`, **tắt mặc định**; NichePilot kiểm tra robots.txt/tốc độ trước khi gọi.
 
-**Alternatives**: Crawl4AI mặc định (nặng, luôn có Chromium); Playwright trực tiếp (nặng tương tự); Scrapy (khung crawl lớn, thừa
-cho mức 300 trang/lượt).
+**Crawl4AI: không dùng trong E1** (giữ là phương án được đánh giá). Lý do đã xác minh 2026-11-20 từ metadata PyPI `crawl4ai 0.9.5`:
+phụ thuộc bắt buộc gồm `playwright-stealth` và `patchright` (công cụ che dấu trình duyệt tự động để tránh bị phát hiện bot) – mâu thuẫn
+trực tiếp với FR-006f (không vượt cơ chế hạn chế truy cập) và NFR-11; thêm `unclecode-litellm==1.81.13` (bản fork ghim của LiteLLM),
+`aiosqlite`, `pillow`, `numpy` – nặng và thừa. README còn mâu thuẫn về yêu cầu ghi công (xác minh 2026-11-19). Theo X8 ("không dùng
+dependency có điều kiện giấy phép chưa rõ trong production"), Crawl4AI không đủ điều kiện. Playwright trực tiếp đáp ứng nhu cầu
+"trang cần JavaScript" với giấy phép rõ ràng và không có thành phần lẩn tránh.
+
+- `trafilatura 2.3.1` (2026-10-06), Apache-2.0, Python ≥ 3.10, wheel chạy được trên 3.13 – chi tiết R-12.
+- Playwright `1.65.2` (2026-11-14), Apache-2.0; chỉ cài trong image `browser-fetcher`, **không** cài vào image worker mặc định. Tài
+  nguyên Chromium chưa đo (chưa cần) → đo khi chủ sở hữu bật profile (task riêng, không chặn E1).
+
+**Alternatives**: Crawl4AI (loại, lý do trên); Scrapy (thừa cho 300 trang/lượt).
 
 ## R-04 – robots.txt, tốc độ truy cập, CAPTCHA (FR-005, FR-030a, FR-031)
 
 **Decision**:
-- Đọc `robots.txt` một lần mỗi tên miền mỗi lượt (lưu cache 24 giờ trong `domain_access_state`), dùng `urllib.robotparser`
-  (thư viện chuẩn Python, có `can_fetch` và `crawl_delay`) với User-Agent riêng `NichePilotResearchBot/<version> (+liên hệ cấu hình
+- Đọc `robots.txt` một lần mỗi tên miền mỗi lượt (lưu cache 24 giờ trong `domain_access_state`), phân tích bằng `protego`
+  (BSD-3-Clause, R-12). Lý do không dùng `urllib.robotparser`: theo mô tả chính thức của protego trên PyPI (đọc 2026-11-20), CPython
+  chỉ bổ sung wildcard và quy tắc ưu tiên khớp dài nhất của RFC 9309 trong dòng 3.14 – E0 chạy Python 3.13. User-Agent riêng `NichePilotResearchBot/<version> (+liên hệ cấu hình
   được)`. robots.txt không lấy được: lỗi 4xx → coi như không có giới hạn; lỗi 5xx/mạng → **không thu thập** tên miền đó trong lượt
   (thận trọng). Quy định chính xác của RFC 9309 về 4xx/5xx **chưa xác minh** (www.rfc-editor.org bị chặn) – task đầu tiên đọc lại
   RFC và điều chỉnh nếu khác.
@@ -110,21 +114,31 @@ cho mức 300 trang/lượt).
   vượt. Không gửi cookie/đăng nhập; không theo paywall.
 - Trạng thái tên miền lưu trong DB để giữ đúng khoảng cách sau khi worker khởi động lại.
 
-## R-05 – Che PII (FR-012a…FR-012c, Q8)
+## R-05 – Che PII (FR-012a…FR-012c, Q8, quyết định 2026-11-20)
 
-**Decision**: pipeline nhiều lớp, chạy **trong bộ nhớ ngay sau khi trích nội dung**, trước mọi ghi DB/log/checkpoint và trước gửi AI:
-1. Bỏ metadata tác giả từ trích xuất (trafilatura trả `author`/`hostname` → không lưu `author`).
-2. Mẫu xác định: email → `[EMAIL]`; số điện thoại (thư viện `phonenumbers`, Apache-2.0 – cần xác minh giấy phép khi thêm) →
-   `[PHONE]`; `@handle`, `u/…`, `/user/…`, `by <Name>`/`Posted by` → `[USER]`/`[PERSON]`; URL hồ sơ cá nhân trong nội dung → `[USER]`.
-3. Nhận diện tên người theo ngữ cảnh: với ngôn ngữ nghiên cứu tiếng Anh, mô hình NER nhỏ (spaCy `en_core_web_sm`, MIT – cần xác
-   minh khi thêm) đánh `PERSON` → `[PERSON]`; ngôn ngữ chưa có NER → heuristic (chuỗi viết hoa liền nhau sau dấu hiệu chữ ký/lời
-   chào) và nếu còn nghi ngờ → đoạn đánh dấu `NEEDS_REVIEW`.
-4. Kiểm tra lại sau khi che: còn khớp mẫu email/điện thoại → coi là không an toàn → bỏ đoạn hoặc `NEEDS_REVIEW` (FR-012b).
-- Log chỉ ghi số lượng thay thế theo loại, không ghi nội dung. Checkpoint chỉ chứa ID/hash, không chứa văn bản thô.
-- Giới hạn đã biết (Q8): không đạt 100%; đo bằng bộ mẫu kiểm thử (SC-016) và cho chủ sở hữu xóa theo yêu cầu (R-09).
+**Decision**: interface `PiiEngine` (thay thế được – ví dụ Presidio sau này) với cài đặt E1 `RegexSpacyPiiEngine`, chạy **trong bộ nhớ
+ngay sau khi trích nội dung**, trước mọi ghi DB/log/checkpoint và trước khi gửi AI:
+1. Bỏ metadata tác giả từ trích xuất (`author` của trafilatura không được lưu).
+2. Regex: email → `[EMAIL]`; `@handle`, `u/…`, `/user/…`, URL hồ sơ cá nhân → `[USER]`; "Posted by/by <Name>" → `[PERSON]`.
+3. `phonenumbers` (Apache-2.0) với vùng mặc định = thị trường của lượt → `[PHONE]`.
+4. Tiếng Anh: spaCy `en_core_web_sm` (chỉ thành phần `ner`; loại parser/tagger/lemmatizer) → thực thể `PERSON` → `[PERSON]`.
+5. Ngôn ngữ chưa có model hoặc kết quả không chắc chắn (model chưa nạp được, heuristic tên người còn khớp) → đoạn `NEEDS_REVIEW`: lưu
+   bản đã che nhưng **không** tính vào ngưỡng, **không** gửi AI.
+6. Kiểm tra lại sau khi che: còn khớp mẫu email/điện thoại → `UNSAFE` → bỏ đoạn (`page_fetch_log.reason = PII_UNSAFE`).
+- Hàm tạo prompt AI chỉ nhận kiểu `RedactedText` có `status = REDACTED`; log chỉ ghi số lượng thay thế; checkpoint chỉ chứa ID/hash.
+- Giới hạn: không đạt 100% (Q8) → bộ mẫu kiểm thử (SC-016) + xóa theo yêu cầu (R-09).
 
-**Alternatives**: Microsoft Presidio (MIT, nặng hơn, nhiều phụ thuộc) – để dự phòng nếu bộ mẫu kiểm thử cho thấy cần; chỉ regex –
-không đủ cho tên người.
+**Đánh giá tài nguyên đã đo (2026-11-20, venv tách biệt Python 3.13)**: spaCy 3.8.18 + model `en_core_web_sm` 3.8.0 thêm ≈ 291 MB vào
+site-packages (65 MB → 356 MB, gồm numpy, thinc, blis, typer…); nạp model chỉ `ner` ≈ 0,9 s; **RSS ≈ 151 MB**; ≈ 0,04 s cho đoạn
+4.560 ký tự; nhận đúng 2/2 tên người trong mẫu. 300 trang/lượt → ước tính < 30 s CPU cho bước NER. Kết luận: phù hợp 4 core / 15 GB
+nếu chỉ nạp trong worker.
+
+**Điều kiện theo X8**: model tải từ GitHub releases (`explosion/spacy-models`, wheel 12,8 MB, không có trên PyPI) → **không** tải lúc
+chạy; cài trong Dockerfile worker từ URL ghim phiên bản + kiểm tra SHA-256. METADATA của wheel ghi `License: MIT`; file
+`LICENSES_SOURCES` ghi dữ liệu huấn luyện OntoNotes 5 "commercial (licensed by Explosion)" và WordNet 3.0 License (cho phép). Cần chủ
+sở hữu chấp nhận ghi chú nguồn dữ liệu này trước khi dùng production (xem R-12).
+
+**Alternatives**: Presidio (MIT) – không bắt buộc trong E1, cắm được qua `PiiEngine`; chỉ regex – không đủ cho tên người.
 
 ## R-06 – Ngưỡng bằng chứng và tính độc lập (FR-013b, FR-015, Q5)
 
@@ -170,20 +184,33 @@ nhãn (≥ 40 cặp) để đạt SC-010 (≥ 90% đúng, 0 gộp nhầm "không
 **Alternatives**: embedding vector (không có model embedding miễn phí; Claude API không cung cấp embedding; không dùng LLM local) –
 để sau; để AI tự quyết định trùng – vi phạm Constitution III.
 
-## R-09 – Xóa bằng chứng và áp dụng lại sau khi khôi phục backup (FR-013e, FR-013f)
+## R-09 – Xóa bằng chứng và áp dụng lại sau khi khôi phục backup (FR-013e, FR-013f, X4 có điều kiện)
 
 **Decision**:
-- Xóa = cập nhật `research_evidence`: `lifecycle_status = ERASED`, `excerpt = NULL`, `erased_at`; giữ `id`, `source_id`,
-  `content_hash` (để không thu thập lại cùng nội dung). Xóa theo nguồn → mọi bằng chứng của nguồn đó + `research_sources.url` thay bằng
-  dạng băm. Ghi `evidence_erasure_requests` (định danh, hash, lý do, người, thời điểm) và audit (không nội dung).
-- Sau xóa: job `discovery.recompute` tính lại ngưỡng/Confidence/xếp hạng của ngách liên quan (không gọi AI).
-- **Sổ xóa ngoài database**: mỗi yêu cầu xóa đồng thời được ghi (append-only, JSONL, chỉ ID + hash + thời điểm) vào file trong volume
-  riêng `erasure-ledger` (không nằm trong bản dump PostgreSQL). Sau mọi lần restore, service `migrate` (đã chạy trước api/worker)
-  chạy bước `apply-erasure-ledger`: áp dụng lại mọi yêu cầu trong sổ chưa có trong DB → dữ liệu đã xóa không quay lại trước khi hệ
-  thống phục vụ. `deploy/scripts/restore.sh` in nhắc và quy trình vận hành ghi rõ phải giữ volume `erasure-ledger`.
-- Bản sao trong cache: E1 không có cache nội dung ngoài DB; nội dung thô chỉ trong bộ nhớ (R-05).
+- **Ghi sổ trước, DB sau**: `erase()` ghi dòng vào **erasure ledger** (JSONL append-only, fsync file + thư mục) rồi mới chạy transaction
+  DB (`lifecycle_status = ERASED`, `excerpt/value = NULL`, URL → `erased:<sha256>`, `evidence_erasure_requests`, audit). DB lỗi → dòng
+  sổ vẫn còn và sẽ được áp dụng ở lần kiểm tra kế tiếp (idempotent) → không có yêu cầu xóa nào chỉ nằm trong DB.
+- **Định dạng sổ**: dòng đầu là genesis `{ledger_id, created_at}`; mỗi dòng `{seq, target_type, target_id, content_hash, url_hash,
+  erased_at, prev_hash, hash}` với `hash = sha256(prev_hash ‖ payload)` → phát hiện mất/sửa dòng. Không chứa nội dung/PII.
+- **Lưu bền vững**: volume riêng `erasure-ledger` (không nằm trong dump PostgreSQL); `backup.sh` sao thêm một bản sổ vào thư mục backup;
+  bản sổ sống là nguồn chuẩn, restore không bao giờ ghi đè sổ sống bằng bản cũ hơn.
+- **Trạng thái trong DB**: bảng `erasure_ledger_state` (một dòng: `ledger_id`, `applied_seq`, `applied_hash`, `status` ∈ {`OK`,
+  `BLOCKED`}).
+- **Áp dụng trước khi phục vụ**: lệnh `python -m nichepilot.ops.apply_erasure_ledger --strict` chạy (1) trong service `migrate` sau
+  `alembic upgrade` – api/worker phụ thuộc `migrate` `service_completed_successfully`, nên lỗi → api/worker không khởi động; (2) trong
+  `restore.sh` ngay sau `pg_restore`, trong cùng quy trình (api/worker đang dừng).
+- **Thất bại an toàn** (thoát mã ≠ 0, đặt `status = BLOCKED`, ghi log vận hành): sổ không tồn tại nhưng DB có `ledger_id`/yêu cầu xóa;
+  `ledger_id` không khớp; chuỗi hash hỏng; `applied_seq` trong DB > seq cuối của sổ (sổ cũ hơn DB); lỗi khi áp dụng bất kỳ dòng nào
+  (toàn bộ trong một transaction, rollback). Khởi tạo sổ mới khi DB đã có `ledger_id` chỉ bằng lệnh thủ công có xác nhận rõ ràng, audit.
+- **Phòng thủ lớp 2**: API khi khởi động và định kỳ (60 s) so `applied_seq/applied_hash` với đuôi sổ; lệch hoặc `BLOCKED` → mọi endpoint
+  dữ liệu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`, `/api/v1/system/status` báo thành phần `erasure_ledger` lỗi; worker không nhận job
+  E1. `/health` (liveness) không đổi.
+- Sau xóa: job `discovery.recompute` tính lại ngưỡng/Confidence/xếp hạng (không gọi AI). `content_hash`/`url_hash` chặn thu thập lại.
+- Cache: E1 không có cache nội dung ngoài DB; nội dung thô chỉ trong bộ nhớ (R-05).
 
-**Cần chủ sở hữu duyệt**: đây là mở rộng quy trình backup/restore của E0 (thêm volume và bước sau restore).
+**Kiểm thử bắt buộc** (TC_E1_FR013f_*): restore backup cũ hơn yêu cầu xóa → bằng chứng vẫn `ERASED`, API không trả trích đoạn; sổ thiếu
+→ restore thoát ≠ 0, API 503; chuỗi hash bị sửa → thất bại; lỗi giữa chừng → rollback, `BLOCKED`; API không phục vụ dữ liệu E1 trước khi
+áp dụng xong; ghi sổ thành công + DB lỗi → lần áp dụng sau hoàn tất xóa.
 
 ## R-10 – AI: Model Task Profile, chi phí, mock (FR-028, Constitution VI)
 
@@ -191,6 +218,8 @@ nhãn (≥ 40 cặp) để đạt SC-010 (≥ 90% đúng, 0 gộp nhầm "không
 (trích pain point/persona/giải pháp từ trích đoạn đã che PII), `discovery.assess` (đánh giá tiêu chí, độc lập, monetization),
 `discovery.normalize` (chuẩn hóa cho dedup). Mặc định model tiết kiệm (Haiku 5.5) cho `extract`/`normalize`, Sonnet 5.5 cho
 `candidates`/`assess` – vẫn `verified = false` cho tới khi chủ sở hữu xác minh; gọi có phí vẫn tắt.
+Model chỉ là **dữ liệu seed** của Model Task Profile (E0): business logic chỉ nêu task type, không chứa model ID (kiểm tra bằng test
+grep model ID trong `modules/discovery` và `ai/agents`). Đổi model qua API Model Task Profile, có audit (quyết định 2026-11-20).
 
 Ước tính chi phí một lượt (20 ứng viên, giá tham khảo chưa xác minh từ `enable-real-api.md` §3): ~20 lời gọi `extract` (≈ 6k token vào,
 1k ra, Haiku) + ~20 `assess` (≈ 8k vào, 1,5k ra, Sonnet) + vài lời gọi khác ≈ 20×$0,0011 + 20×$0,031 + ~$0,05 ≈ **$0,7** < $2. Đây là
@@ -206,3 +235,46 @@ là `MOCK` và bị loại khỏi báo cáo mặc định (FR-006b, FR-016).
 (PAUSED/PAUSED_BUDGET) không tính. Đây là cấu hình **định nghĩa agent** mà E0 đã hỗ trợ – không đổi Job Runtime. Kết quả
 `COMPLETED`/`PARTIAL_COMPLETED` lưu ở `discovery_runs.outcome`; job E0 kết thúc `SUCCEEDED` (FR-030d). Đánh giá lại: job type
 `discovery.reevaluate`; tính lại không gọi AI: `discovery.recompute`.
+
+## R-12 – Xác minh dependency (X8, 2026-11-20)
+
+Nguồn: PyPI JSON API (`https://pypi.org/pypi/<tên>/json`, đọc 2026-11-20); giấy phép bắc cầu đọc từ metadata sau khi cài trong venv
+tách biệt Python 3.13 (scratchpad, không phải project). "Tương thích" = có wheel cài được trên CPython 3.13 Linux và `requires_python`
+cho phép 3.13. Tương thích Windows/WSL2: chạy trong container Linux nên như trên; **chưa kiểm thử** trên Windows.
+
+| Gói | Phiên bản mới nhất (ngày) | Giấy phép | Python | Phụ thuộc trực tiếp (giấy phép) | Kết luận |
+|---|---|---|---|---|---|
+| trafilatura | 2.3.1 (2026-10-06) | Apache-2.0 | ≥ 3.10 | certifi (MPL-2.0), charset-normalizer (MIT), courlan (Apache-2.0), htmldate (Apache-2.0 → dateparser BSD-3, python-dateutil BSD-3, regex Apache-2.0 AND CNRI-Python, tzlocal MIT, pytz MIT), jusText (BSD-2), lxml (BSD-3), lxml_html_clean (BSD-3), urllib3 (MIT) | Đạt – mặc định |
+| protego | 0.7.0 (2026-09-21) | BSD-3-Clause | ≥ 3.10 | không | Đạt |
+| phonenumbers | 9.0.43 (2026-11-06) | Apache-2.0 | ≥ 2.5 | không | Đạt (dữ liệu metadata lớn ~ vài chục MB – đã tính trong 65 MB base) |
+| rapidfuzz | 3.14.6 (2026-08-30) | MIT | ≥ 3.11 | không | Đạt |
+| tldextract | 5.4.0 (2026-10-03) | BSD-3-Clause | ≥ 3.10 | idna (BSD-3), requests (Apache-2.0), requests-file (Apache-2.0), filelock (MIT) | Đạt có điều kiện: mặc định tải Public Suffix List lúc chạy → bắt buộc `suffix_list_urls=()` dùng snapshot đóng gói (không gọi mạng; test rào chắn socket) |
+| spacy | 3.8.18 (2026-10-26) | MIT | ≥ 3.10, < 3.16 | thinc, cymem, preshed, murmurhash, srsly, wasabi, catalogue, confection, weasel, spacy-legacy, spacy-loggers (MIT); blis (BSD); numpy (BSD-3 AND 0BSD AND MIT AND Zlib AND CC0-1.0); typer, rich, pydantic (MIT); smart_open, cloudpathlib (MIT); tqdm (MPL-2.0 AND MIT); Jinja2 (BSD) | Đạt – nặng (R-05: +291 MB, RSS ~151 MB); chỉ cài vào image worker |
+| en_core_web_sm (model) | 3.8.0 (GitHub releases) | MIT (METADATA) + ghi chú dữ liệu huấn luyện | – | – | **Chờ chủ sở hữu chấp nhận** ghi chú OntoNotes 5 "commercial (licensed by Explosion)" trước production; dev/test dùng được |
+| playwright (tùy chọn) | 1.65.2 (2026-11-14) | Apache-2.0 | ≥ 3.10 | greenlet (MIT) | Đạt – chỉ profile `browser-fetcher` |
+| crawl4ai | 0.9.5 (2026-10-14) | Apache-2.0 | ≥ 3.10 | gồm `playwright-stealth`, `patchright`, `unclecode-litellm==1.81.13` | **Không dùng** (R-03) |
+| SearXNG (image) | 2026.11.18-b867c56a5 | AGPL-3.0-or-later | – | – | Đạt – service riêng, không sửa mã (R-02) |
+
+Giấy phép MPL-2.0 (certifi, tqdm) là copyleft cấp file – dùng không sửa đổi không phát sinh nghĩa vụ công bố mã NichePilot; certifi đã
+có trong E0 qua httpx. Không gói nào có giấy phép không rõ, trừ ghi chú dữ liệu của model spaCy.
+
+Tổng tài nguyên dự kiến thêm vào cấu hình mặc định: image worker +~290 MB (spaCy + model) +~65 MB (các gói nhẹ); RAM worker +~150–200 MB
+khi nạp NER; container SearXNG ~103 MiB nghỉ. Ước tính tổng RAM nghỉ E0 (324–361 MB) + E1 ≈ 0,6–0,7 GB < 3 GB (SC-002 E0). Phiên bản
+cụ thể được ghim trong `uv.lock` khi triển khai; mỗi lần nâng cấp xác minh lại bảng này.
+
+## R-13 – SourceAdapter tổng quát (FR-006g, quyết định 2026-11-20)
+
+**Decision**: tách **loại adapter** (code, ít, có test) khỏi **nguồn** (dữ liệu cấu hình, nhiều, thêm không cần sửa code):
+
+| `adapter_type` | Dùng cho | Cấu hình (`source_policies.config`, không secret) | Trạng thái E1 |
+|---|---|---|---|
+| `searxng_engine` | máy tìm kiếm qua SearXNG | `engine_name`, `categories`, `language_map` | Triển khai |
+| `http_json_api` | API chính thức dạng REST/JSON công khai | `base_url`, `query_template`, `result_mapping` (JSONPath: url, title, snippet, published_at), `rate_limit`, `auth_env_var` (tên biến môi trường, tùy chọn) | Triển khai khung + test bằng mock; chưa nguồn thật nào được bật |
+| `open_dataset` | dữ liệu mở dạng file (CSV/JSONL) đã tải về volume | `path`, `license_url`, `field_mapping` | Interface + mock; triển khai khi có bộ dữ liệu cụ thể |
+| `licensed_data` | dữ liệu được cấp phép | như `open_dataset` + `license_reference` | Interface; chưa triển khai |
+
+- Mọi adapter trả `SourceResult` chung (`hits` + `source_status`) và gắn `source_policy_id`, `source_compliance` vào bằng chứng.
+- `auth_env_var` chỉ lưu **tên** biến môi trường; giá trị đọc từ môi trường lúc chạy, không lưu DB, không trả qua API, không log.
+- Thêm nguồn mới thuộc loại có sẵn = `POST /api/v1/sources` + xác minh + bật (audit). Loại adapter mới cần code (và spec) – ngoài E1.
+- Reddit/YouTube/Google Trends vẫn ngoài phạm vi E1 (Q1); chỉ là ví dụ sau này cho `http_json_api`/adapter riêng.
+

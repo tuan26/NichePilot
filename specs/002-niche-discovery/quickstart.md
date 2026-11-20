@@ -5,6 +5,9 @@ Không bước nào gọi API có phí; nguồn thật chỉ dùng khi chủ s�
 
 ## 0. Điều kiện
 
+- Nguồn thật: mọi nguồn hiện `UNVERIFIED` (xác minh BLOCKED do mạng – [source-verification.md](./source-verification.md)); §3 chỉ
+  chạy được sau khi chủ sở hữu xác minh. Các mục khác dùng adapter giả lập.
+
 - Stack E0 chạy được (`docs/operations/README.md`), migration tới `0010_discovery_seed`.
 - `AI_PAID_CALLS_ENABLED=false` (mặc định) → AI dùng `MockAIProvider` ở development/test; kết quả AI gắn `MOCK`.
 - Ngân sách E0 đã cấu hình ($3/ngày, $30/tháng).
@@ -15,7 +18,7 @@ Không bước nào gọi API có phí; nguồn thật chỉ dùng khi chủ s�
 cd backend && uv run pytest -m "discovery and not live_sources"
 ```
 
-Kỳ vọng: `MockSearchAdapter` + `MockPageFetcher` (HTML cố định trong `tests/fixtures/discovery/`) + `MockAIProvider`; rào chắn socket
+Kỳ vọng: `MockSourceAdapter` + `MockPageFetcher` (HTML cố định trong `tests/fixtures/discovery/`) + `MockAIProvider`; rào chắn socket
 không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiện trong bảng xếp hạng mặc định (`include_mock=false`).
 
 ## 2. Từ chối khi không có nguồn hợp lệ (FR-006e)
@@ -24,14 +27,18 @@ không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiệ
 2. Với seed mặc định (mọi nguồn `UNVERIFIED`, tắt) → API trả 409 `NO_COMPLIANT_SEARCH_SOURCE`, UI hiển thị thông báo VI/EN và liên
    kết tới trang nguồn tìm kiếm. Không job nào được tạo, không lời gọi AI.
 
-## 3. Bật nguồn và chạy lượt với nguồn thật (khi chủ sở hữu cho phép)
+## 3. Bật nguồn và chạy lượt với nguồn thật (chỉ sau khi chủ sở hữu xác minh – hiện BLOCKED)
 
-1. **Nguồn tìm kiếm**: chủ sở hữu đọc điều khoản (`tos_url`), cập nhật `compliance_status = ALLOWED` + `verified_at` +
-   `verification_note`, rồi bật. Hoặc bật nguồn `UNVERIFIED` với `acknowledge_warning = true` (audit ghi cảnh báo).
-2. `docker compose up -d searxng` (service nội bộ, không mở cổng ra ngoài).
-3. Tạo lượt: `POST /api/v1/discovery/runs {"market":"US","max_candidates":5,"page_limit":40,"time_limit_minutes":15}`.
-4. Quan sát màn hình 1: trạng thái job, trang đã thu thập/bỏ qua theo lý do, chi phí REAL/MOCK (REAL = $0 khi gọi có phí tắt).
-5. Kỳ vọng: nguồn/bằng chứng `REAL`, trích đoạn đã che PII; phân tích AI là `MOCK` (không có API key) → ngách gắn `MOCK`. Đây **không**
+1. **Nguồn**: chủ sở hữu xác minh theo [source-verification.md](./source-verification.md) §2, rồi `PUT /api/v1/sources/{id}` với
+   `compliance_status = ALLOWED`, `verified_at`, `verification_note`, `allowed_access_methods`, `permitted_use_scope`, `enabled = true`.
+   Thiếu mục → 422 `SOURCE_VERIFICATION_INCOMPLETE`. Agent/kiểm thử tự động **không** thực hiện bước này.
+2. Khởi động lại `searxng` khi phản hồi có `requires_service_restart = true` (cấu hình `keep_only` được sinh lại từ policy).
+3. Kiểm tra lượt theo lịch chỉ dùng nguồn `ALLOWED`: tạo lịch E0 `job_type = discovery.run` → `sources` của lượt chỉ có `ALLOWED`.
+   Nguồn `UNVERIFIED` (nếu chủ sở hữu tự bật, có cảnh báo) chỉ xuất hiện trong lượt thủ công có `include_unverified_sources = true`;
+   bằng chứng có `source_compliance = UNVERIFIED`.
+4. Tạo lượt: `POST /api/v1/discovery/runs {"market":"US","max_candidates":5,"page_limit":40,"time_limit_minutes":15}`.
+5. Quan sát màn hình 1: trạng thái job, trang đã thu thập/bỏ qua theo lý do, chi phí REAL/MOCK (REAL = $0 khi gọi có phí tắt).
+6. Kỳ vọng: nguồn/bằng chứng `REAL`, trích đoạn đã che PII; phân tích AI là `MOCK` (không có API key) → ngách gắn `MOCK`. Đây **không**
    phải bằng chứng E1 hoạt động với Claude API thật.
 
 ## 4. Kiểm chứng giới hạn và độ bền
@@ -58,8 +65,19 @@ không ghi nhận kết nối; ngách tạo ra gắn `MOCK`, không xuất hiệ
 ## 6. Xóa bằng chứng và khôi phục backup (FR-013e/f)
 
 1. Xóa một bằng chứng của ngách đang đạt ngưỡng đúng 2 nhóm → ngách chuyển `INSUFFICIENT_EVIDENCE`, rời bảng xếp hạng chính.
-2. `make backup` (backup tạo trước bước 1) → `make restore` từ bản cũ → `restore.sh` áp lại ledger → bằng chứng vẫn `ERASED`.
-3. Kiểm tra log/checkpoint/audit không chứa trích đoạn đã xóa.
+2. Restore bản backup tạo **trước** bước 1 vào database trống (api/worker dừng) → `restore.sh` chạy
+   `apply_erasure_ledger --strict` → bằng chứng vẫn `ERASED`; khởi động api/worker → `GET /api/v1/niches/{id}` không có trích đoạn.
+3. **Thất bại an toàn** (môi trường thử, không phải dữ liệu thật):
+
+| Kịch bản | Kỳ vọng |
+|---|---|
+| Đổi tên file ledger rồi restore | `restore.sh` thoát ≠ 0, `erasure_ledger_state.status = BLOCKED`; khởi động stack → `migrate` lỗi, api/worker không chạy |
+| Sửa một dòng ledger (hỏng hash chain) | Như trên, log nêu `seq` bị hỏng (không in nội dung) |
+| Ledger cũ hơn DB (`applied_seq` > seq cuối) | Như trên |
+| Ép API chạy khi `BLOCKED` | Endpoint dữ liệu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`; `/api/v1/system/status` báo `erasure_ledger` lỗi; `/health` vẫn `ok` |
+| Ghi ledger thành công, DB lỗi giữa chừng | Lần chạy `apply_erasure_ledger` kế tiếp hoàn tất xóa |
+
+4. Kiểm tra log/checkpoint/audit/ledger không chứa trích đoạn đã xóa.
 
 ## 7. Giao diện
 

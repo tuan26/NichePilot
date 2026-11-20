@@ -78,6 +78,27 @@ E0 (`specs/001-foundation-ai-infrastructure`, trạng thái `IMPLEMENTATION_COMP
   xóa, audit tối thiểu không chứa PII, chính sách cho cache và backup để dữ liệu đã xóa không quay lại sau restore; có test cho các
   điểm trên. Phát hiện PII không thể đúng 100% → kết hợp nhiều phương pháp, kiểm thử, và xử lý an toàn khi không chắc chắn.
 
+### Session 2026-11-20 (chủ sở hữu phê duyệt có điều kiện Technical Plan E1)
+
+- X1–X7 đồng ý. X4: erasure ledger lưu bền vững; khi restore phải áp dụng lại yêu cầu xóa **trước khi** dữ liệu được dùng hoặc trả qua
+  API; không áp dụng đầy đủ được → restore **thất bại an toàn**; có test chứng minh dữ liệu đã xóa không xuất hiện lại. X8: chỉ thêm
+  dependency sau khi xác minh giấy phép, phiên bản, tương thích; không tự cài model/thư viện nặng khi chưa đánh giá tài nguyên; không
+  dùng dependency có giấy phép chưa rõ trong production.
+- Công cụ thu thập: SearXNG (tìm kiếm OSS), `trafilatura` mặc định; Crawl4AI/Playwright tùy chọn cho trang cần JavaScript, không bật
+  mặc định; ưu tiên giải pháp nhẹ cho CPU 4 core / RAM 15 GB.
+- PII: spaCy + regex + phonenumbers; tiếng Anh dùng spaCy khi phù hợp; ngôn ngữ chưa hỗ trợ hoặc không chắc chắn → `NEEDS_REVIEW`;
+  không gửi nội dung chưa xử lý an toàn cho AI; không lưu PII gốc vào DB/log/checkpoint; Presidio không bắt buộc; engine PII thay được
+  qua interface chung.
+- AI model: phân loại theo tác vụ (đơn giản → model tiết kiệm; phân tích phức tạp → model mạnh hơn khi cần); model ID và bảng giá phải
+  xác minh trước khi gọi có phí; không hard-code model trong business logic; không tự bật API có phí; không dùng Claude Pro/Claude Code CLI.
+- Nguồn: chỉ nguồn `ALLOWED` được chạy **tự động**; `UNVERIFIED` tắt mặc định và không được tự động bật để vượt kiểm tra; `PROHIBITED`
+  không được dùng; không vượt CAPTCHA/rate limit/giới hạn truy cập; lưu URL điều khoản, ngày xác minh, phương thức truy cập được phép,
+  phạm vi sử dụng; có API miễn phí không phải bằng chứng được phép dùng cho mọi mục đích; không có nguồn hợp lệ →
+  `NO_COMPLIANT_SEARCH_SOURCE`. Thiết kế `SourceAdapter` hỗ trợ cả nguồn API chính thức, dữ liệu mở và dữ liệu được cấp phép sau này.
+- Giới hạn mạng: không thay đổi mạng của môi trường dùng chung; nguồn chưa xác minh giữ `UNVERIFIED`; lập danh sách nguồn cần xác minh
+  (URL chính thức + nội dung cần kiểm tra); cấu hình nguồn không cần sửa code; không tự xác nhận `ALLOWED` khi chưa có bằng chứng;
+  không tự bật `UNVERIFIED` để chạy thử dữ liệu thật. Chưa xác minh được nguồn **không** phải lỗi implementation.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân chính: **chủ sở hữu** (một người, tự host). Tác nhân phụ: **hệ thống** (job theo lịch, agent nghiên cứu).
@@ -364,23 +385,33 @@ sử điểm cũ còn nguyên.
   sản phẩm/so sánh) MUST được truy cập qua một giao diện thay thế được, có phiên bản giả lập dùng cho phát triển/kiểm thử, và
   có chính sách truy cập riêng (giới hạn tần suất, số lần thử lại, thời gian chờ). Nguồn **thật** trong E1: (a) tìm kiếm qua một
   máy tìm kiếm tổng hợp **tự host, mã nguồn mở** (SearXNG), không cần API key trả phí; (b) thu thập nội dung trang web công khai
-  bằng công cụ thu thập mã nguồn mở được đánh giá trong plan (ưu tiên Crawl4AI). Adapter giả lập dùng cho kiểm thử. Reddit API,
+  bằng HTTP client + `trafilatura` (mặc định, không cần trình duyệt); trình thu thập có trình duyệt cho trang cần JavaScript là tùy
+  chọn, tắt mặc định (plan). Adapter giả lập dùng cho kiểm thử. Reddit API,
   YouTube API, Google Trends và nguồn chuyên biệt ngoài phạm vi E1. *(Clarification Q1)*
 - **FR-006a**: Khi nguồn tìm kiếm không trả kết quả hoặc không khả dụng, hệ thống MUST ghi nhận lỗi/trạng thái thiếu dữ liệu cho
   bước đó và MUST NOT tự tạo dữ liệu thay thế (kể cả nhờ AI "đoán" nguồn). *(Clarification Q1, Constitution I)*
 - **FR-006b**: E1 MUST thu thập được dữ liệu thị trường **thực tế** từ nguồn thật (không phụ thuộc vào AI có phí ở bước thu thập).
   Phân tích bằng nhà cung cấp AI giả lập trên dữ liệu thật MUST được gắn nhãn giả lập và MUST NOT được coi là nghiên cứu AI thật;
   nguồn và bằng chứng thu thập thật vẫn giữ nguồn gốc thật. *(Clarification Q1)*
-- **FR-006c**: Mỗi nguồn tìm kiếm thượng nguồn (máy tìm kiếm mà SearXNG truy vấn, hoặc API tìm kiếm chính thức sau này) MUST
-  có hồ sơ tuân thủ gồm: URL điều khoản sử dụng, ngày xác minh, phương thức tích hợp, giới hạn truy vấn đã biết, và trạng thái
-  cho phép (`ALLOWED` / `UNVERIFIED` / `PROHIBITED`). Chỉ nguồn `ALLOWED` được bật mặc định; `UNVERIFIED` tắt mặc định; nguồn
-  `PROHIBITED` MUST NOT bật được dưới bất kỳ hình thức nào. *(Clarification Q4, Constitution X, NFR-11)*
-- **FR-006d**: Chủ sở hữu MAY thêm/bật nguồn `UNVERIFIED`; hệ thống MUST hiển thị cảnh báo rủi ro điều khoản trước khi bật và ghi
-  audit log (ai, khi nào, nguồn, trạng thái trước/sau). *(Clarification Q4)*
-- **FR-006e**: Khi không còn nguồn tìm kiếm hợp lệ nào được bật (hoặc mọi nguồn hợp lệ đều không khả dụng), lượt khám phá MUST
-  dừng bước tìm kiếm với mã `NO_COMPLIANT_SEARCH_SOURCE` hiển thị cho chủ sở hữu, MUST NOT tạo dữ liệu thay thế. *(Clarification Q4)*
+- **FR-006c**: Mỗi nguồn dữ liệu bên ngoài (máy tìm kiếm mà SearXNG truy vấn, API chính thức, nguồn dữ liệu mở hoặc dữ liệu được cấp
+  phép) MUST có hồ sơ tuân thủ gồm: URL điều khoản sử dụng, ngày xác minh, người xác minh và căn cứ (trích đoạn/ghi chú), **phương
+  thức truy cập được phép**, **phạm vi sử dụng được phép**, giới hạn truy vấn đã biết, và trạng thái (`ALLOWED` / `UNVERIFIED` /
+  `PROHIBITED`). `ALLOWED` chỉ được gán khi có căn cứ đã ghi; có API miễn phí MUST NOT được coi là căn cứ cho phép dùng cho mọi mục
+  đích. `UNVERIFIED` tắt mặc định; `PROHIBITED` MUST NOT bật được dưới bất kỳ hình thức nào. *(Clarification Q4, 2026-11-20,
+  Constitution X, NFR-11)*
+- **FR-006d**: Chỉ nguồn `ALLOWED` được dùng trong lượt chạy **tự động** (theo lịch, đánh giá lại theo lịch). Hệ thống MUST NOT tự
+  bật nguồn `UNVERIFIED` hay tự nâng trạng thái nguồn. Chủ sở hữu MAY bật nguồn `UNVERIFIED` (cảnh báo rủi ro điều khoản trước khi
+  bật, audit ai/khi nào/nguồn/trạng thái trước-sau); nguồn đó chỉ được dùng trong lượt **do chủ sở hữu khởi chạy thủ công** có chọn rõ
+  "dùng nguồn chưa xác minh" cho lượt đó, và bằng chứng thu được MUST mang dấu nguồn `UNVERIFIED`. *(Clarification Q4, 2026-11-20)*
+- **FR-006e**: Khi không có nguồn `ALLOWED` nào được bật và khả dụng (và lượt không được chủ sở hữu chọn dùng nguồn chưa xác minh),
+  lượt khám phá MUST dừng bước tìm kiếm với mã `NO_COMPLIANT_SEARCH_SOURCE` hiển thị cho chủ sở hữu, MUST NOT tạo dữ liệu thay thế.
+  *(Clarification Q4, 2026-11-20)*
 - **FR-006f**: Hệ thống MUST NOT tự động vượt CAPTCHA, giới hạn tần suất hay cơ chế hạn chế truy cập của bất kỳ nguồn nào; gặp các
   cơ chế này → dừng truy cập nguồn đó và ghi lý do. *(Clarification Q4, Constitution X)*
+- **FR-006g**: Nguồn MUST được truy cập qua `SourceAdapter` chung, hỗ trợ các loại: engine của SearXNG, API chính thức, nguồn dữ liệu
+  mở, dữ liệu được cấp phép. Thêm/bật/tắt/cập nhật hồ sơ tuân thủ của một nguồn thuộc loại adapter đã có MUST thực hiện được bằng cấu
+  hình (API/giao diện), không cần sửa code; thông tin xác thực của nguồn (nếu có) chỉ tham chiếu tới biến môi trường/secret, không lưu
+  giá trị trong database. *(Clarification 2026-11-20, Constitution VIII, X)*
 - **FR-007**: Hệ thống MUST gom các phàn nàn/vấn đề tương tự thành nhóm pain point, mỗi nhóm có mô tả, số bằng chứng hỗ trợ và
   mức độ nghiêm trọng (thang điểm xác định trong plan, có tiêu chí rõ ràng). *(E1-05, E1-07)*
 - **FR-008**: Hệ thống MUST xác định buyer persona cấp ngách (nhóm khách hàng, bối cảnh, mục tiêu, rào cản, khả năng chi trả),
@@ -398,13 +429,14 @@ sử điểm cũ còn nguyên.
   NFR-14, BR-08)*
 
 - **FR-012a**: Nội dung thu thập MUST qua bước che thông tin cá nhân (PII) **trước** khi ghi vào database và **trước** khi gửi tới
-  bất kỳ nhà cung cấp AI nào: email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
+  bất kỳ nhà cung cấp AI nào (qua interface PII engine thay thế được; E1 dùng regex + `phonenumbers` + spaCy cho tiếng Anh): email → `[EMAIL]`, số điện thoại → `[PHONE]`, @username/tên tài khoản → `[USER]`, tên tác giả/người được
   nhắc tên → `[PERSON]`, và các định danh cá nhân khác phát hiện được; giữ nội dung pain point và ngữ cảnh cần thiết. Bước che PII
   MUST kết hợp nhiều phương pháp (mẫu xác định + nhận diện ngữ cảnh) và có kiểm thử với bộ mẫu PII phổ biến. *(Clarification Q8,
   Constitution V)*
 - **FR-012b**: Nội dung PII chưa xử lý MUST NOT xuất hiện trong log, cache, checkpoint, báo cáo, audit hay dữ liệu gửi AI; nội dung thô
   chỉ tồn tại tạm thời trong bộ nhớ của bước thu thập. Khi bước che PII không chắc chắn xử lý an toàn, đoạn nội dung MUST bị bỏ qua hoặc
-  đánh dấu "cần kiểm tra" (không lưu dạng chưa che, không gửi AI). *(Clarification Q8)*
+  đánh dấu "cần kiểm tra" (`NEEDS_REVIEW` – không lưu dạng chưa che, không gửi AI). Ngôn ngữ chưa có bộ nhận diện tên người →
+  `NEEDS_REVIEW`. *(Clarification Q8, 2026-11-20)*
 - **FR-012c**: Hệ thống MUST NOT dùng thông tin cá nhân để xây dựng hồ sơ cá nhân hay danh sách liên hệ. *(Clarification Q8)*
 **Bằng chứng và trạng thái xác minh**
 
@@ -428,8 +460,10 @@ sử điểm cũ còn nguyên.
   ngách liên quan MUST được tính lại (không còn đủ ngưỡng FR-013b → `INSUFFICIENT_EVIDENCE`); audit ghi thao tác tối thiểu (ai, khi
   nào, định danh bằng chứng/nguồn, lý do) không chứa nội dung đã xóa. *(Clarification Q8)*
 - **FR-013f**: Hệ thống MUST có chính sách bảo đảm bằng chứng đã xóa không quay lại hệ thống đang hoạt động: bản sao trong cache bị
-  xóa cùng lúc; sau khi khôi phục từ backup, mọi yêu cầu xóa ghi nhận sau thời điểm backup MUST được áp dụng lại trước khi dữ liệu được
-  sử dụng (cơ chế cụ thể quyết định trong plan và có kiểm thử). *(Clarification Q8, E0 FR-073)*
+  xóa cùng lúc; sổ yêu cầu xóa (erasure ledger) MUST được lưu bền vững ngoài database; sau khi khôi phục từ backup, mọi yêu cầu xóa MUST
+  được áp dụng lại **trước khi** dữ liệu được sử dụng hoặc trả qua API; nếu không áp dụng đầy đủ được (sổ thiếu, hỏng, lỗi ghi), quá
+  trình restore MUST thất bại an toàn (dịch vụ không phục vụ dữ liệu) và báo lỗi rõ. Có kiểm thử chứng minh dữ liệu đã xóa không xuất
+  hiện lại. *(Clarification Q8, 2026-11-20, E0 FR-073)*
 - **FR-014**: Trạng thái xác minh MUST theo BR-02: `VERIFIED` chỉ khi có nguồn trực tiếp; nhận định do AI suy luận gắn `INFERRED`;
   không xác minh được gắn `UNKNOWN` (không giá trị); nguồn mâu thuẫn gắn `CONFLICTING` và lưu mọi giá trị kèm nguồn. *(BR-02, QA-05)*
 - **FR-015**: Nguồn trùng nội dung (cùng nội dung chuẩn hóa ở nhiều URL, kể cả khác tên miền) MUST được gom về một nguồn và
@@ -545,6 +579,8 @@ sử điểm cũ còn nguyên.
   hash nội dung, thời điểm thu thập; trích đoạn **đã che PII**, trạng thái xác minh, thời điểm xác minh, job thu thập). Bổ sung cho E1:
   trạng thái che PII (đã che / cần kiểm tra), trạng thái hiệu lực (đang dùng / đã xóa theo yêu cầu – không còn trích đoạn), đánh giá
   liên quan/chất lượng của AI (`INFERRED` + lý do).
+- **Hồ sơ nguồn (Source Policy)**: loại nguồn/adapter, URL điều khoản, ngày xác minh, căn cứ, phương thức truy cập và phạm vi sử dụng
+  được phép, giới hạn đã biết, trạng thái `ALLOWED`/`UNVERIFIED`/`PROHIBITED`, bật/tắt, xác nhận cảnh báo; cấu hình không chứa secret.
 - **Yêu cầu xóa bằng chứng (Evidence Erasure Request)**: định danh bằng chứng hoặc nguồn, lý do, người thực hiện, thời điểm; không chứa
   nội dung đã xóa; dùng để áp dụng lại sau khi khôi phục backup.
 - **Quy tắc dữ liệu (Q5)**: bằng chứng thiếu URL, trích đoạn, thời điểm thu thập hoặc trạng thái xác minh không được tính vào
@@ -605,7 +641,10 @@ sử điểm cũ còn nguyên.
   *(Clarification Q6)*
 - **SC-016**: Trên bộ mẫu PII kiểm thử (email, số điện thoại nhiều định dạng, @username, tên tác giả): 100% mẫu bị che trong dữ liệu
   lưu và dữ liệu gửi AI; 0 mẫu PII chưa che trong database, log, checkpoint; sau khi xóa bằng chứng, 100% ngách liên quan được tính lại
-  đúng và bằng chứng đã xóa không xuất hiện lại sau khi khôi phục backup cũ hơn yêu cầu xóa. *(Clarification Q8)*
+  đúng và bằng chứng đã xóa không xuất hiện lại sau khi khôi phục backup cũ hơn yêu cầu xóa; sổ xóa thiếu/hỏng → restore thất bại, API
+  không trả dữ liệu. *(Clarification Q8, 2026-11-20)*
+- **SC-017**: 100% lượt chạy tự động chỉ dùng nguồn `ALLOWED`; 0 nguồn được hệ thống tự bật hoặc tự nâng trạng thái; 0 nguồn
+  `PROHIBITED` được dùng; mọi bằng chứng từ nguồn `UNVERIFIED` mang dấu nguồn tương ứng. *(Clarification 2026-11-20)*
 - **SC-013**: Khi nguồn thật được bật và có Internet, một lượt khám phá thu thập được nguồn thật (URL, thời điểm thu thập, trích
   đoạn) cho ít nhất 80% ngách ứng viên được đề xuất, mà không cần API key trả phí; nguồn không truy cập được/bị chặn được ghi
   lý do, 0 trường hợp vượt CAPTCHA hay robots.txt. *(Clarification Q1)*
