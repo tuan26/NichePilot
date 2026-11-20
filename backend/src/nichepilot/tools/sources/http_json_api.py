@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 import httpx
 
-from nichepilot.tools.sources.base import HttpJsonApiConfig, PolicySnapshot, RateLimiter, SourceHit, SourceResult, Sleep
+from nichepilot.tools.sources.base import HttpJsonApiConfig, PolicySnapshot, RateLimiter, Sleep, SourceHit, SourceResult
 
 
 def _pluck(obj: Any, path: str) -> Any:

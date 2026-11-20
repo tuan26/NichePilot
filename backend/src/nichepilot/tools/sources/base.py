@@ -1,6 +1,7 @@
 """SourceAdapter chung (FR-006, FR-006c…g; research R-13; internal-interfaces §1).
 
-Loại adapter (code) tách khỏi nguồn (dữ liệu cấu hình `source_policies`). Cấu hình KHÔNG chứa credential: khóa bị cấm ở mọi
+Loại adapter (code) tách khỏi nguồn (dữ liệu cấu hình `source_policies`). Cấu hình KHÔNG chứa credential: khóa bị cấm
+ở mọi
 cấp lồng nhau và giá trị có dạng credential bị từ chối (§1.1). Xác thực chỉ qua `auth_env_var` = TÊN biến môi trường.
 """
 
@@ -16,7 +17,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
-from nichepilot.core.source_config import (  # noqa: F401 – tái xuất cho lớp tools
+from nichepilot.core.source_config import (  # tái xuất cho lớp tools
     ADAPTER_CONFIG_MODELS,
     DatasetConfig,
     HttpJsonApiConfig,
@@ -25,9 +26,25 @@ from nichepilot.core.source_config import (  # noqa: F401 – tái xuất cho l�
     validate_source_config,
 )
 
+__all__ = [
+    "ADAPTER_CONFIG_MODELS",
+    "DatasetConfig",
+    "HttpJsonApiConfig",
+    "PolicySnapshot",
+    "RateLimiter",
+    "SearxngEngineConfig",
+    "Sleep",
+    "SourceAdapter",
+    "SourceConfigError",
+    "SourceHit",
+    "SourceResult",
+    "validate_source_config",
+]
+
 SourceStatus = Literal["OK", "NO_RESULTS", "UNAVAILABLE", "RATE_LIMITED", "ACCESS_RESTRICTED"]
 ComplianceStatus = Literal["ALLOWED", "UNVERIFIED", "PROHIBITED"]
 Sleep = Callable[[float], Awaitable[None]]
+
 
 class PolicySnapshot(BaseModel):
     """Ảnh chụp policy truyền cho tool. Tool từ chối mọi trạng thái khác ALLOWED (phòng thủ lớp 2 – A1)."""

@@ -42,7 +42,9 @@ async def _exec(reg: ToolRegistry, rows: list[dict[str, Any]], name: str, inp: d
 
 async def test_TC_E1_FR012b_02_tool_output_and_record_contain_only_redacted_text() -> None:
     reg, rows = _registry()
-    out = await _exec(reg, rows, "page.fetch", {"url": "https://forum.example/t/grooming-chaos", "language": "en", "country": "US"})
+    out = await _exec(
+        reg, rows, "page.fetch", {"url": "https://forum.example/t/grooming-chaos", "language": "en", "country": "US"}
+    )
     assert out["status"] == "SUCCESS"
     dumped = json.dumps(out) + json.dumps(rows, default=str)
     for secret in PII_STRINGS:
@@ -54,7 +56,9 @@ async def test_TC_E1_FR012b_02_tool_output_and_record_contain_only_redacted_text
 
 async def test_TC_E1_FR005_01_clean_page_extracted_without_author_metadata() -> None:
     reg, rows = _registry()
-    out = await _exec(reg, rows, "page.fetch", {"url": "https://forum.example/t/bakery-inventory", "language": "en", "country": "US"})
+    out = await _exec(
+        reg, rows, "page.fetch", {"url": "https://forum.example/t/bakery-inventory", "language": "en", "country": "US"}
+    )
     assert out["status"] == "SUCCESS" and out["needs_review_segments"] == 0
     text = " ".join(s["text"] for s in out["segments"])
     assert "run out of flour" in text and "Jordan Ellis" not in json.dumps(out)  # meta author bị bỏ

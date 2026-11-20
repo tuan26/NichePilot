@@ -168,7 +168,9 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
                 ),
                 {"k": SEED_SOURCE_KEYS},
             )
-            await conn.execute(text("DELETE FROM source_policies WHERE NOT (source_key = ANY(:k))"), {"k": SEED_SOURCE_KEYS})
+            await conn.execute(
+                text("DELETE FROM source_policies WHERE NOT (source_key = ANY(:k))"), {"k": SEED_SOURCE_KEYS}
+            )
             await conn.execute(text("DELETE FROM scoring_weights_versions WHERE version > 1"))
             await conn.execute(text("UPDATE scoring_weights_versions SET is_active = true, created_by = NULL"))
             await conn.execute(

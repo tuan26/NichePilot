@@ -1,8 +1,10 @@
 """PageFetcher mặc định: httpx (FR-005, FR-031; research R-03, R-04).
 
-Chỉ tải: không chạy JavaScript, không gửi cookie/đăng nhập, User-Agent nhận diện được (không giả trình duyệt). Giới hạn kích thước
+Chỉ tải: không chạy JavaScript, không gửi cookie/đăng nhập, User-Agent nhận diện được (không giả trình duyệt). Giới
+hạn kích thước
 và loại nội dung. Kiểm tra robots/khoảng cách do agent (modules/discovery/access.py) làm TRƯỚC khi gọi.
-Nội dung trả về là HTML thô – chỉ tồn tại trong handler của tool `page.fetch`, được trích + che PII trước khi ra khỏi tool.
+Nội dung trả về là HTML thô – chỉ tồn tại trong handler của tool `page.fetch`, được trích + che PII trước khi ra khỏi
+tool.
 """
 
 from __future__ import annotations
@@ -51,7 +53,10 @@ class HttpPageFetcher:
     async def fetch(self, url: str, *, timeout_s: float) -> RawPage:
         headers = {"User-Agent": self.user_agent, "Accept": "text/html,application/xhtml+xml"}
         try:
-            async with self.client_factory() as client, client.stream("GET", url, headers=headers, timeout=timeout_s) as r:
+            async with (
+                self.client_factory() as client,
+                client.stream("GET", url, headers=headers, timeout=timeout_s) as r,
+            ):
                 ctype = r.headers.get("content-type", "")
                 retry = _retry_after(r.headers.get("retry-after"))
                 if r.status_code != 200 or "html" not in ctype.lower():

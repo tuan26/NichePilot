@@ -81,27 +81,32 @@ def parse_spec(spec: Path) -> dict[str, Requirement]:
 
 
 def pending_requirements(tasks: Path) -> set[str]:
-    """Yêu cầu chỉ xuất hiện trong task chưa hoàn thành (`- [ ]`) → PENDING. Không có tasks.md → rỗng."""
+    """Yêu cầu PENDING: được tham chiếu trong tasks.md nhưng chưa bắt buộc có test.
+
+    Bắt buộc có test khi (a) một task đã [X] chứa mã test `TC_…` của yêu cầu, hoặc (b) mọi task tham chiếu yêu cầu đã [X].
+    Không có tasks.md → rỗng (mọi yêu cầu bắt buộc).
+    """
     if not tasks.is_file():
         return set()
-    done: set[str] = set()
-    open_: set[str] = set()
-    current: set[str] | None = None
+    refs_done: set[str] = set()
+    refs_open: set[str] = set()
+    tested_done: set[str] = set()
+    current_done: bool | None = None
     for line in tasks.read_text(encoding="utf-8").splitlines():
         m = TASK_LINE.match(line)
         if m:
-            current = done if m.group(1) in "xX" else open_
-            refs = line
-        elif current is not None and line.startswith("  ") and line.strip():
-            refs = line
-        else:
-            current = None
+            current_done = m.group(1) in "xX"
+        elif current_done is None or not (line.startswith("  ") and line.strip()):
+            current_done = None
             continue
-        for ref in REQ_REF.findall(refs):
-            current.add(ref)
-        for kind, num in re.findall(r"TC[_-]\w*?(FR|SC)(\d{3}[a-z]?)[_-]", refs):
-            current.add(f"{kind}-{num}")
-    return open_ - done
+        target = refs_done if current_done else refs_open
+        target.update(REQ_REF.findall(line))
+        for kind, num in re.findall(r"TC[_-]\w*?(FR|SC)(\d{3}[a-z]?)[_-]", line):
+            target.add(f"{kind}-{num}")
+            if current_done:
+                tested_done.add(f"{kind}-{num}")
+    required = tested_done | (refs_done - refs_open)
+    return (refs_done | refs_open) - required
 
 
 def scan_tests(dirs: list[Path], prefix: str = "") -> list[tuple[str, str, bool]]:

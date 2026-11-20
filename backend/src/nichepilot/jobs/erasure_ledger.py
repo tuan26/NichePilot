@@ -1,6 +1,7 @@
 """CLI áp dụng erasure ledger (X4; FR-013f; research R-09): `python -m nichepilot.jobs.erasure_ledger --strict`.
 
-Chạy trong service `migrate` (sau `alembic upgrade head`, trước api/worker) và sau `make restore`. Thoát mã ≠ 0 khi không áp dụng
+Chạy trong service `migrate` (sau `alembic upgrade head`, trước api/worker) và sau `make restore`. Thoát mã ≠ 0 khi
+không áp dụng
 đầy đủ được → api/worker không khởi động (Compose `service_completed_successfully`). Log không chứa nội dung bằng chứng.
 """
 
@@ -23,7 +24,9 @@ EXIT_BLOCKED = 3
 
 async def run(strict: bool) -> int:
     settings = get_settings()
-    configure_logging(level=settings.log_level, fmt=settings.log_format, log_dir=None, secret_values=settings.secret_values())
+    configure_logging(
+        level=settings.log_level, fmt=settings.log_format, log_dir=None, secret_values=settings.secret_values()
+    )
     sm = init_db(settings.database_url.get_secret_value())
     ledger = Ledger(get_discovery_settings().erasure_ledger_dir)
     try:
@@ -33,7 +36,8 @@ async def run(strict: bool) -> int:
     except LedgerError as exc:
         print(json.dumps({"status": "BLOCKED", "code": exc.code}), file=sys.stderr)
         print(
-            "Erasure ledger chưa được áp dụng – dữ liệu nghiên cứu E1 bị chặn. Xem docs/operations/discovery.md (Restore).",
+            "Erasure ledger chưa được áp dụng – dữ liệu nghiên cứu E1 bị chặn. Xem"
+            " docs/operations/discovery.md (Restore).",
             file=sys.stderr,
         )
         return EXIT_BLOCKED

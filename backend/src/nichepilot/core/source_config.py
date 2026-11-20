@@ -1,7 +1,9 @@
 """Cấu hình nguồn dùng chung cho `modules/discovery` và `tools/sources` (FR-006, FR-006g; internal-interfaces §1.1, A2).
 
-Đặt ở `core` vì hai lớp `modules` và `tools` không được import lẫn nhau (backend/.importlinter). Cấu hình KHÔNG chứa credential:
-khóa bị cấm ở mọi cấp lồng nhau, giá trị có dạng credential bị từ chối; xác thực chỉ qua `auth_env_var` = TÊN biến môi trường.
+Đặt ở `core` vì hai lớp `modules` và `tools` không được import lẫn nhau (backend/.importlinter). Cấu hình KHÔNG chứa
+credential:
+khóa bị cấm ở mọi cấp lồng nhau, giá trị có dạng credential bị từ chối; xác thực chỉ qua `auth_env_var` = TÊN biến
+môi trường.
 """
 
 from __future__ import annotations
@@ -130,6 +132,6 @@ def validate_source_config(adapter_type: str, config: dict[str, Any]) -> dict[st
     try:
         return model.model_validate(config).model_dump()
     except ValidationError as exc:
-        raise SourceConfigError("; ".join(f"{'.'.join(map(str, e['loc']))}: {e['type']}" for e in exc.errors())) from None
-
-
+        raise SourceConfigError(
+            "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['type']}" for e in exc.errors())
+        ) from None

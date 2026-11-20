@@ -1,7 +1,8 @@
 """SourcePolicyService (FR-006c…FR-006g, FR-036; quyết định A1 2026-11-20 (b); internal-interfaces §1).
 
 - `usable_for_run()` chỉ trả nguồn `enabled ∧ ALLOWED` – cho MỌI loại lượt; không có tham số/cờ nào đưa nguồn khác vào.
-- Không có hàm nào tự bật nguồn hay tự nâng trạng thái. Chỉ `update_policy` (API của chủ sở hữu) ghi `compliance_status`/
+- Không có hàm nào tự bật nguồn hay tự nâng trạng thái. Chỉ `update_policy` (API của chủ sở hữu) ghi
+`compliance_status`/
   `enabled`, kèm căn cứ bắt buộc và audit trước/sau. Rời `ALLOWED` → tắt ngay trong cùng transaction.
 - Nguồn mới (`create_policy`) luôn `UNVERIFIED`, tắt.
 """
@@ -128,7 +129,7 @@ class SourcePolicyService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list(self) -> list[dict[str, Any]]:
+    async def list_policies(self) -> list[dict[str, Any]]:
         rows = (await self.session.execute(text("SELECT * FROM source_policies ORDER BY source_key"))).mappings().all()
         return [dict(r) for r in rows]
 
@@ -155,7 +156,9 @@ class SourcePolicyService:
         )
         return [UsableSourcePolicy(_TOKEN, r) for r in rows]
 
-    async def create_policy(self, actor_id: uuid.UUID, data: PolicyCreate, *, request_id: str | None = None) -> dict[str, Any]:
+    async def create_policy(
+        self, actor_id: uuid.UUID, data: PolicyCreate, *, request_id: str | None = None
+    ) -> dict[str, Any]:
         try:
             config = validate_source_config(data.adapter_type, data.config)
         except SourceConfigError as exc:

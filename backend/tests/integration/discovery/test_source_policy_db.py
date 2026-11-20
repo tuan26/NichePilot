@@ -27,7 +27,9 @@ async def test_TC_E1_FR006d_03_usable_only_allowed_enabled_and_audited(clean_db:
         ).scalar_one()
         svc = SourcePolicyService(s)
         assert await svc.usable_for_run() == []  # seed: mọi nguồn UNVERIFIED
-        wiki = (await s.execute(text("SELECT id FROM source_policies WHERE source_key = 'searxng:wikipedia'"))).scalar_one()
+        wiki = (
+            await s.execute(text("SELECT id FROM source_policies WHERE source_key = 'searxng:wikipedia'"))
+        ).scalar_one()
         with pytest.raises(AppError) as exc:
             await svc.update_policy(user, wiki, PolicyUpdate(enabled=True))  # UNVERIFIED không bật được
         assert exc.value.code == "SOURCE_NOT_ALLOWED"
@@ -37,7 +39,9 @@ async def test_TC_E1_FR006d_03_usable_only_allowed_enabled_and_audited(clean_db:
         await svc.update_policy(user, wiki, ALLOW)
         await svc.update_policy(user, wiki, PolicyUpdate(enabled=True))
         usable = await svc.usable_for_run()
-        assert [u.source_key for u in usable] == ["searxng:wikipedia"] and usable[0].snapshot().compliance_status == "ALLOWED"
+        assert [u.source_key for u in usable] == ["searxng:wikipedia"] and usable[
+            0
+        ].snapshot().compliance_status == "ALLOWED"
         await svc.update_policy(user, wiki, PolicyUpdate(compliance_status="UNVERIFIED"))  # rời ALLOWED → tự tắt
         row = (await s.execute(text("SELECT enabled FROM source_policies WHERE id = :i"), {"i": wiki})).scalar_one()
         assert row is False and await svc.usable_for_run() == []

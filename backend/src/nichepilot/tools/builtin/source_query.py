@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from nichepilot.core.discovery_config import DiscoverySettings
 from nichepilot.tools.privacy.pii import PiiEngine, select_pii_engine
 from nichepilot.tools.registry import ToolContext, ToolDefinition
-from nichepilot.tools.sources.base import PolicySnapshot, SourceAdapter, Sleep
+from nichepilot.tools.sources.base import PolicySnapshot, Sleep, SourceAdapter
 
 TOOL_NAME = "source.query"
 
@@ -69,8 +69,11 @@ def build_source_query_tool(
         adapter = adapters.get(policy.adapter_type)
         if adapter is None:
             return SourceQueryOutput(
-                source_key=policy.source_key, status="UNAVAILABLE", reason="ADAPTER_MISSING",
-                data_origin="REAL", hits=[],
+                source_key=policy.source_key,
+                status="UNAVAILABLE",
+                reason="ADAPTER_MISSING",
+                data_origin="REAL",
+                hits=[],
             )
         result = await adapter.query(
             policy, inp.query, market=inp.market, language=inp.language, max_results=inp.max_results
@@ -83,7 +86,9 @@ def build_source_query_tool(
             worst = max((t_status, s_status), key=("REDACTED", "NEEDS_REVIEW", "UNSAFE").index)
             needs_review += worst != "REDACTED"
             hits.append(
-                SourceHitOut(url=h.url, title=title, snippet=snippet, published_at=h.published_at, redaction_status=worst)  # type: ignore[arg-type]
+                SourceHitOut(
+                    url=h.url, title=title, snippet=snippet, published_at=h.published_at, redaction_status=worst
+                )
             )
         return SourceQueryOutput(
             source_key=policy.source_key,

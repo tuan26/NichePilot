@@ -48,7 +48,7 @@ def _row(key: str, status: str, enabled: bool, user: object = None, full: bool =
 async def test_TC_E1_FR006c_01_only_allowed_can_be_enabled(db: AsyncEngine, status: str) -> None:
     async with db.connect() as conn:
         user = await _user(conn)
-        with pytest.raises(IntegrityError, match="enabled_only_allowed|prohibited_has_evidence"):
+        with pytest.raises(IntegrityError, match=r"enabled_only_allowed|prohibited_has_evidence"):
             await conn.execute(text(INSERT), _row(f"test:{status.lower()}", status, True, user, full=True))
         await conn.rollback()
 

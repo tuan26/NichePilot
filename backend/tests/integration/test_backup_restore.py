@@ -115,7 +115,7 @@ async def test_TC_E1_FR013f_11_restore_blocks_e1_data_until_ledger_reapplied(
 
     ledger_dir = tmp_path / "ledger"
     await apply_erasure_ledger(async_sessionmaker(clean_db), Ledger(ledger_dir))  # khởi tạo sổ trên DB nguồn
-    os.chmod(ledger_dir, 0o755)
+    os.chmod(ledger_dir, 0o755)  # noqa: S103 – thư mục tạm của test, container postgres cần đọc
     os.chmod(ledger_dir / "ledger.jsonl", 0o644)
     backups = tmp_path / "backups"
     backups.mkdir()

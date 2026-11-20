@@ -24,7 +24,7 @@ def render_settings(base_yaml: str, engine_names: Iterable[str]) -> str:
     server["image_proxy"] = False
     server.pop("secret_key", None)  # secret chỉ qua SEARXNG_SECRET
     header = "# Sinh tự động bởi NichePilot từ source_policies (chỉ nguồn ALLOWED đang bật). KHÔNG sửa tay.\n"
-    return header + yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True)
+    return header + str(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True))
 
 
 def write_settings(config_dir: Path, base_path: Path, engine_names: Iterable[str]) -> bool:

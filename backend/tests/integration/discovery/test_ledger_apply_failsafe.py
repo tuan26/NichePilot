@@ -17,7 +17,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.discovery]
 
 async def _state(engine: AsyncEngine) -> tuple[object, ...]:
     async with engine.connect() as conn:
-        return tuple((await conn.execute(text("SELECT ledger_id, applied_seq, status, last_error FROM erasure_ledger_state"))).one())
+        return tuple(
+            (
+                await conn.execute(text("SELECT ledger_id, applied_seq, status, last_error FROM erasure_ledger_state"))
+            ).one()
+        )
 
 
 async def _evidence(engine: AsyncEngine) -> uuid.UUID:
@@ -52,7 +56,9 @@ async def test_TC_E1_FR013f_02_fresh_install_initializes_ledger(clean_db: AsyncE
     assert (await ledger_health(sm, Ledger(tmp_path))).status == "OK"
 
 
-async def test_TC_E1_FR013f_03_missing_ledger_with_known_ledger_id_blocks(clean_db: AsyncEngine, tmp_path: Path) -> None:
+async def test_TC_E1_FR013f_03_missing_ledger_with_known_ledger_id_blocks(
+    clean_db: AsyncEngine, tmp_path: Path
+) -> None:
     sm = async_sessionmaker(clean_db)
     await apply_erasure_ledger(sm, Ledger(tmp_path))
     (tmp_path / "ledger.jsonl").unlink()
@@ -63,7 +69,9 @@ async def test_TC_E1_FR013f_03_missing_ledger_with_known_ledger_id_blocks(clean_
     assert (await ledger_health(sm, Ledger(tmp_path))).status == "BLOCKED"
 
 
-async def test_TC_E1_FR013f_04_ledger_id_mismatch_and_tampered_chain_block(clean_db: AsyncEngine, tmp_path: Path) -> None:
+async def test_TC_E1_FR013f_04_ledger_id_mismatch_and_tampered_chain_block(
+    clean_db: AsyncEngine, tmp_path: Path
+) -> None:
     sm = async_sessionmaker(clean_db)
     await apply_erasure_ledger(sm, Ledger(tmp_path))
     other = tmp_path / "other"
@@ -103,21 +111,29 @@ async def test_TC_E1_FR013f_06_apply_erases_atomically_or_rolls_back(clean_db: A
     await apply_erasure_ledger(sm, ledger)
     ev = await _evidence(clean_db)
     ledger.append("EVIDENCE", ev, content_hash=None, url_hash=None, requested_by=None)
-    ledger.append("EVIDENCE", uuid.uuid4(), content_hash=None, url_hash=None, requested_by=None)  # đích không tồn tại: OK
+    ledger.append(
+        "EVIDENCE", uuid.uuid4(), content_hash=None, url_hash=None, requested_by=None
+    )  # đích không tồn tại: OK
     res = await apply_erasure_ledger(sm, ledger)
     assert res.applied == 2
     async with clean_db.connect() as conn:
-        row = (await conn.execute(text("SELECT lifecycle_status, excerpt, value FROM research_evidence WHERE id = :i"), {"i": ev})).one()
+        row = (
+            await conn.execute(
+                text("SELECT lifecycle_status, excerpt, value FROM research_evidence WHERE id = :i"), {"i": ev}
+            )
+        ).one()
     assert tuple(row) == ("ERASED", None, None)
     assert (await _state(clean_db))[1:3] == (2, "OK")
     # lỗi giữa chừng (loại đích không hợp lệ được ghi thẳng vào sổ) → rollback toàn bộ, BLOCKED
     ev2 = await _evidence(clean_db)
     ledger.append("EVIDENCE", ev2, content_hash=None, url_hash=None, requested_by=None)
-    ledger._append_raw({"target_type": "BOGUS", "target_id": str(uuid.uuid4())})  # noqa: SLF001 – mô phỏng lỗi áp dụng
+    ledger._append_raw({"target_type": "BOGUS", "target_id": str(uuid.uuid4())})
     with pytest.raises(LedgerError) as exc:
         await apply_erasure_ledger(sm, ledger)
     assert exc.value.code == "LEDGER_APPLY_FAILED"
     async with clean_db.connect() as conn:
-        status = (await conn.execute(text("SELECT lifecycle_status FROM research_evidence WHERE id = :i"), {"i": ev2})).scalar_one()
+        status = (
+            await conn.execute(text("SELECT lifecycle_status FROM research_evidence WHERE id = :i"), {"i": ev2})
+        ).scalar_one()
     assert status == "ACTIVE"  # rollback: ev2 chưa bị xóa nửa vời
     assert (await _state(clean_db))[1:3] == (2, "BLOCKED")

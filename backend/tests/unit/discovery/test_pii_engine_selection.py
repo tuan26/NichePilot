@@ -34,7 +34,9 @@ def test_TC_E1_FR012a_05_production_rejects_unapproved_engine() -> None:
 
 def test_TC_E1_FR012a_09_unknown_engine_and_mock_sources_rejected_in_production() -> None:
     with pytest.raises(ConfigError):
-        validate_discovery_settings(DiscoverySettings(app_env="production", pii_engine="nope", pii_approved_engines="nope"))
+        validate_discovery_settings(
+            DiscoverySettings(app_env="production", pii_engine="nope", pii_approved_engines="nope")
+        )
     with pytest.raises(ConfigError) as exc:
         validate_discovery_settings(DiscoverySettings(app_env="production", discovery_source_mode="mock"))
     assert exc.value.code == "MOCK_NOT_ALLOWED"

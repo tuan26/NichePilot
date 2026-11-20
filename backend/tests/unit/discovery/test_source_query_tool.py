@@ -45,9 +45,7 @@ def _tool(handler: Any) -> Any:
         sleep=_nosleep,
         limiter=RateLimiter(sleep=_nosleep),
     )
-    return build_source_query_tool(
-        DiscoverySettings(), adapters={"searxng_engine": adapter}, sleep=lambda _s: _noop()
-    )
+    return build_source_query_tool(DiscoverySettings(), adapters={"searxng_engine": adapter}, sleep=lambda _s: _noop())
 
 
 async def _noop() -> None:
@@ -73,7 +71,11 @@ async def test_TC_E1_FR006_01_allowed_source_queried_and_snippets_redacted() -> 
             200,
             json={
                 "results": [
-                    {"url": "https://forum.example/t/1", "title": "Flour stock", "content": "Mail me at a.b@example.com"},
+                    {
+                        "url": "https://forum.example/t/1",
+                        "title": "Flour stock",
+                        "content": "Mail me at a.b@example.com",
+                    },
                     {"url": "https://forum.example/t/2", "title": "Waste", "content": "Last week Priya Raman told me"},
                 ]
             },

@@ -2,12 +2,14 @@
 """Đo chất lượng PiiEngine trên tập có nhãn (T131 – FR-012a, FR-032, SC-016; quyết định A1 sau analyze cuối).
 
 Phân loại mỗi mẫu:
-- Mẫu có PII: "bắt được" nếu kết quả không phải REDACTED (NEEDS_REVIEW/UNSAFE), hoặc REDACTED nhưng mọi giá trị PII đã biến mất.
+- Mẫu có PII: "bắt được" nếu kết quả không phải REDACTED (NEEDS_REVIEW/UNSAFE), hoặc REDACTED nhưng mọi giá trị PII
+đã biến mất.
   Ngược lại là false negative (FN) – PII lọt vào văn bản có thể gửi AI.
 - Mẫu không có PII: NEEDS_REVIEW/UNSAFE là cảnh báo sai (false positive, FP); REDACTED là đúng (TN).
 Chỉ in số liệu và loại nguy cơ – không in nội dung mẫu. Không tự đổi engine: kết quả để chủ sở hữu quyết định.
 
-Chạy: `uv run python scripts/pii_engine_eval.py [--engine regex-phone] [--data tests/fixtures/discovery/pii_labeled.jsonl]`
+Chạy: `uv run python scripts/pii_engine_eval.py [--engine regex-phone] [--data
+tests/fixtures/discovery/pii_labeled.jsonl]`
 """
 
 from __future__ import annotations

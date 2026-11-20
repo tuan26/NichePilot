@@ -1,6 +1,7 @@
 """Tool `page.fetch` (FR-005, FR-012a, FR-012b, FR-031; research R-03, R-05; internal-interfaces §2).
 
-Tải trang (fetcher mặc định httpx – không trình duyệt), trích nội dung chính bằng trafilatura (bỏ metadata tác giả) và CHE PII
+Tải trang (fetcher mặc định httpx – không trình duyệt), trích nội dung chính bằng trafilatura (bỏ metadata tác giả)
+và CHE PII
 TRONG handler. Văn bản thô chỉ là biến cục bộ: output (được Tool Registry E0 lưu vào `tool_executions`) chỉ chứa đoạn
 `REDACTED`; đoạn NEEDS_REVIEW/UNSAFE bị bỏ, chỉ đếm số lượng (FR-032 `needs_review_segments`).
 Robots/khoảng cách tên miền do agent kiểm tra TRƯỚC khi gọi tool này.
@@ -82,8 +83,13 @@ def build_page_fetch_tool(
 
         def out(status: Literal["SUCCESS", "FAILED", "SKIPPED"], reason: str | None, **kw: object) -> PageFetchOutput:
             return PageFetchOutput(
-                status=status, reason=reason, http_status=raw.http_status, final_url=raw.final_url,
-                retry_after_s=raw.retry_after_s, data_origin=origin, **kw,  # type: ignore[arg-type]
+                status=status,
+                reason=reason,
+                http_status=raw.http_status,
+                final_url=raw.final_url,
+                retry_after_s=raw.retry_after_s,
+                data_origin=origin,
+                **kw,
             )
 
         if raw.error:

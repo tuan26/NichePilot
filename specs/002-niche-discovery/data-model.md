@@ -217,6 +217,7 @@ UPDATE/DELETE bị chặn bằng trigger (bất biến).
 | `min_interval_s` | NUMERIC(8,2) | ≥ 1 |
 | `robots_status` | TEXT | `OK` \| `NOT_FOUND` \| `UNREACHABLE` \| `PENDING` |
 | `robots_fetched_at` | timestamptz, NULL được | cache 24 h |
+| `robots_rules` | TEXT, NULL được | nội dung robots.txt cần cho luật (≤ 64 KB), chỉ khi `robots_status = OK` |
 | `crawl_delay_s` | NUMERIC(8,2), NULL được | ≥ 0 |
 | `blocked_until` | timestamptz, NULL được | |
 | `block_reason` | TEXT, NULL được | `RATE_LIMITED` \| `ACCESS_RESTRICTED` \| `ROBOTS_UNREACHABLE` |

@@ -4,7 +4,8 @@ Sổ `ledger.jsonl` (volume riêng, KHÔNG nằm trong dump PostgreSQL): dòng �
 `{seq, target_type, target_id, content_hash, url_hash, requested_by, erased_at, prev_hash, hash}` với
 `hash = sha256(prev_hash ‖ payload)` → phát hiện mất/sửa dòng. Không chứa nội dung hay PII (chỉ ID, hash, thời điểm).
 
-`apply_erasure_ledger` (strict) chạy trong service `migrate` và sau `make restore`; mọi lỗi → rollback, `BLOCKED`, mã lỗi;
+`apply_erasure_ledger` (strict) chạy trong service `migrate` và sau `make restore`; mọi lỗi → rollback, `BLOCKED`, mã
+lỗi;
 API E1 trả 503 và agent E1 dừng ở `preflight` cho tới khi áp dụng thành công.
 """
 
@@ -242,7 +243,10 @@ async def apply_entry(session: AsyncSession, entry: LedgerEntry) -> None:
 async def _block(sm: async_sessionmaker[AsyncSession], code: str) -> None:
     async with sm() as s, s.begin():
         await s.execute(
-            text("UPDATE erasure_ledger_state SET status = 'BLOCKED', last_error = :e, checked_at = now(), updated_at = now()"),
+            text(
+                "UPDATE erasure_ledger_state SET status = 'BLOCKED', last_error = :e, checked_at = now(),"
+                " updated_at = now()"
+            ),
             {"e": code[:500]},
         )
     log.error("erasure_ledger.blocked", code=code)

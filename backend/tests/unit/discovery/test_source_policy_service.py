@@ -43,7 +43,9 @@ def _writers() -> set[tuple[str, str]]:
             if not isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
             for node in ast.walk(fn):
-                hit = (isinstance(node, ast.Constant) and isinstance(node.value, str) and WRITE_SQL.search(node.value)) or (
+                hit = (
+                    isinstance(node, ast.Constant) and isinstance(node.value, str) and WRITE_SQL.search(node.value)
+                ) or (
                     isinstance(node, ast.Assign | ast.AugAssign)
                     and any(
                         isinstance(t, ast.Attribute) and t.attr in {"compliance_status", "enabled"}

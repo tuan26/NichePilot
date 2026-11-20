@@ -1,7 +1,9 @@
 """Adapter `searxng_engine` (FR-006, FR-006a, FR-006f; research R-02).
 
-Chỉ truy vấn engine của policy ALLOWED (tham số `engines=`) – SearXNG cũng chỉ nạp engine của nguồn đang bật (`keep_only`).
-429/503: thử lại tối đa `max_retries` lần theo Retry-After; Retry-After quá dài → dừng. CAPTCHA/chặn → ACCESS_RESTRICTED,
+Chỉ truy vấn engine của policy ALLOWED (tham số `engines=`) – SearXNG cũng chỉ nạp engine của nguồn đang bật
+(`keep_only`).
+429/503: thử lại tối đa `max_retries` lần theo Retry-After; Retry-After quá dài → dừng. CAPTCHA/chặn →
+ACCESS_RESTRICTED,
 không thử vượt.
 """
 
@@ -10,11 +12,18 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 import httpx
 
-from nichepilot.tools.sources.base import PolicySnapshot, RateLimiter, SearxngEngineConfig, SourceHit, SourceResult, Sleep
+from nichepilot.tools.sources.base import (
+    PolicySnapshot,
+    RateLimiter,
+    SearxngEngineConfig,
+    Sleep,
+    SourceHit,
+    SourceResult,
+)
 
 CAPTCHA_MARKERS = ("captcha", "verify you are human", "unusual traffic", "access denied")
 MAX_RETRY_AFTER_S = 60.0
@@ -81,8 +90,8 @@ class SearxngEngineAdapter:
         return SourceResult("UNAVAILABLE", reason=last_reason)
 
     @staticmethod
-    def _parse(data: dict[str, object], max_results: int) -> SourceResult:
-        results = data.get("results") or []
+    def _parse(data: dict[str, Any], max_results: int) -> SourceResult:
+        results: list[Any] = list(data.get("results") or [])
         hits = [
             SourceHit(
                 url=str(r["url"]),
@@ -90,12 +99,12 @@ class SearxngEngineAdapter:
                 snippet=str(r.get("content") or "") or None,
                 published_at=str(r["publishedDate"]) if r.get("publishedDate") else None,
             )
-            for r in results  # type: ignore[union-attr]
+            for r in results
             if isinstance(r, dict) and str(r.get("url", "")).startswith(("http://", "https://"))
         ][:max_results]
         if hits:
             return SourceResult("OK", hits)
-        unresponsive = " ".join(str(x) for x in (data.get("unresponsive_engines") or [])).lower()  # type: ignore[union-attr]
+        unresponsive = " ".join(str(x) for x in list(data.get("unresponsive_engines") or [])).lower()
         if "captcha" in unresponsive or "access denied" in unresponsive:
             return SourceResult("ACCESS_RESTRICTED", reason="UPSTREAM_CAPTCHA")
         if unresponsive:

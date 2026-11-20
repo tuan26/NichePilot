@@ -16,6 +16,24 @@ from nichepilot.services import build_services
 PASSWORD = "correct-horse-battery"  # mật khẩu chỉ dùng trong test
 
 
+def make_discovery_settings(**overrides: Any) -> Any:
+    """Cấu hình E1 cho test: nguồn giả lập (MOCK), thư mục sổ xóa tạm – không truy cập mạng."""
+    import tempfile
+    from pathlib import Path
+
+    from nichepilot.core.discovery_config import DiscoverySettings
+
+    tmp = Path(tempfile.mkdtemp(prefix="np-e1-"))
+    values: dict[str, Any] = {
+        "app_env": "test",
+        "discovery_source_mode": "mock",
+        "erasure_ledger_dir": tmp / "ledger",
+        "searxng_config_dir": tmp / "searxng",
+    }
+    values.update(overrides)
+    return DiscoverySettings(**values)
+
+
 def make_settings(db_url: str, **overrides: Any) -> Settings:
     values: dict[str, Any] = {
         "database_url": db_url,
@@ -30,13 +48,15 @@ def make_settings(db_url: str, **overrides: Any) -> Settings:
 
 @asynccontextmanager
 async def api_client(
-    db_url: str, *, gateway_backoff_zero: bool = True, **overrides: Any
+    db_url: str, *, gateway_backoff_zero: bool = True, discovery_settings: Any = None, **overrides: Any
 ) -> AsyncIterator[httpx.AsyncClient]:
     settings = make_settings(db_url, **overrides)
     app = create_app(settings=settings)
     sessionmaker = init_db(db_url)
     app.state.settings = settings
-    services = build_services(settings, sessionmaker)
+    services = build_services(
+        settings, sessionmaker, discovery_settings=discovery_settings or make_discovery_settings()
+    )
     if gateway_backoff_zero:
         services.gateway.backoff_base_s = 0
     app.state.services = services

@@ -1,6 +1,7 @@
 """SpacyEnPiiEngine – CHỈ dev/test, nhóm tùy chọn `pii-ner` (quyết định I2: chưa phê duyệt production).
 
-Import spaCy lười (không có trong image production). Không tải model lúc chạy: thiếu model → ConfigError ở select_pii_engine.
+Import spaCy lười (không có trong image production). Không tải model lúc chạy: thiếu model → ConfigError ở
+select_pii_engine.
 """
 
 from __future__ import annotations

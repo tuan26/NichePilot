@@ -2,7 +2,8 @@
 
 Quy tắc: VERIFIED bắt buộc có nguồn; UNKNOWN không có giá trị (không bịa dữ liệu); trích đoạn giới hạn độ dài;
 truy vấn mặc định loại dữ liệu MOCK để mock không bao giờ lẫn vào nghiên cứu thật.
-E1 (X3, FR-013e): truy vấn mặc định chỉ trả bằng chứng `ACTIVE` – bằng chứng đã xóa không được dùng ở bất kỳ phân tích nào;
+E1 (X3, FR-013e): truy vấn mặc định chỉ trả bằng chứng `ACTIVE` – bằng chứng đã xóa không được dùng ở bất kỳ phân
+tích nào;
 `include_erased=True` chỉ dành cho audit.
 """
 

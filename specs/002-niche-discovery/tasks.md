@@ -86,71 +86,71 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
 
 ### Tests cho Foundational (viết trước, phải FAIL)
 
-- [ ] T012 [P] Test migration `0009_discovery` up/down/up và ORM khớp migration trong
+- [X] T012 [P] Test migration `0009_discovery` up/down/up và ORM khớp migration trong
   `backend/tests/integration/discovery/test_migration_0009.py` (TC_E1_FR029_01) (FR-029, FR-013e)
-- [ ] T013 [P] Test ràng buộc DB `source_policies`: bật nguồn khi `UNVERIFIED` hoặc `PROHIBITED` bị CHECK từ chối; `ALLOWED` thiếu căn cứ bị
+- [X] T013 [P] Test ràng buộc DB `source_policies`: bật nguồn khi `UNVERIFIED` hoặc `PROHIBITED` bị CHECK từ chối; `ALLOWED` thiếu căn cứ bị
   từ chối; `PROHIBITED` thiếu `verified_at`/`verification_note` bị từ chối; đổi khỏi `ALLOWED` đặt `enabled = false` trong
   `backend/tests/integration/discovery/test_source_policy_constraints.py` (TC_E1_FR006c_01, TC_E1_FR006c_02, TC_E1_FR006c_03,
   TC_E1_FR006d_01) (FR-006c, FR-006d)
-- [ ] T014 [P] Test `EvidenceService.query` mặc định chỉ trả `ACTIVE`; CHECK `ERASED ⇒ excerpt/value NULL` trong
+- [X] T014 [P] Test `EvidenceService.query` mặc định chỉ trả `ACTIVE`; CHECK `ERASED ⇒ excerpt/value NULL` trong
   `backend/tests/integration/discovery/test_evidence_lifecycle.py` (TC_E1_FR013e_01) (FR-013e)
-- [ ] T015 [P] Test sổ xóa: genesis/`ledger_id`, hash chain, fsync, ghi sổ trước DB, áp dụng lại idempotent trong
+- [X] T015 [P] Test sổ xóa: genesis/`ledger_id`, hash chain, fsync, ghi sổ trước DB, áp dụng lại idempotent trong
   `backend/tests/unit/discovery/test_erasure_ledger.py` (TC_E1_FR013f_01) (FR-013f)
-- [ ] T016 [P] Test `apply_erasure_ledger --strict` thất bại an toàn: sổ thiếu khi DB có `ledger_id`; `ledger_id` lệch; hash chain bị sửa;
+- [X] T016 [P] Test `apply_erasure_ledger --strict` thất bại an toàn: sổ thiếu khi DB có `ledger_id`; `ledger_id` lệch; hash chain bị sửa;
   `applied_seq` > seq cuối; lỗi giữa chừng → rollback + `BLOCKED` + exit ≠ 0 trong
   `backend/tests/integration/discovery/test_ledger_apply_failsafe.py` (TC_E1_FR013f_02…TC_E1_FR013f_06) (FR-013f)
-- [ ] T017 [P] Test gate: `BLOCKED`/lệch → endpoint dữ liệu nghiên cứu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`; `GET /api/v1/discovery/status`
+- [X] T017 [P] Test gate: `BLOCKED`/lệch → endpoint dữ liệu nghiên cứu E1 trả 503 `ERASURE_LEDGER_NOT_APPLIED`; `GET /api/v1/discovery/status`
   báo `BLOCKED`; endpoint cấu hình E1 vẫn chạy; phản hồi `/health` và `/api/v1/system/status` của E0 không đổi (hồi quy schema); job
   `discovery.*` thất bại ở bước `preflight`, 0 lời gọi AI trong `backend/tests/integration/discovery/test_ledger_gate.py`
   (TC_E1_FR013f_07, TC_E1_FR013f_08) (FR-013f)
-- [ ] T018 [P] Test `SourcePolicyService.usable_for_run()` chỉ trả `enabled ∧ ALLOWED` cho mọi loại lượt; không có tham số đưa nguồn khác
+- [X] T018 [P] Test `SourcePolicyService.usable_for_run()` chỉ trả `enabled ∧ ALLOWED` cho mọi loại lượt; không có tham số đưa nguồn khác
   vào; test kiến trúc quét mã: chỉ `update_policy` ghi `compliance_status`/`enabled` trong
   `backend/tests/unit/discovery/test_source_policy_service.py` (TC_E1_FR006d_02, TC_E1_SC017_01) (FR-006d, SC-017)
-- [ ] T019 [P] Test `SearxngConfigWriter` sinh `keep_only` đúng engine của nguồn `ALLOWED` đang bật (rỗng khi không có) trong
+- [X] T019 [P] Test `SearxngConfigWriter` sinh `keep_only` đúng engine của nguồn `ALLOWED` đang bật (rỗng khi không có) trong
   `backend/tests/unit/discovery/test_searxng_config.py` (TC_E1_FR006g_01) (FR-006g)
-- [ ] T020 [P] Test tool `source.query`: từ chối mọi trạng thái khác `ALLOWED`; snippet được che PII; tôn trọng `rate_limit_per_minute`,
+- [X] T020 [P] Test tool `source.query`: từ chối mọi trạng thái khác `ALLOWED`; snippet được che PII; tôn trọng `rate_limit_per_minute`,
   `max_retries`, `timeout_s` của từng nguồn; 401/403 → `AUTH_FAILED` không thử lại; lỗi mạng → `NETWORK_ERROR`; CAPTCHA/429 không thử
   vượt trong `backend/tests/unit/discovery/test_source_query_tool.py` (TC_E1_FR006_01, TC_E1_FR006_02, TC_E1_FR006f_01,
   TC_E1_FR012b_01) (FR-006, FR-006f, FR-012b)
-- [ ] T021 [P] Test validate `source_policies.config`: từ chối mọi khóa bị cấm ở internal-interfaces §1.1 (kể cả lồng nhau/mảng, biến thể
+- [X] T021 [P] Test validate `source_policies.config`: từ chối mọi khóa bị cấm ở internal-interfaces §1.1 (kể cả lồng nhau/mảng, biến thể
   chữ hoa, `-`/`_`/`.`), từ chối giá trị có dạng credential; chấp nhận `auth_env_var` hợp lệ trong
   `backend/tests/unit/discovery/test_source_config_validation.py` (TC_E1_FR006g_02) (FR-006g)
-- [ ] T022 [P] Test `RegexPhonePiiEngine` trên bộ mẫu SC-016 (email, điện thoại nhiều định dạng/quốc gia, @username, `u/…`, "Posted by");
+- [X] T022 [P] Test `RegexPhonePiiEngine` trên bộ mẫu SC-016 (email, điện thoại nhiều định dạng/quốc gia, @username, `u/…`, "Posted by");
   tên người không theo mẫu → `NEEDS_REVIEW`; ngôn ngữ khác tiếng Anh có cụm viết hoa nghi ngờ → `NEEDS_REVIEW`; còn mẫu sau khi che →
   `UNSAFE`; đoạn có nguy cơ không bao giờ `REDACTED` chỉ nhờ regex trong `backend/tests/unit/discovery/test_pii_engine.py`
   (TC_E1_FR012a_01…TC_E1_FR012a_04, TC_E1_SC016_01) (FR-012a, SC-016)
-- [ ] T131 [P] Bộ đo chất lượng `PiiEngine` (bổ sung 2026-11-20, thực hiện cùng T022): tập đoạn văn tự soạn có nhãn (có/không chứa tên người
+- [X] T131 [P] Bộ đo chất lượng `PiiEngine` (bổ sung 2026-11-20, thực hiện cùng T022): tập đoạn văn tự soạn có nhãn (có/không chứa tên người
   hoặc PII) trong `backend/tests/fixtures/discovery/pii_labeled.jsonl`; script `backend/scripts/pii_engine_eval.py` tính tỷ lệ
   `NEEDS_REVIEW`, cảnh báo đúng/sai, false positive/false negative theo loại PII; test `backend/tests/unit/discovery/test_pii_engine_eval.py`
   khẳng định false negative = 0 trên tập có nhãn (không nới bảo vệ để tăng số ngách đủ bằng chứng); kết quả đo báo cáo cho chủ sở hữu,
   không tự đổi engine (TC_E1_FR012a_08, TC_E1_FR032_02) (FR-012a, FR-012b, FR-032, SC-016)
-- [ ] T023 [P] Test `select_pii_engine` fail-closed: production + `PII_ENGINE` ∉ `PII_APPROVED_ENGINES` → từ chối khởi động
+- [X] T023 [P] Test `select_pii_engine` fail-closed: production + `PII_ENGINE` ∉ `PII_APPROVED_ENGINES` → từ chối khởi động
   (`PII_ENGINE_NOT_APPROVED`); engine cần model mà model vắng → từ chối; không có lời gọi mạng tải model (rào chắn socket) trong
   `backend/tests/unit/discovery/test_pii_engine_selection.py` (TC_E1_FR012a_05) (FR-012a)
-- [ ] T024 [P] Test `SpacyEnPiiEngine` (marker `pii_ner`, chỉ dev/test; skip có lý do khi nhóm `pii-ner` không cài) trong
+- [X] T024 [P] Test `SpacyEnPiiEngine` (marker `pii_ner`, chỉ dev/test; skip có lý do khi nhóm `pii-ner` không cài) trong
   `backend/tests/unit/discovery/test_pii_engine_spacy.py` (TC_E1_FR012a_06) (FR-012a)
-- [ ] T025 [P] Test tool `page.fetch`: output và bản ghi `tool_calls` chỉ chứa văn bản đã che; bỏ `author`; chỉ `text/html`, ≤ 3 MB, timeout
+- [X] T025 [P] Test tool `page.fetch`: output và bản ghi `tool_calls` chỉ chứa văn bản đã che; bỏ `author`; chỉ `text/html`, ≤ 3 MB, timeout
   20 s; CAPTCHA/đăng nhập → `SKIPPED ACCESS_RESTRICTED` trong `backend/tests/integration/discovery/test_page_fetch_tool.py`
   (TC_E1_FR012b_02, TC_E1_FR005_01, TC_E1_FR031_01) (FR-005, FR-012b, FR-031)
-- [ ] T026 [P] Test `DomainAccessService`: robots (protego, wildcard RFC 9309) → `ROBOTS_DISALLOWED`; khoảng cách = max(trần, Crawl-delay,
+- [X] T026 [P] Test `DomainAccessService`: robots (protego, wildcard RFC 9309) → `ROBOTS_DISALLOWED`; khoảng cách = max(trần, Crawl-delay,
   Retry-After); trạng thái bền qua khởi động lại; robots 4xx → cho phép, 5xx/mạng → không thu thập tên miền trong
   `backend/tests/integration/discovery/test_domain_access.py` (TC_E1_FR030a_01…TC_E1_FR030a_03) (FR-030a)
-- [ ] T027 [P] Test tldextract không gọi mạng (`suffix_list_urls=()`) dưới rào chắn socket trong
+- [X] T027 [P] Test tldextract không gọi mạng (`suffix_list_urls=()`) dưới rào chắn socket trong
   `backend/tests/unit/discovery/test_registered_domain.py` (TC_E1_FR015_01) (FR-015)
-- [ ] T028 [P] Test production từ chối `MockSourceAdapter`/`MockPageFetcher` trong `backend/tests/unit/discovery/test_mock_sources_guard.py`
+- [X] T028 [P] Test production từ chối `MockSourceAdapter`/`MockPageFetcher` trong `backend/tests/unit/discovery/test_mock_sources_guard.py`
   (TC_E1_FR016_01) (FR-016)
-- [ ] T029 [P] Test interface thay thế được: mỗi `adapter_type` có bản mock đạt Protocol; thay adapter không đổi kết quả nghiệp vụ trên
+- [X] T029 [P] Test interface thay thế được: mỗi `adapter_type` có bản mock đạt Protocol; thay adapter không đổi kết quả nghiệp vụ trên
   cùng fixture trong `backend/tests/unit/discovery/test_source_adapter_contract.py` (TC_E1_FR006_03) (FR-006)
 
 ### Implementation cho Foundational
 
-- [ ] T030 Viết phần 1 của `backend/alembic/versions/0009_discovery.py` – mở rộng E0 (X2): `data-model.md research_sources.registered_domain`,
+- [X] T030 Viết phần 1 của `backend/alembic/versions/0009_discovery.py` – mở rộng E0 (X2): `data-model.md research_sources.registered_domain`,
   `data-model.md research_sources.simhash`, `data-model.md research_sources.lifecycle_status`, `data-model.md research_sources.erased_at`,
   `data-model.md research_sources.source_policy_id`, `data-model.md research_sources.policy_verified_at`,
   `data-model.md research_evidence.redaction_status`, `data-model.md research_evidence.redaction_counts`,
   `data-model.md research_evidence.pii_engine`, `data-model.md research_evidence.lifecycle_status`, `data-model.md research_evidence.erased_at`,
   `data-model.md research_evidence.content_hash` (FR-012a, FR-013e, FR-015)
-- [ ] T031 Viết phần 2 của `backend/alembic/versions/0009_discovery.py` – bảng cấu hình: `data-model.md scoring_weights_versions.version`,
+- [X] T031 Viết phần 2 của `backend/alembic/versions/0009_discovery.py` – bảng cấu hình: `data-model.md scoring_weights_versions.version`,
   `data-model.md scoring_weights_versions.weights`, `data-model.md scoring_weights_versions.coverage_threshold`,
   `data-model.md scoring_weights_versions.evidence_rules`, `data-model.md scoring_weights_versions.confidence_params`,
   `data-model.md scoring_weights_versions.dedup_params`, `data-model.md scoring_weights_versions.is_active`,
@@ -160,7 +160,7 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
   `data-model.md source_policies.allowed_access_methods`, `data-model.md source_policies.permitted_use_scope`,
   `data-model.md source_policies.known_limits`, `data-model.md source_policies.compliance_status`, `data-model.md source_policies.enabled`,
   `data-model.md source_policies.updated_by` và các CHECK bảng (FR-006c, FR-006d, FR-018)
-- [ ] T032 Viết phần 3 của `backend/alembic/versions/0009_discovery.py` – lượt và ngách: `data-model.md discovery_runs.job_id`,
+- [X] T032 Viết phần 3 của `backend/alembic/versions/0009_discovery.py` – lượt và ngách: `data-model.md discovery_runs.job_id`,
   `data-model.md discovery_runs.market`, `data-model.md discovery_runs.research_language`, `data-model.md discovery_runs.seed_topic`,
   `data-model.md discovery_runs.max_candidates`, `data-model.md discovery_runs.budget_usd`, `data-model.md discovery_runs.time_limit_s`,
   `data-model.md discovery_runs.page_limit`, `data-model.md discovery_runs.per_domain_interval_s`, `data-model.md discovery_runs.trigger`,
@@ -175,7 +175,7 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
   `data-model.md niche_run_links.role`, `data-model.md niche_similarity.niche_a_id`, `data-model.md niche_similarity.niche_b_id`,
   `data-model.md niche_similarity.score`, `data-model.md niche_similarity.status`, `data-model.md niche_similarity.resolved_by`
   (FR-003, FR-022, FR-025, FR-029)
-- [ ] T033 Viết phần 4 của `backend/alembic/versions/0009_discovery.py` – phân tích: `data-model.md niche_evaluations.niche_id`,
+- [X] T033 Viết phần 4 của `backend/alembic/versions/0009_discovery.py` – phân tích: `data-model.md niche_evaluations.niche_id`,
   `data-model.md niche_evaluations.run_id`, `data-model.md niche_evaluations.weights_version_id`, `data-model.md niche_evaluations.criteria`,
   `data-model.md niche_evaluations.coverage`, `data-model.md niche_evaluations.scoring_status`, `data-model.md niche_evaluations.opportunity_score`,
   `data-model.md niche_evaluations.confidence_score`, `data-model.md niche_evaluations.confidence_components`,
@@ -191,7 +191,7 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
   `data-model.md niche_evidence_links.relevance`, `data-model.md niche_evidence_links.quality`, `data-model.md niche_evidence_links.copy_suspected`,
   `data-model.md niche_evidence_links.independence_group`, `data-model.md niche_evidence_links.counted_for_threshold`
   (FR-007, FR-008, FR-009, FR-010, FR-011, FR-013b, FR-014, FR-017, FR-020, FR-023)
-- [ ] T034 Viết phần 5 của `backend/alembic/versions/0009_discovery.py` – vận hành: `data-model.md domain_access_state.domain`,
+- [X] T034 Viết phần 5 của `backend/alembic/versions/0009_discovery.py` – vận hành: `data-model.md domain_access_state.domain`,
   `data-model.md domain_access_state.last_request_at`, `data-model.md domain_access_state.min_interval_s`,
   `data-model.md domain_access_state.robots_status`, `data-model.md domain_access_state.robots_fetched_at`,
   `data-model.md domain_access_state.crawl_delay_s`, `data-model.md domain_access_state.blocked_until`,
@@ -204,72 +204,76 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
   `data-model.md erasure_ledger_state.id`, `data-model.md erasure_ledger_state.ledger_id`, `data-model.md erasure_ledger_state.applied_seq`,
   `data-model.md erasure_ledger_state.applied_hash`, `data-model.md erasure_ledger_state.status`, `data-model.md erasure_ledger_state.last_error`
   (FR-013e, FR-013f, FR-030a, FR-032)
-- [ ] T035 Tạo ORM trong `backend/src/nichepilot/modules/discovery/models.py` khớp 0009; cập nhật ORM E0 trong
+- [X] T035 Tạo ORM trong `backend/src/nichepilot/modules/discovery/models.py` khớp 0009; cập nhật ORM E0 trong
   `backend/src/nichepilot/modules/evidence/models.py` cho cột mới (FR-029, FR-013e)
-- [ ] T036 Sửa `backend/src/nichepilot/modules/evidence/service.py`: `query` mặc định lọc `data-model.md research_evidence.lifecycle_status` =
+- [X] T036 Sửa `backend/src/nichepilot/modules/evidence/service.py`: `query` mặc định lọc `data-model.md research_evidence.lifecycle_status` =
   ACTIVE (X3); tham số tường minh xem bản ghi đã xóa chỉ cho audit (FR-013e)
-- [ ] T037 Viết seed `backend/alembic/versions/0010_discovery_seed.py`: `data-model.md scoring_weights_versions.weights` v1 = BR-03,
+- [X] T037 Viết seed `backend/alembic/versions/0010_discovery_seed.py`: `data-model.md scoring_weights_versions.weights` v1 = BR-03,
   `data-model.md scoring_weights_versions.coverage_threshold` 60, `data-model.md scoring_weights_versions.evidence_rules`,
   `data-model.md scoring_weights_versions.confidence_params`, `data-model.md scoring_weights_versions.dedup_params` mặc định,
   `data-model.md scoring_weights_versions.is_active` = true; nguồn S1–S11 với `data-model.md source_policies.compliance_status` = UNVERIFIED và
   `data-model.md source_policies.enabled` = false; Model Task Profile `discovery.candidates|extract|assess|normalize` (model seed theo R-10,
   `verified = false`); dòng `data-model.md erasure_ledger_state.id` = 1, `data-model.md erasure_ledger_state.status` = OK
   (FR-006c, FR-017, FR-018, FR-028)
-- [ ] T038 Triển khai sổ xóa trong `backend/src/nichepilot/modules/discovery/erasure.py`: `LedgerWriter` (genesis, hash chain, fsync file +
+  *[Ghi chú triển khai: cột `domain_access_state.robots_rules` (≤ 64 KB, chỉ luật robots) bổ sung để áp dụng luật; ghi vào data-model]*
+- [X] T038 Triển khai sổ xóa trong `backend/src/nichepilot/modules/discovery/erasure.py`: `LedgerWriter` (genesis, hash chain, fsync file +
   thư mục), `apply_erasure_ledger(strict)` một transaction, `ledger_health()`; cập nhật `data-model.md erasure_ledger_state.ledger_id`,
   `data-model.md erasure_ledger_state.applied_seq`, `data-model.md erasure_ledger_state.applied_hash`,
   `data-model.md erasure_ledger_state.status`, `data-model.md erasure_ledger_state.last_error` (FR-013f)
-- [ ] T039 Tạo CLI `backend/src/nichepilot/jobs/erasure_ledger.py` (`python -m nichepilot.jobs.erasure_ledger --strict`, exit ≠ 0 khi lỗi,
+- [X] T039 Tạo CLI `backend/src/nichepilot/jobs/erasure_ledger.py` (`python -m nichepilot.jobs.erasure_ledger --strict`, exit ≠ 0 khi lỗi,
   log không chứa nội dung) và đổi lệnh service `migrate` trong `deploy/docker-compose.yml` thành `alembic upgrade head && python -m
   nichepilot.jobs.erasure_ledger --strict` (X4) (FR-013f)
-- [ ] T040 Sửa `deploy/scripts/restore.sh` gọi `apply_erasure_ledger --strict` ngay sau `pg_restore` (exit ≠ 0 + hướng dẫn khi lỗi); sửa
+- [X] T040 Sửa `deploy/scripts/restore.sh` gọi `apply_erasure_ledger --strict` ngay sau `pg_restore` (exit ≠ 0 + hướng dẫn khi lỗi); sửa
   `deploy/scripts/backup.sh` sao bản ledger kèm dump; mở rộng `backend/tests/integration/test_backup_restore.py` cho bước mới (X4)
   (FR-013f, SC-016)
-- [ ] T041 Khung router `backend/src/nichepilot/api/v1/discovery.py` với dependency gate ledger (chỉ endpoint dữ liệu nghiên cứu E1) và
+- [X] T041 Khung router `backend/src/nichepilot/api/v1/discovery.py` với dependency gate ledger (chỉ endpoint dữ liệu nghiên cứu E1) và
   `GET /api/v1/discovery/status`; đăng ký router trong `backend/src/nichepilot/api/v1/__init__.py`; không sửa
   `backend/src/nichepilot/api/v1/system.py` (H1) (FR-013f, FR-026)
-- [ ] T042 [P] Triển khai `SourcePolicyService` (`usable_for_run()` chỉ `ALLOWED ∧ enabled`; `create_policy`; `update_policy(actor_id, …)` kiểm
+- [X] T042 [P] Triển khai `SourcePolicyService` (`usable_for_run()` chỉ `ALLOWED ∧ enabled`; `create_policy`; `update_policy(actor_id, …)` kiểm
   tra căn cứ, tự tắt khi rời `ALLOWED`, audit `source.created`/`source.updated`) trong
   `backend/src/nichepilot/modules/discovery/sources/policy.py` theo `data-model.md source_policies.compliance_status`,
   `data-model.md source_policies.enabled`, `data-model.md source_policies.verified_at`, `data-model.md source_policies.verified_by`,
   `data-model.md source_policies.verification_note`, `data-model.md source_policies.allowed_access_methods`,
   `data-model.md source_policies.permitted_use_scope`, `data-model.md source_policies.updated_by` (FR-006c, FR-006d, FR-036)
-- [ ] T043 [P] Triển khai `SearxngConfigWriter` trong `backend/src/nichepilot/modules/discovery/sources/searxng_config.py` (ghi
+- [X] T043 [P] Triển khai `SearxngConfigWriter` trong `backend/src/nichepilot/modules/discovery/sources/searxng_config.py` (ghi
   `settings.yml` vào volume `searxng-config` từ nguồn `ALLOWED` đang bật, trả `requires_service_restart`) (FR-006g, FR-006d)
-- [ ] T044 [P] Triển khai `PiiEngine`, `RegexPhonePiiEngine` (regex + phonenumbers theo thị trường + `PersonNameRiskDetector`),
+- [X] T044 [P] Triển khai `PiiEngine`, `RegexPhonePiiEngine` (regex + phonenumbers theo thị trường + `PersonNameRiskDetector`),
   `RedactedText`, `select_pii_engine` fail-closed với cài đặt E1 riêng `PII_ENGINE`/`PII_APPROVED_ENGINES` (không sửa `core/config.py` của
   E0) trong `backend/src/nichepilot/tools/privacy/pii.py` (FR-012a, FR-012b)
-- [ ] T045 [P] Triển khai `SpacyEnPiiEngine` (import lười, chỉ nạp khi được phê duyệt và model có sẵn; không tải mạng) trong
+  *[Ghi chú triển khai: cài đặt E1 ở `backend/src/nichepilot/core/discovery_config.py`; kiểm tra cấu hình nguồn chuyển xuống `core/source_config.py` vì `modules` và `tools` không được import lẫn nhau]*
+- [X] T045 [P] Triển khai `SpacyEnPiiEngine` (import lười, chỉ nạp khi được phê duyệt và model có sẵn; không tải mạng) trong
   `backend/src/nichepilot/tools/privacy/pii_spacy.py` (FR-012a)
-- [ ] T046 [P] Triển khai `SourceAdapter`, `SourceResult`, registry theo `adapter_type`, validate `data-model.md source_policies.config`
+- [X] T046 [P] Triển khai `SourceAdapter`, `SourceResult`, registry theo `adapter_type`, validate `data-model.md source_policies.config`
   (khóa bị cấm §1.1, giá trị dạng credential, chính sách truy cập riêng) và `data-model.md source_policies.adapter_type` trong
   `backend/src/nichepilot/tools/sources/base.py` (FR-006, FR-006g)
-- [ ] T047 [P] Triển khai `SearxngEngineAdapter` trong `backend/src/nichepilot/tools/sources/searxng_engine.py` (chỉ `engines=` của nguồn
+- [X] T047 [P] Triển khai `SearxngEngineAdapter` trong `backend/src/nichepilot/tools/sources/searxng_engine.py` (chỉ `engines=` của nguồn
   `ALLOWED`; ánh xạ lỗi `UNAVAILABLE`/`NO_RESULTS`/`RATE_LIMITED`/`ACCESS_RESTRICTED`/`NETWORK_ERROR`) (FR-006, FR-006a, FR-006f)
-- [ ] T048 [P] Triển khai `HttpJsonApiAdapter` (xác thực từ `os.environ[auth_env_var]` lúc gọi, không log; `AUTH_FAILED` không thử lại) trong
+- [X] T048 [P] Triển khai `HttpJsonApiAdapter` (xác thực từ `os.environ[auth_env_var]` lúc gọi, không log; `AUTH_FAILED` không thử lại) trong
   `backend/src/nichepilot/tools/sources/http_json_api.py` và interface + mock `OpenDatasetAdapter`/`LicensedDataAdapter` trong
   `backend/src/nichepilot/tools/sources/dataset.py` (FR-006, FR-006g)
-- [ ] T049 [P] Triển khai `MockSourceAdapter`, `MockPageFetcher` (fixture T009, `data_origin = MOCK`, guard production) trong
+- [X] T049 [P] Triển khai `MockSourceAdapter`, `MockPageFetcher` (fixture T009, `data_origin = MOCK`, guard production) trong
   `backend/src/nichepilot/tools/mock_sources.py` (FR-016, FR-006)
-- [ ] T050 Triển khai `HttpPageFetcher` (httpx + trafilatura, bỏ `author`, giới hạn kích thước/loại/timeout, lỗi mạng → `NETWORK_ERROR`) trong
+- [X] T050 Triển khai `HttpPageFetcher` (httpx + trafilatura, bỏ `author`, giới hạn kích thước/loại/timeout, lỗi mạng → `NETWORK_ERROR`) trong
   `backend/src/nichepilot/tools/fetchers/http_fetcher.py` (FR-005, FR-031)
-- [ ] T051 Đăng ký tool chỉ đọc `source.query` (từ chối khác `ALLOWED`, che PII snippet), `page.fetch` (che PII trong handler – output chỉ
+- [X] T051 Đăng ký tool chỉ đọc `source.query` (từ chối khác `ALLOWED`, che PII snippet), `page.fetch` (che PII trong handler – output chỉ
   `RedactedText`), `robots.fetch` (protego), `external_effect = false`, trong `backend/src/nichepilot/tools/builtin/source_query.py`,
   `backend/src/nichepilot/tools/builtin/page_fetch.py`, `backend/src/nichepilot/tools/builtin/robots_fetch.py` (FR-005, FR-006d, FR-006f, FR-012b)
-- [ ] T052 Triển khai `DomainAccessService` (`permit(url)`, robots cache 24 h, khoảng cách theo tên miền) trong
+- [X] T052 Triển khai `DomainAccessService` (`permit(url)`, robots cache 24 h, khoảng cách theo tên miền) trong
   `backend/src/nichepilot/modules/discovery/access.py` theo `data-model.md domain_access_state.min_interval_s`,
   `data-model.md domain_access_state.robots_status`, `data-model.md domain_access_state.robots_fetched_at`,
   `data-model.md domain_access_state.crawl_delay_s`, `data-model.md domain_access_state.last_request_at` (FR-030, FR-030a)
-- [ ] T053 Triển khai SimHash 64-bit, `registered_domain` (tldextract, `suffix_list_urls=()`), `content_hash` trong
+- [X] T053 Triển khai SimHash 64-bit, `registered_domain` (tldextract, `suffix_list_urls=()`), `content_hash` trong
   `backend/src/nichepilot/modules/discovery/fingerprint.py` cho `data-model.md research_sources.registered_domain`,
   `data-model.md research_sources.simhash`, `data-model.md research_evidence.content_hash` (FR-015)
-- [ ] T054 Khung `NicheDiscoveryAgent` (`AgentDefinition` job type `discovery.run`, `max_steps` 240, `max_ai_calls` 120, `timeout_s` 6000,
+- [X] T054 Khung `NicheDiscoveryAgent` (`AgentDefinition` job type `discovery.run`, `max_steps` 240, `max_ai_calls` 120, `timeout_s` 6000,
   `allowed_tools` = {source.query, page.fetch, robots.fetch}) với bước `preflight` (ledger) + `ensure_run` (`INSERT … ON CONFLICT
   (job_id) DO NOTHING`, `data-model.md discovery_runs.job_id`, `data-model.md discovery_runs.trigger` sao chép từ `agent_jobs.trigger`
   của E0) trong `backend/src/nichepilot/jobs/agents/niche_discovery.py`; đăng ký trong `backend/src/nichepilot/jobs/agents/__init__.py`;
   checkpoint chỉ ID/hash/bộ đếm; không sửa `jobs/runtime.py`/`jobs/scheduler.py` (H1) (FR-027, FR-029, FR-033, FR-013f)
-- [ ] T055 Pydantic schema đầu ra AI `discovery.candidates|extract|assess|normalize` (`evidence_ids` thuộc tập đã cung cấp; mức tiêu chí
+  *[Ghi chú triển khai: Phase 2 chỉ có `preflight` + `ensure_run` + bước kết thúc tạm (`NO_COMPLIANT_SEARCH_SOURCE`); các bước nghiên cứu ở US1. Lắp ráp E1 ở `backend/src/nichepilot/discovery_wiring.py`, `services.py` chỉ thêm một lời gọi]*
+- [X] T055 Pydantic schema đầu ra AI `discovery.candidates|extract|assess|normalize` (`evidence_ids` thuộc tập đã cung cấp; mức tiêu chí
   ∈ {0,25,50,75,100,null}) và DTO API trong `backend/src/nichepilot/modules/discovery/schemas.py` (FR-013, FR-014, FR-019)
+  *[Ghi chú triển khai: schema `discovery.assess`/`normalize` bổ sung ở US2/US5]*
 
 **Checkpoint**: lint-imports xanh; T012–T029 PASS; stack khởi động với ledger rỗng; restore thiếu sổ thất bại an toàn.
 

@@ -49,7 +49,8 @@ class MockWeb:
     def builtin(cls) -> MockWeb:
         """Bộ dữ liệu giả lập tối thiểu đóng gói sẵn (demo dev) – nội dung tự soạn, gắn MOCK."""
         html = (
-            "<html><head><title>[MOCK] Small bakery inventory</title></head><body><article><h1>[MOCK] Inventory pain</h1>"
+            "<html><head><title>[MOCK] Small bakery inventory</title></head><body><article><h1>[MOCK]"
+            " Inventory pain</h1>"
             "<p>[MOCK] We run out of flour every week and spreadsheets take too long to update after a busy morning."
             " Restaurant inventory apps are too expensive for a two-person bakery.</p></article></body></html>"
         )

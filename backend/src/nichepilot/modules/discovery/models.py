@@ -198,9 +198,7 @@ class DiscoveryRun(UUIDPkMixin, TimestampMixin, Base):
     source_policy_ids: Mapped[list[uuid.UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), server_default=text("'{}'::uuid[]")
     )
-    weights_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scoring_weights_versions.id")
-    )
+    weights_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("scoring_weights_versions.id"))
     source_mode: Mapped[str] = mapped_column(Text)
     outcome: Mapped[str | None] = mapped_column(Text)
     stop_reason: Mapped[str | None] = mapped_column(Text)
@@ -314,9 +312,7 @@ class NicheEvaluation(UUIDPkMixin, CreatedAtMixin, Base):
 
     niche_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("niches.id"))
     run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("discovery_runs.id"))
-    weights_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scoring_weights_versions.id")
-    )
+    weights_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("scoring_weights_versions.id"))
     criteria: Mapped[dict[str, Any]] = mapped_column(JSONB)
     coverage: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     scoring_status: Mapped[str] = mapped_column(Text)
@@ -392,9 +388,7 @@ class Competitor(UUIDPkMixin, TimestampMixin, Base):
         CheckConstraint(_len("name", 1, 200), name="name"),
         CheckConstraint(in_list("kind", COMPETITOR_KINDS), name="kind"),
         CheckConstraint("url IS NULL OR url ~ '^https?://'", name="url"),
-        CheckConstraint(
-            "jsonb_typeof(strengths) = 'array' AND jsonb_typeof(weaknesses) = 'array'", name="lists"
-        ),
+        CheckConstraint("jsonb_typeof(strengths) = 'array' AND jsonb_typeof(weaknesses) = 'array'", name="lists"),
     )
 
     niche_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("niches.id"))

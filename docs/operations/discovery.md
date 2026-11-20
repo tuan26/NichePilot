@@ -31,6 +31,7 @@ Dependency production mới (ghim trong `backend/uv.lock`):
 | phonenumbers | 9.0.43 | Apache-2.0 |
 | rapidfuzz | 3.14.6 | MIT |
 | tldextract | 5.4.0 | BSD-3-Clause |
+| pyyaml | 6.0.x | MIT (đã có trong nhóm dev của E0; nay dùng ở runtime để sinh `settings.yml` SearXNG) |
 
 Phụ thuộc bắc cầu (đọc từ metadata sau khi cài): certifi 2026.10.23 (MPL-2.0), charset-normalizer 3.5.2 (MIT), courlan 1.5.0
 (Apache-2.0), dateparser 1.5.1 (BSD-3-Clause), filelock 4.2.12 (MIT), htmldate 1.11.0 (Apache-2.0), idna 3.20 (BSD-3-Clause), jusText
@@ -50,3 +51,11 @@ Chưa được phê duyệt cho production (quyết định I2).
 |---|---|---|
 | `runtime` (production) | 628 MB | 821 MB (+193 MB; không có spaCy/Crawl4AI/Playwright – đã kiểm tra bằng `importlib`) |
 | `dev` + `INSTALL_PII_NER=true` | – | NOT_MEASURED (không build để tránh cài thư viện nặng không cần thiết; đo trong venv tách biệt: +291 MB, RSS 151 MB – research R-05) |
+
+## 4. Erasure ledger và restore (X4)
+
+- Sổ `ledger.jsonl` nằm trong volume `erasure-ledger` (không trong dump PostgreSQL); `make backup` sao kèm một bản sổ.
+- Service `migrate` chạy `alembic upgrade head && python -m nichepilot.jobs.erasure_ledger --strict`; lỗi → api/worker không chạy.
+- `make restore`: khôi phục DB rồi đặt `erasure_ledger_state = BLOCKED`, sau đó tự chạy `apply_erasure_ledger --strict`. Lỗi (sổ thiếu,
+  hỏng, cũ hơn DB, lệch `ledger_id`) → `make` thất bại, dữ liệu nghiên cứu E1 vẫn bị chặn (API 503 `ERASURE_LEDGER_NOT_APPLIED`).
+- Kiểm tra: `GET /api/v1/discovery/status` → `erasure_ledger.status`.

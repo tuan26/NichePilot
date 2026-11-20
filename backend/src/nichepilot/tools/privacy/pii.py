@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import importlib.util
+import itertools
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -39,7 +40,7 @@ class PiiUnsafeError(Exception):
 
 
 class PiiEngine(Protocol):
-    name: str
+    name: ClassVar[str]
 
     def supports(self, language: str) -> bool: ...
 
@@ -121,7 +122,11 @@ class PersonNameRiskDetector:
                     risks.append("PERSON_NAME")
             for idx in range(1, len(words)):
                 token = words[idx].group(0)
-                if _is_title(token) and words[idx - 1].group(0).lower() in CUE_WORDS and token.lower() not in COMMON_CAPS:
+                if (
+                    _is_title(token)
+                    and words[idx - 1].group(0).lower() in CUE_WORDS
+                    and token.lower() not in COMMON_CAPS
+                ):
                     risks.append("PERSON_NAME_AFTER_CUE")
         return risks
 
@@ -158,7 +163,9 @@ class RegexPhonePiiEngine:
     def redact(self, text: str, *, language: str, country: str) -> RedactionResult:
         counts: dict[str, int] = {}
 
-        def sub(pattern: re.Pattern[str], label: str, value: str, repl: Callable[[re.Match[str]], str] | None = None) -> str:
+        def sub(
+            pattern: re.Pattern[str], label: str, value: str, repl: Callable[[re.Match[str]], str] | None = None
+        ) -> str:
             def _r(m: re.Match[str]) -> str:
                 counts[label] = counts.get(label, 0) + 1
                 return repl(m) if repl else f"[{label}]"
@@ -199,7 +206,7 @@ class RegexPhonePiiEngine:
 
 def _has_title_pair(text: str) -> bool:
     words = [m.group(0) for m in WORD_RE.finditer(text)]
-    return any(_is_title(a) and _is_title(b) for a, b in zip(words, words[1:], strict=False))
+    return any(_is_title(a) and _is_title(b) for a, b in itertools.pairwise(words))
 
 
 def _spacy_model_available() -> bool:

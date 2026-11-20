@@ -1,6 +1,7 @@
 """DomainAccessService – robots.txt và tốc độ truy cập theo tên miền (FR-005, FR-030, FR-030a, FR-031; research R-04).
 
-- robots.txt phân tích bằng protego (wildcard + ưu tiên khớp dài nhất RFC 9309). Cache 24 giờ trong `domain_access_state`.
+- robots.txt phân tích bằng protego (wildcard + ưu tiên khớp dài nhất RFC 9309). Cache 24 giờ trong
+`domain_access_state`.
 - robots 4xx (`NOT_FOUND`) → không có giới hạn; 5xx/mạng (`UNREACHABLE`) → KHÔNG thu thập tên miền đó (thận trọng).
 - Khoảng cách tối thiểu = max(mức trần của lượt, Crawl-delay, Retry-After gần nhất). Trạng thái lưu DB → đúng cả sau khi
   worker khởi động lại.
@@ -21,7 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 ROBOTS_TTL = timedelta(hours=24)
-USER_AGENT_TOKEN = "NichePilotResearchBot"
+USER_AGENT_TOKEN = "NichePilotResearchBot"  # noqa: S105 – tên User-Agent trong robots.txt, không phải secret
 MAX_ROBOTS_CHARS = 65536
 
 DecisionReason = Literal["OK", "WAIT", "ROBOTS_PENDING", "ROBOTS_DISALLOWED", "ROBOTS_UNREACHABLE", "BLOCKED"]
@@ -44,9 +45,7 @@ def _now() -> datetime:
 
 
 class DomainAccessService:
-    def __init__(
-        self, sessionmaker: async_sessionmaker[AsyncSession], *, clock: Callable[[], datetime] = _now
-    ) -> None:
+    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], *, clock: Callable[[], datetime] = _now) -> None:
         self.sessionmaker = sessionmaker
         self.clock = clock
 

@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
-
-from datetime import date
 
 from sqlalchemy import BigInteger, CheckConstraint, Date, DateTime, ForeignKey, Index, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -71,7 +69,9 @@ class ResearchEvidence(UUIDPkMixin, TimestampMixin, Base):
             name="redaction_counts",
         ),
         CheckConstraint(in_list("lifecycle_status", LIFECYCLE_STATUSES), name="lifecycle_status"),
-        CheckConstraint("lifecycle_status <> 'ERASED' OR (excerpt IS NULL AND value IS NULL)", name="erased_no_content"),
+        CheckConstraint(
+            "lifecycle_status <> 'ERASED' OR (excerpt IS NULL AND value IS NULL)", name="erased_no_content"
+        ),
         CheckConstraint("(lifecycle_status = 'ERASED') = (erased_at IS NOT NULL)", name="erased_at"),
         CheckConstraint("content_hash IS NULL OR content_hash ~ '^[0-9a-f]{64}$'", name="content_hash"),
     )
