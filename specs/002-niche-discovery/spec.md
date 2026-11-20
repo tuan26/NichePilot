@@ -568,7 +568,8 @@ sử điểm cũ còn nguyên.
   khám phá. *(QA-07, NFR-11)*
 - **FR-032**: Mỗi lượt khám phá MUST ghi nhận: số lời gọi AI, chi phí (tách REAL/MOCK), số trang đã thu thập (thành công/thất bại,
   kèm lý do bỏ qua), thời gian thực thi, số nguồn độc lập, số ngách ứng viên, số ngách đủ bằng chứng, số ngách
-  `INSUFFICIENT_EVIDENCE`, kết quả (`COMPLETED`/`PARTIAL_COMPLETED`) và lý do dừng. *(Constitution VI, NFR-09)*
+  `INSUFFICIENT_EVIDENCE`, số đoạn nội dung bị đánh dấu `NEEDS_REVIEW` do che PII (`needs_review_segments`), kết quả
+  (`COMPLETED`/`PARTIAL_COMPLETED`) và lý do dừng. *(Constitution VI, NFR-09, Clarification 2026-11-20 (b) – I2)*
 - **FR-033**: Chủ sở hữu MUST tạo được lịch khám phá định kỳ và lịch đánh giá lại ngách đang theo dõi qua scheduler của E0; lịch
   tốn phí bị từ chối khi chưa cấu hình ngân sách. *(E1-19, AUT-04)*
 - **FR-034** *(Should)*: Hệ thống SHOULD đánh giá lại ngách theo dữ liệu mới, tạo lần đánh giá mới (điểm, phiên bản trọng số, bằng

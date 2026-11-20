@@ -440,6 +440,7 @@ components:
         pages_succeeded: { type: integer }
         pages_failed: { type: integer }
         pages_skipped: { type: integer }
+        needs_review_segments: { type: integer, description: Số đoạn nội dung NEEDS_REVIEW do che PII (FR-032) }
         skipped_by_reason: { type: object, additionalProperties: { type: integer } }
         elapsed_active_s: { type: integer }
         independent_sources: { type: integer }

@@ -114,6 +114,11 @@ Backend `backend/src/nichepilot/…`, test `backend/tests/{unit,integration,cont
   tên người không theo mẫu → `NEEDS_REVIEW`; ngôn ngữ khác tiếng Anh có cụm viết hoa nghi ngờ → `NEEDS_REVIEW`; còn mẫu sau khi che →
   `UNSAFE`; đoạn có nguy cơ không bao giờ `REDACTED` chỉ nhờ regex trong `backend/tests/unit/discovery/test_pii_engine.py`
   (TC_E1_FR012a_01…TC_E1_FR012a_04, TC_E1_SC016_01) (FR-012a, SC-016)
+- [ ] T131 [P] Bộ đo chất lượng `PiiEngine` (bổ sung 2026-11-20, thực hiện cùng T022): tập đoạn văn tự soạn có nhãn (có/không chứa tên người
+  hoặc PII) trong `backend/tests/fixtures/discovery/pii_labeled.jsonl`; script `backend/scripts/pii_engine_eval.py` tính tỷ lệ
+  `NEEDS_REVIEW`, cảnh báo đúng/sai, false positive/false negative theo loại PII; test `backend/tests/unit/discovery/test_pii_engine_eval.py`
+  khẳng định false negative = 0 trên tập có nhãn (không nới bảo vệ để tăng số ngách đủ bằng chứng); kết quả đo báo cáo cho chủ sở hữu,
+  không tự đổi engine (TC_E1_FR012a_08, TC_E1_FR032_02) (FR-012a, FR-012b, FR-032, SC-016)
 - [ ] T023 [P] Test `select_pii_engine` fail-closed: production + `PII_ENGINE` ∉ `PII_APPROVED_ENGINES` → từ chối khởi động
   (`PII_ENGINE_NOT_APPROVED`); engine cần model mà model vắng → từ chối; không có lời gọi mạng tải model (rào chắn socket) trong
   `backend/tests/unit/discovery/test_pii_engine_selection.py` (TC_E1_FR012a_05) (FR-012a)
@@ -478,7 +483,7 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
   trùng; mất Internet (adapter/fetcher ném lỗi mạng) → trang `NETWORK_ERROR`, mọi nguồn lỗi → `PARTIAL_COMPLETED/SOURCES_UNAVAILABLE`, không
   dữ liệu thay thế; AI provider không kết nối được → xử lý theo E0 (thử lại/UNCERTAIN) trong
   `backend/tests/integration/discovery/test_infra_failures.py` (TC_E1_FR027_02, TC_E1_FR006a_02, TC_E1_SC008_02) (FR-027, FR-006a, SC-008)
-- [ ] T105 [P] [US4] Test metrics FR-032 (trang theo kết quả/lý do, `needs_review_segments`, nguồn độc lập, lời gọi AI, chi phí REAL/MOCK) trong
+- [ ] T105 [P] [US4] Test metrics FR-032 (trang theo kết quả/lý do, `needs_review_segments` của `data-model.md discovery_runs.metrics`, nguồn độc lập, lời gọi AI, chi phí REAL/MOCK) trong
   `backend/tests/integration/discovery/test_run_metrics.py` (TC_E1_FR032_01) (FR-032)
 - [ ] T106 [P] [US4] Contract test `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{source_id}`: bật nguồn `UNVERIFIED`/`PROHIBITED` → 409
   `SOURCE_NOT_ALLOWED`; trường lạ (ví dụ cờ xác nhận cảnh báo) → 422; `ALLOWED` thiếu căn cứ → 422 `SOURCE_VERIFICATION_INCOMPLETE`; rời
@@ -600,7 +605,7 @@ phụ thuộc vòng. Phân lớp mã giữ hợp đồng import-linter của E0 
 ## Parallel Example
 
 ```text
-# Phase 2 – test song song:   T013 T014 T015 T018 T019 T020 T021 T022 T023 T026 T027 T028 T029
+# Phase 2 – test song song:   T013 T014 T015 T018 T019 T020 T021 T022 T131 T023 T026 T027 T028 T029
 # Phase 2 – triển khai song song (khác file): T042 T043 T044 T045 T046 T047 T048 T049
 # US3: T085 T086 T087 T088 T089 T090 T091 T092 → T093 ∥ T094 → T095 → T096 → T097 → T098 → T099
 ```
