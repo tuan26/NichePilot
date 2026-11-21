@@ -36,4 +36,14 @@ def build_source_backends(settings: DiscoverySettings, *, mock_web_path: Path | 
         "open_dataset": DatasetAdapter("open_dataset"),
         "licensed_data": DatasetAdapter("licensed_data"),
     }
+    if settings.page_fetcher == "browser":  # profile tùy chọn – mặc định HTTP thường
+        from nichepilot.tools.fetchers.playwright_fetcher import PlaywrightPageFetcher
+
+        browser = PlaywrightPageFetcher(
+            user_agent=ua,
+            max_bytes=settings.fetch_max_bytes,
+            ws_endpoint=settings.browser_ws_endpoint,
+            executable_path=settings.browser_executable_path,
+        )
+        return SourceBackends("REAL", adapters, browser)
     return SourceBackends("REAL", adapters, HttpPageFetcher(user_agent=ua, max_bytes=settings.fetch_max_bytes))

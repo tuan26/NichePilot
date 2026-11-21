@@ -46,6 +46,11 @@ Kết quả: `backups/nichepilot-<YYYYMMDDTHHMMSSZ>.dump` (định dạng `pg_du
    make restore FILE=backups/nichepilot-20261118T030000Z.dump
    ```
 
+   E1 (X4): `make restore` tự chạy `python -m nichepilot.jobs.erasure_ledger --strict` sau `pg_restore` để áp dụng lại mọi yêu cầu xóa
+   bằng chứng (sổ `ledger.jsonl` nằm trong volume `erasure-ledger`, KHÔNG nằm trong dump). Sổ thiếu/hỏng/cũ hơn DB → `make` thất bại,
+   `erasure_ledger_state = BLOCKED`, service `migrate` lỗi nên api/worker không khởi động (đã kiểm chứng trên stack thật 2026-11-21).
+   Khôi phục đúng file sổ (bản sao trong thư mục backup do `make backup` tạo) rồi chạy lại `make up`.
+
 4. Khởi động lại và kiểm tra trang trạng thái:
 
    ```bash

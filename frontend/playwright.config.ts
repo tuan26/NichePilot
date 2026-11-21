@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 // E2E chạy trên stack thật (MockAIProvider, gọi API có phí TẮT). Base URL mặc định: Compose (http://localhost:8080).
 export default defineConfig({
   testDir: './tests/e2e',
+  // Mỗi bộ cần database trống: mặc định chạy bộ E0 (us1-*); E2E_SUITE=discovery chạy bộ E1 trên stack mới (DISCOVERY_SOURCE_MODE=mock)
+  testMatch: process.env.E2E_SUITE === 'discovery' ? ['discovery.spec.ts'] : ['us1-*.spec.ts'],
   fullyParallel: false,
   workers: 1,
   retries: 0,

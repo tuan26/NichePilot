@@ -35,6 +35,10 @@ class DiscoverySettings(BaseSettings):
     fetch_timeout_s: float = Field(default=20.0, gt=0, le=60)
     fetch_max_bytes: int = Field(default=3 * 1024 * 1024, gt=0)
     ledger_health_cache_s: float = Field(default=60.0, ge=0)
+    # T128: profile tùy chọn browser-fetcher (TẮT mặc định – quyết định I1)
+    page_fetcher: Literal["http", "browser"] = "http"
+    browser_ws_endpoint: str | None = None
+    browser_executable_path: str | None = None
 
     @property
     def is_production(self) -> bool:

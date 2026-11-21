@@ -31,6 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 # Chỉ dev/test khi chủ sở hữu bật (quyết định I2): KHÔNG cài trong image production.
 pii-ner = ["spacy~=3.8.18"]
+browser = [
+    "playwright==1.63.0",
+]
 
 [dependency-groups]
 dev = [

@@ -1,7 +1,7 @@
 # Vận hành E1 – Autonomous Niche Discovery
 
-> Trạng thái: đang triển khai theo `specs/002-niche-discovery/tasks.md` (Phase 1 → US1). Tài liệu đầy đủ (T127) bổ sung ở Phase
-> Polish. Mọi nguồn dữ liệu hiện `UNVERIFIED` – không được dùng; lượt khám phá dùng nguồn thật sẽ trả `NO_COMPLIANT_SEARCH_SOURCE`.
+> Trạng thái: E1 đã triển khai đủ US1–US7 + Polish (`specs/002-niche-discovery/tasks.md`). Mọi nguồn dữ liệu seed hiện `UNVERIFIED` –
+> không được dùng; lượt khám phá với nguồn thật sẽ trả `NO_COMPLIANT_SEARCH_SOURCE` cho tới khi chủ sở hữu xác minh nguồn (SC-013 BLOCKED).
 
 ## 1. Cấu hình bắt buộc
 
@@ -79,4 +79,38 @@ Chưa được phê duyệt cho production (quyết định I2).
   không có tùy chọn bỏ qua cảnh báo. Rời `ALLOWED` → tự tắt.
 - Bật/tắt nguồn `searxng_engine` → backend sinh lại `settings.yml` (volume `searxng-config`, file base mount read-only tại
   `/opt/nichepilot/searxng/settings.base.yml`) và trả `requires_service_restart: true` → chạy `docker compose restart searxng`.
-- NOT_TESTED trên stack thật: quyền ghi của backend (user `app`) lên volume `searxng-config` dùng chung với container SearXNG.
+- Backend ghi vào volume riêng `searxng-generated` (user `app`); SearXNG mount read-only và sao chép `settings.yml` khi khởi động
+  (`depends_on: migrate` để volume được khởi tạo với quyền `app`). Đã kiểm chứng trên stack thật 2026-11-21 (bật nguồn → file sinh lại
+  → `restart searxng` → `/etc/searxng/settings.yml` có engine mới, `/healthz` OK). Trước đó thiết kế dùng chung volume `searxng-config`
+  bị lỗi quyền ghi (PermissionError) – phát hiện khi chạy E2E trên stack thật.
+
+## 7. PII engine
+
+- Mặc định `PII_ENGINE=regex-phone` (regex email/điện thoại/@username/URL hồ sơ + nhận diện nguy cơ tên người). Đoạn có nguy cơ chứa tên
+  người hoặc ngôn ngữ chưa hỗ trợ → `NEEDS_REVIEW`: không lưu, không gửi AI (`metrics.needs_review_segments`).
+- spaCy (`spacy-en-sm`) chỉ ở image dev với `INSTALL_PII_NER=true`; production chỉ chấp nhận engine trong `PII_APPROVED_ENGINES`
+  (quyết định I2 – chưa phê duyệt).
+- URL hồ sơ cá nhân/URL chứa PII bị loại ngay trong tool (`source.query`, chuyển hướng ở `page.fetch`) nên không vào `tool_executions`.
+
+## 8. Chấm điểm, xếp hạng, báo cáo
+
+- Trọng số: `/api/v1/scoring/weights` (tổng 100, đủ 6 tiêu chí); `recompute_existing=true` → job `discovery.recompute` (0 lời gọi AI).
+- Màn hình `/niches` (3 danh sách), `/niches/{id}` (lý do chấm điểm, bằng chứng, quyết định, ngách có thể trùng).
+- Báo cáo theo lượt: `GET /api/v1/discovery/runs/{id}/report?format=markdown&lang=vi|en` (MOCK ẩn mặc định, `include_mock=true` để xem).
+- Opportunity là điểm ưu tiên nghiên cứu, **không** phải dự báo doanh thu; đạt ngưỡng bằng chứng ≠ sinh lợi.
+
+## 9. Profile tùy chọn `browser-fetcher` (TẮT mặc định – quyết định I1)
+
+- Dùng khi trang công khai cần JavaScript. Không stealth, không Crawl4AI/patchright; robots + khoảng cách tên miền vẫn áp dụng.
+- Bật: build backend `--build-arg INSTALL_BROWSER_FETCHER=true`; trong `.env`: `PAGE_FETCHER=browser`,
+  `BROWSER_WS_ENDPOINT=ws://browser-fetcher:3000/`; `docker compose --profile browser-fetcher up -d`.
+- Dependency: nhóm tùy chọn `browser` = `playwright==1.63.0` (Apache-2.0) + `pyee 13.0.1` (MIT). Image `deploy/browser-fetcher`
+  dựa trên `mcr.microsoft.com/playwright:v1.63.0-noble` (Apache-2.0).
+- Đo 2026-11-21 (Chromium cục bộ, trang fixture): đỉnh RSS ≈ 571 MB khi render 1 trang. Image `browser-fetcher`: NOT_TESTED (chưa build –
+  image nền lớn, không cần cho cấu hình mặc định).
+
+## 10. Đánh giá lại và lịch
+
+- `POST /api/v1/niches/{id}/reevaluate` → job `discovery.reevaluate` (giữ đánh giá cũ, kết quả job có `comparison` before/after).
+- Lịch: dùng scheduler E0 (`job_schedules.job_type = discovery.run` hoặc `discovery.reevaluate`); không có nguồn ALLOWED → lượt dừng ở
+  `preflight` (0 lời gọi AI); ngân sách chưa cấu hình → scheduler không tạo job.

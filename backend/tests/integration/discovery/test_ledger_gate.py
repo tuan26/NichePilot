@@ -71,3 +71,22 @@ async def test_TC_E1_FR013f_08_agent_preflight_stops_when_blocked(
                 await conn.execute(text("SELECT count(*) FROM ai_usage_logs WHERE job_id = :j"), {"j": r.json()["id"]})
             ).scalar_one() == 0
             assert (await conn.execute(text("SELECT count(*) FROM discovery_runs"))).scalar_one() == 0
+
+
+async def test_TC_E1_FR013f_14_blocked_after_restore_takes_effect_immediately(
+    clean_db: AsyncEngine, migrated_db: str
+) -> None:
+    """Phát hiện khi chạy quickstart trên stack thật: API cache sức khỏe sổ 60 s nên vẫn trả dữ liệu sau khi restore đặt BLOCKED.
+    Nay trạng thái DB được đọc mỗi request – chỉ phần đọc file sổ được cache."""
+    from tests.discovery_helpers import discovery_client
+
+    async with discovery_client(migrated_db) as client:
+        assert (await client.get("/api/v1/discovery/runs")).status_code == 200  # cache sức khỏe "OK" đã được nạp
+        async with clean_db.begin() as conn:  # như deploy/scripts/restore.sh
+            await conn.execute(
+                text("UPDATE erasure_ledger_state SET status = 'BLOCKED', last_error = 'RESTORE_PENDING'")
+            )
+        r = await client.get("/api/v1/discovery/runs")
+        assert r.status_code == 503 and r.json()["code"] == "ERASURE_LEDGER_NOT_APPLIED"
+        await client.services.discovery.apply_ledger()  # type: ignore[attr-defined]
+        assert (await client.get("/api/v1/discovery/runs")).status_code == 200

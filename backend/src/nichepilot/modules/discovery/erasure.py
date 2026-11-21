@@ -334,7 +334,22 @@ async def apply_erasure_ledger(
         raise LedgerError("LEDGER_IO_ERROR", type(exc).__name__) from None
 
 
-async def ledger_health(sm: async_sessionmaker[AsyncSession], ledger: Ledger) -> LedgerHealth:
+LedgerTail = tuple[int, str] | LedgerError
+
+
+def read_tail(ledger: Ledger) -> LedgerTail:
+    try:
+        return ledger.tail()
+    except LedgerError as exc:
+        return exc
+    except OSError:
+        return LedgerError("LEDGER_IO_ERROR")
+
+
+async def ledger_health(
+    sm: async_sessionmaker[AsyncSession], ledger: Ledger, *, tail: LedgerTail | None = None
+) -> LedgerHealth:
+    """Trạng thái DB đọc MỖI lần (sau restore, `BLOCKED` có hiệu lực ngay); `tail` (đọc file sổ) có thể được cache."""
     async with sm() as s:
         state = (await s.execute(text("SELECT * FROM erasure_ledger_state WHERE id = 1"))).mappings().one()
     applied = int(state["applied_seq"])
@@ -342,13 +357,13 @@ async def ledger_health(sm: async_sessionmaker[AsyncSession], ledger: Ledger) ->
         return LedgerHealth("BLOCKED", applied, None, state["last_error"])
     if state["ledger_id"] is None:
         return LedgerHealth("OUT_OF_SYNC", applied, None, "LEDGER_NOT_INITIALIZED")
-    try:
-        tail, tail_hash = ledger.tail()
-    except LedgerError as exc:
-        return LedgerHealth("OUT_OF_SYNC", applied, None, exc.code)
-    if tail != applied or (applied > 0 and tail_hash != state["applied_hash"]):
-        return LedgerHealth("OUT_OF_SYNC", applied, tail, "LEDGER_NOT_APPLIED")
-    return LedgerHealth("OK", applied, tail)
+    t = tail if tail is not None else read_tail(ledger)
+    if isinstance(t, LedgerError):
+        return LedgerHealth("OUT_OF_SYNC", applied, None, t.code)
+    tail_seq, tail_hash = t
+    if tail_seq != applied or (applied > 0 and tail_hash != state["applied_hash"]):
+        return LedgerHealth("OUT_OF_SYNC", applied, tail_seq, "LEDGER_NOT_APPLIED")
+    return LedgerHealth("OK", applied, tail_seq)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

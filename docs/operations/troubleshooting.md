@@ -15,3 +15,10 @@
 | Job `PAUSED_BUDGET` với `BUDGET_*_EXCEEDED` | Hết hạn mức ngày/tháng/job | Chờ sang kỳ mới hoặc chủ sở hữu tăng hạn mức (có audit), rồi resume |
 | Hot reload không chạy trên Windows | Mã nguồn nằm trong `/mnt/c` | Chuyển mã nguồn vào filesystem của WSL (`~/…`) |
 | `test-connection` trả `NETWORK_ERROR` | Không có Internet/proxy chặn | Kiểm tra mạng; kết quả này không tính phí |
+| E1: API trả `503 ERASURE_LEDGER_NOT_APPLIED`; `migrate` thoát mã ≠ 0 | Erasure ledger thiếu/hỏng/lệch DB (sau restore, mất volume, sửa tay) | `GET /api/v1/discovery/status` xem `erasure_ledger`; khôi phục `ledger.jsonl` đúng từ backup vào volume `erasure-ledger`, chạy `docker compose run --rm migrate` – xem discovery.md §4 |
+| E1: xóa bằng chứng trả `503 ERASURE_LEDGER_WRITE_FAILED` | Không ghi được sổ (đĩa đầy, quyền volume) – chưa có gì bị xóa | Giải phóng đĩa/sửa quyền volume `erasure-ledger`, thử lại |
+| E1: tạo lượt trả `409 NO_COMPLIANT_SEARCH_SOURCE` | Chưa có nguồn nào được xác minh `ALLOWED` và bật | Xác minh nguồn theo `specs/002-niche-discovery/source-verification.md` §2 trên trang `/sources` – không có cách bỏ qua |
+| E1: bật nguồn xong nhưng SearXNG không dùng engine mới | Cấu hình sinh lại cần khởi động lại SearXNG | `docker compose restart searxng` (phản hồi API có `requires_service_restart: true`) |
+| E1: `api`/`worker` thoát với `PII_ENGINE_NOT_APPROVED` | Production dùng PII engine chưa nằm trong `PII_APPROVED_ENGINES` | Dùng `PII_ENGINE=regex-phone` hoặc chủ sở hữu phê duyệt engine (quyết định I2) |
+| E1: lượt `PARTIAL_COMPLETED / SOURCES_UNAVAILABLE` | Mọi nguồn lỗi/mất mạng | Kiểm tra mạng/SearXNG; hệ thống không tạo dữ liệu thay thế |
+

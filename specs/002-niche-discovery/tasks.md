@@ -577,24 +577,24 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 ## Phase 10: Polish & Cross-Cutting
 
-- [ ] T124 [P] Playwright E2E "tạo lượt (mock) ≤ 3 thao tác → bảng xếp hạng → chi tiết → ghi quyết định" VI/EN trong
+- [x] T124 [P] Playwright E2E "tạo lượt (mock) ≤ 3 thao tác → bảng xếp hạng → chi tiết → ghi quyết định" VI/EN trong
   `frontend/tests/e2e/discovery.spec.ts` (TC_E1_SC014_01, TC_E1_SC001_01) (SC-014, SC-001)
-- [ ] T125 [P] Test kiến trúc trong `backend/tests/unit/discovery/test_architecture_rules.py`: không model ID hard-code trong
+- [x] T125 [P] Test kiến trúc trong `backend/tests/unit/discovery/test_architecture_rules.py`: không model ID hard-code trong
   `modules/discovery`/`jobs/agents/niche_*`; hàm tạo prompt chỉ nhận `RedactedText` REDACTED; không import `crawl4ai`, `playwright_stealth`,
   `patchright` ở bất kỳ đâu; chỉ `update_policy` ghi `compliance_status`/`enabled`; không có định danh `include_unverified`/`acknowledge_warning`
   trong mã E1 (TC_E1_FR028_02, TC_E1_FR012b_04, TC_E1_FR006d_04, TC_E1_FR006f_02) (FR-028, FR-012b, FR-006d, FR-006f)
-- [ ] T126 [P] Test i18n: 100% khóa `discovery.*` có VI/EN, không chuỗi cứng trong JSX (mở rộng `frontend/tests/unit/i18n-keys.test.ts`)
+- [x] T126 [P] Test i18n: 100% khóa `discovery.*` có VI/EN, không chuỗi cứng trong JSX (mở rộng `frontend/tests/unit/i18n-keys.test.ts`)
   (TC_E1_FR026_04) (FR-026)
-- [ ] T127 [P] Tài liệu vận hành `docs/operations/discovery.md` (xác minh/bật nguồn chỉ khi `ALLOWED`, khởi động lại SearXNG, PII engine và danh
+- [x] T127 [P] Tài liệu vận hành `docs/operations/discovery.md` (xác minh/bật nguồn chỉ khi `ALLOWED`, khởi động lại SearXNG, PII engine và danh
   sách phê duyệt, xóa bằng chứng, ledger và restore thất bại an toàn, profile `browser-fetcher`); cập nhật `docs/operations/backup-restore.md`,
   `docs/operations/troubleshooting.md` (FR-006c, FR-012a, FR-013f)
-- [ ] T128 [P] Profile tùy chọn `browser-fetcher`: `PlaywrightPageFetcher` (không stealth) trong
+- [x] T128 [P] Profile tùy chọn `browser-fetcher`: `PlaywrightPageFetcher` (không stealth) trong
   `backend/src/nichepilot/tools/fetchers/playwright_fetcher.py`, image `deploy/browser-fetcher/Dockerfile`; test marker `browser` với trang
   fixture cần JS trong `backend/tests/integration/discovery/test_playwright_fetcher.py`; đo RAM khi bật (TC_E1_FR031_03) (FR-005, FR-006f, FR-031)
-- [ ] T129 Chạy toàn bộ quality gate (ruff, mypy, lint-imports, pytest, frontend lint/typecheck/test, E2E, `check_secrets.py`,
+- [x] T129 Chạy toàn bộ quality gate (ruff, mypy, lint-imports, pytest, frontend lint/typecheck/test, E2E, `check_secrets.py`,
   `traceability_report.py --strict`), đo tài nguyên stack nghỉ (`docker stats`) và ghi PASS/FAIL/NOT_TESTED/BLOCKED vào
   `specs/002-niche-discovery/checklists/verification.md` (TC_E1_SC011_01) (SC-011)
-- [ ] T130 Chạy quickstart §1–§8 với mock trên stack Docker thật; ghi bằng chứng vào `specs/002-niche-discovery/checklists/verification.md`;
+- [x] T130 Chạy quickstart §1–§8 với mock trên stack Docker thật; ghi bằng chứng vào `specs/002-niche-discovery/checklists/verification.md`;
   §3 và SC-013 ghi `BLOCKED – chờ xác minh nguồn` (không phải lỗi implementation) (SC-011, SC-013)
 
 ---

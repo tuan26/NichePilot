@@ -13,8 +13,9 @@ x-backend: &backend
     - logs:/var/log/nichepilot
     # E1 (X4): sổ xóa bằng chứng – volume riêng, KHÔNG nằm trong dump PostgreSQL (research R-09)
     - erasure-ledger:/var/lib/nichepilot/erasure-ledger
-    # E1 (X1): cấu hình SearXNG sinh từ source_policies (chỉ nguồn ALLOWED đang bật)
-    - searxng-config:/var/lib/nichepilot/searxng
+    # E1 (X1): cấu hình SearXNG sinh từ source_policies (chỉ nguồn ALLOWED đang bật). Volume riêng của backend (user `app`);
+    # container SearXNG chỉ ĐỌC volume này và sao chép settings.yml lúc khởi động (tránh lỗi quyền ghi volume dùng chung).
+    - searxng-generated:/var/lib/nichepilot/searxng
     - ./searxng/settings.base.yml:/opt/nichepilot/searxng/settings.base.yml:ro
   logging:
     # Stdout chỉ là bản sao để xem nhanh; bản lưu chính là file log theo ngày trong volume `logs` (FR-057)
@@ -92,15 +93,20 @@ services:
   searxng:
     image: searxng/searxng:2026.11.18-b867c56a5
     restart: unless-stopped
+    # migrate (image backend) khởi tạo volume searxng-generated trước với chủ sở hữu `app` → backend ghi được
+    depends_on:
+      migrate: { condition: service_completed_successfully }
     entrypoint:
       - /bin/sh
       - -c
-      - '[ -f /etc/searxng/settings.yml ] || cp /opt/nichepilot/settings.base.yml /etc/searxng/settings.yml; exec /usr/local/searxng/entrypoint.sh'
+      # cấu hình do NichePilot sinh (nếu có) được ưu tiên; chưa có → settings.base.yml (không engine nào)
+      - 'if [ -f /opt/nichepilot/generated/settings.yml ]; then cp /opt/nichepilot/generated/settings.yml /etc/searxng/settings.yml; elif [ ! -f /etc/searxng/settings.yml ]; then cp /opt/nichepilot/settings.base.yml /etc/searxng/settings.yml; fi; exec /usr/local/searxng/entrypoint.sh'
     environment:
       GRANIAN_HOST: 0.0.0.0
       SEARXNG_SECRET: ${SEARXNG_SECRET:?SEARXNG_SECRET chưa được đặt trong deploy/env/.env}
     volumes:
       - ./searxng/settings.base.yml:/opt/nichepilot/settings.base.yml:ro
+      - searxng-generated:/opt/nichepilot/generated:ro
       - searxng-config:/etc/searxng
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q OK"]
@@ -112,6 +118,20 @@ services:
       options: { max-size: "10m", max-file: "3" }
     mem_limit: 256m
     cpus: 0.5
+
+  # E1 T128 – profile TÙY CHỌN browser-fetcher (TẮT mặc định, quyết định I1): Chromium không stealth cho trang công khai cần
+  # JavaScript. Bật: build backend với INSTALL_BROWSER_FETCHER=true, đặt PAGE_FETCHER=browser và
+  # BROWSER_WS_ENDPOINT=ws://browser-fetcher:3000/ trong deploy/env/.env, rồi: docker compose --profile browser-fetcher up -d
+  browser-fetcher:
+    build:
+      context: ./browser-fetcher
+    image: nichepilot-browser-fetcher:local
+    profiles: ["browser-fetcher"]
+    restart: unless-stopped
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
   # Backup theo lịch (FR-073): docker compose --profile ops up -d backup ; backup thủ công: make backup
   backup:
@@ -140,3 +160,4 @@ volumes:
   logs:
   erasure-ledger:
   searxng-config:
+  searxng-generated:

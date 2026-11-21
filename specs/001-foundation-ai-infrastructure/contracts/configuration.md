@@ -39,6 +39,8 @@ lúc chạy nằm trong bảng `settings` (xem data-model §4); bảng dưới l
 | `SEARXNG_URL` | Không | `http://searxng:8080` | E1: địa chỉ SearXNG trong mạng nội bộ Compose |
 | `PII_ENGINE` | Không | `regex-phone` | E1: bộ che PII đang dùng (`specs/002-niche-discovery/research.md` R-05) |
 | `PII_APPROVED_ENGINES` | Không | `regex-phone` | E1: danh sách engine được phê duyệt; production từ chối khởi động nếu `PII_ENGINE` không thuộc danh sách |
+| `DISCOVERY_SOURCE_MODE` | Không | `real` | E1: `real` \| `mock` (nguồn giả lập – chỉ development/test; production từ chối khởi động) |
+| `PAGE_FETCHER` | Không | `http` | E1: `http` \| `browser` (profile tùy chọn browser-fetcher, cần `BROWSER_WS_ENDPOINT`; TẮT mặc định – quyết định I1) |
 
 ## Quy tắc khởi động (fail-fast)
 

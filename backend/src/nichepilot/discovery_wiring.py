@@ -21,9 +21,11 @@ from nichepilot.modules.discovery.erasure import (
     Ledger,
     LedgerApplyResult,
     LedgerHealth,
+    LedgerTail,
     TargetType,
     apply_erasure_ledger,
     ledger_health,
+    read_tail,
 )
 from nichepilot.tools.builtin.page_fetch import build_page_fetch_tool
 from nichepilot.tools.builtin.robots_fetch import build_robots_fetch_tool
@@ -42,15 +44,18 @@ class DiscoveryServices:
     backends: SourceBackends
     pii: PiiEngine
     ledger: Ledger
-    _health: LedgerHealth | None = None
+    # cache CHỈ phần đọc file sổ (tail); trạng thái DB (BLOCKED sau restore, applied_seq) đọc mỗi lần –
+    # không có cửa sổ
+    # nào API phục vụ dữ liệu khi sổ đã bị đánh dấu BLOCKED/lệch
+    _health: LedgerTail | None = None
     _health_at: float = field(default=0.0)
 
     async def ledger_health(self, *, force: bool = False) -> LedgerHealth:
         now = time.monotonic()
         if force or self._health is None or now - self._health_at > self.settings.ledger_health_cache_s:
-            self._health = await ledger_health(self.sessionmaker, self.ledger)
+            self._health = read_tail(self.ledger)
             self._health_at = now
-        return self._health
+        return await ledger_health(self.sessionmaker, self.ledger, tail=self._health)
 
     async def require_ledger_ok(self, *, force: bool = False) -> None:
         """Cổng dữ liệu nghiên cứu E1 (X4): sổ chưa áp dụng đầy đủ → ERASURE_LEDGER_NOT_APPLIED."""

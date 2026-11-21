@@ -66,4 +66,34 @@ describe('i18n', () => {
     }
     expect(offenders).toEqual([])
   })
+
+  it('TC_E1_FR026_04: mọi khóa discovery.* dùng trong mã có VI/EN (gồm khóa động theo enum)', () => {
+    const files = [...walk(join(__dirname, '../../src')), join(__dirname, '../../src/api/discovery.ts')]
+    const used = new Set<string>()
+    for (const file of files) {
+      for (const m of readFileSync(file, 'utf8').matchAll(/t\(\s*'(discovery\.[a-zA-Z0-9_.]+)'/g)) used.add(m[1])
+    }
+    const dynamic: Record<string, string[]> = {
+      'discovery.verification': ['VERIFIED', 'INFERRED', 'UNKNOWN', 'CONFLICTING'],
+      'discovery.evidenceStatus': ['EVIDENCE_SUFFICIENT', 'INSUFFICIENT_EVIDENCE'],
+      'discovery.monetization': ['SIGNALS_FOUND', 'MONETIZATION_UNVERIFIED', 'NO_AFFILIATE_FOUND'],
+      'discovery.decision.status': ['CANDIDATE', 'WATCH', 'PURSUE', 'REJECTED', 'HIDDEN'],
+      'discovery.ranking.list': ['research', 'affiliate', 'needs_research'],
+      'discovery.ranking.rec': ['PURSUE', 'REJECT', 'UNKNOWN'],
+      'discovery.ranking.criteria': ['problem_severity', 'monetization', 'market_gap', 'reachability', 'competition_opportunity', 'demand_stability'],
+      'discovery.finding': ['CURRENT_SOLUTIONS', 'MARKET_GAPS', 'POTENTIAL_PRODUCTS', 'MONETIZATION', 'CHANNELS', 'RISKS'],
+      'discovery.persona': ['segment', 'context', 'goals', 'obstacles', 'ability_to_pay'],
+      'discovery.competitorKind': ['PRODUCT', 'SERVICE', 'MANUAL_WORKAROUND'],
+      'discovery.outcome': ['COMPLETED', 'PARTIAL_COMPLETED'],
+      'discovery.stopReason': ['ALL_CANDIDATES_SUFFICIENT', 'CANDIDATES_EXHAUSTED', 'TIME_LIMIT_REACHED', 'PAGE_LIMIT_REACHED', 'NO_COMPLIANT_SEARCH_SOURCE', 'SOURCES_UNAVAILABLE', 'CANCELLED'],
+    }
+    for (const [prefix, values] of Object.entries(dynamic)) for (const v of values) used.add(`${prefix}.${v}`)
+    used.add('discovery.disclaimer.evidence_not_profitability')
+    expect(used.size).toBeGreaterThan(80)
+    for (const key of used) {
+      expect(viFlat[key], `vi ${key}`).toBeTruthy()
+      expect(enFlat[key], `en ${key}`).toBeTruthy()
+    }
+  })
 })
+

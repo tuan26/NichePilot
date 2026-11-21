@@ -121,6 +121,14 @@ jobs:
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
           npm run test:e2e -- --pass-with-no-tests --trace off
+      - name: Restart stack with simulated sources (E1 E2E needs an empty database; development only)
+        run: |
+          docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env down -v
+          sed -i "s/^DISCOVERY_SOURCE_MODE=.*/DISCOVERY_SOURCE_MODE=mock/" deploy/env/.env
+          make up
+      - name: Playwright E2E – E1 discovery
+        working-directory: frontend
+        run: E2E_SUITE=discovery npm run test:e2e -- --trace off
       - name: Compose logs on failure
         if: failure()
         run: docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env logs

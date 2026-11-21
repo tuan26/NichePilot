@@ -38,12 +38,15 @@ RUN --mount=type=secret,id=extra_ca,required=false \
 ENV PATH="/app/.venv/bin:$PATH"
 
 FROM deps AS runtime
+# E1 T128 – client Playwright cho profile tùy chọn browser-fetcher (TẮT mặc định – quyết định I1). Chỉ client, không tải trình
+# duyệt: trình duyệt chạy trong container `browser-fetcher` riêng. Không stealth.
+ARG INSTALL_BROWSER_FETCHER=false
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
 RUN --mount=type=secret,id=extra_ca,required=false \
     if [ -s /run/secrets/extra_ca ]; then export SSL_CERT_FILE=/run/secrets/extra_ca; fi; \
-    uv sync --frozen --no-dev \
+    if [ "$INSTALL_BROWSER_FETCHER" = "true" ]; then uv sync --frozen --no-dev --extra browser; else uv sync --frozen --no-dev; fi \
     && groupadd --system app && useradd --system --gid app --home /app app \
     && mkdir -p /var/log/nichepilot /var/lib/nichepilot/erasure-ledger /var/lib/nichepilot/searxng \
     && chown app:app /var/log/nichepilot /var/lib/nichepilot/erasure-ledger /var/lib/nichepilot/searxng
