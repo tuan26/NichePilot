@@ -525,15 +525,15 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 **Goal**: trùng chắc chắn gộp, có thể tương đồng chờ chủ sở hữu. **Independent Test**: bộ cặp có nhãn ≥ 90% đúng, 0 gộp nhầm.
 
-- [ ] T111 [P] [US5] Bộ ≥ 40 cặp ngách có nhãn tự soạn trong `backend/tests/fixtures/discovery/dedup_pairs.json` và test độ chính xác ≥ 90%, 0 gộp
+- [x] T111 [P] [US5] Bộ ≥ 40 cặp ngách có nhãn tự soạn trong `backend/tests/fixtures/discovery/dedup_pairs.json` và test độ chính xác ≥ 90%, 0 gộp
   nhầm trong `backend/tests/unit/discovery/test_dedup.py` (TC_E1_FR022_01, TC_E1_SC010_01) (FR-022, SC-010)
-- [ ] T112 [P] [US5] Contract test `GET /api/v1/niche-similarities`, `PUT /api/v1/niche-similarities/{similarity_id}` (gộp giữ `keep_niche_id`,
+- [x] T112 [P] [US5] Contract test `GET /api/v1/niche-similarities`, `PUT /api/v1/niche-similarities/{similarity_id}` (gộp giữ `keep_niche_id`,
   audit `niche.similarity_resolved`) trong `backend/tests/contract/discovery/test_similarity_api.py` (TC_E1_FR022_02) (FR-022)
-- [ ] T113 [US5] `similarity()` + bước `dedup` (task type `discovery.normalize`; ngưỡng từ `data-model.md scoring_weights_versions.dedup_params`)
+- [x] T113 [US5] `similarity()` + bước `dedup` (task type `discovery.normalize`; ngưỡng từ `data-model.md scoring_weights_versions.dedup_params`)
   ghi `data-model.md niche_similarity.niche_a_id`, `data-model.md niche_similarity.niche_b_id`, `data-model.md niche_similarity.score`,
   `data-model.md niche_similarity.status`, `data-model.md niches.merged_into_id`, `data-model.md niches.dedup_key` trong
   `backend/src/nichepilot/modules/discovery/dedup.py` và `backend/src/nichepilot/jobs/agents/niche_discovery.py` (FR-022, FR-029)
-- [ ] T114 [US5] Endpoint similarity (ghi `data-model.md niche_similarity.resolved_by`) trong `backend/src/nichepilot/api/v1/discovery.py` và
+- [x] T114 [US5] Endpoint similarity (ghi `data-model.md niche_similarity.resolved_by`) trong `backend/src/nichepilot/api/v1/discovery.py` và
   cờ `has_possible_duplicate` + hộp xác nhận trong `frontend/src/pages/discovery/NicheDetailPage.tsx` (FR-022, FR-026)
 
 ---
@@ -542,16 +542,16 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 **Goal**: báo cáo theo lượt (JSON/Markdown, ba danh sách), AI đề xuất + lý do, chủ sở hữu ghi quyết định.
 
-- [ ] T115 [P] [US6] Contract test `GET /api/v1/discovery/runs/{run_id}/report` (json, markdown; ba danh sách; `disclaimer_key`; MOCK loại khỏi
+- [x] T115 [P] [US6] Contract test `GET /api/v1/discovery/runs/{run_id}/report` (json, markdown; ba danh sách; `disclaimer_key`; MOCK loại khỏi
   báo cáo mặc định) trong `backend/tests/contract/discovery/test_report_api.py` (TC_E1_FR024_01, TC_E1_SC009_02) (FR-024, SC-009)
-- [ ] T116 [P] [US6] Contract test `PUT /api/v1/niches/{niche_id}/decision` (5 trạng thái, lý do, audit `niche.decision_recorded`, AI không tự đổi)
+- [x] T116 [P] [US6] Contract test `PUT /api/v1/niches/{niche_id}/decision` (5 trạng thái, lý do, audit `niche.decision_recorded`, AI không tự đổi)
   trong `backend/tests/contract/discovery/test_decision_api.py` (TC_E1_FR025_01) (FR-025)
-- [ ] T117 [US6] Sinh báo cáo JSON/Markdown trong `backend/src/nichepilot/modules/discovery/report.py` + endpoint trong
+- [x] T117 [US6] Sinh báo cáo JSON/Markdown trong `backend/src/nichepilot/modules/discovery/report.py` + endpoint trong
   `backend/src/nichepilot/api/v1/discovery.py` (FR-024, FR-019c)
-- [ ] T118 [US6] `record_decision` theo `data-model.md niches.decision_status`, `data-model.md niches.owner_decision_reason`,
+- [x] T118 [US6] `record_decision` theo `data-model.md niches.decision_status`, `data-model.md niches.owner_decision_reason`,
   `data-model.md niches.decided_by` trong `backend/src/nichepilot/modules/discovery/service.py` + endpoint `PUT /api/v1/niches/{niche_id}/decision`
   (FR-025, FR-036)
-- [ ] T119 [US6] Nút ghi quyết định + đề xuất AI trong `frontend/src/pages/discovery/NicheDetailPage.tsx`; tải báo cáo Markdown trong
+- [x] T119 [US6] Nút ghi quyết định + đề xuất AI trong `frontend/src/pages/discovery/NicheDetailPage.tsx`; tải báo cáo Markdown trong
   `frontend/src/pages/discovery/DiscoveryRunsPage.tsx` (FR-025, FR-026)
 
 ---
@@ -560,16 +560,16 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 **Goal**: lịch khám phá định kỳ (nguồn `ALLOWED`), đánh giá lại ngách đang theo dõi; không sửa Scheduler E0.
 
-- [ ] T120 [P] [US7] Test lịch E0 với `job_type = discovery.run`: đúng 1 lượt/mốc; `ensure_run` tạo đúng một `discovery_runs` kể cả khi job được
+- [x] T120 [P] [US7] Test lịch E0 với `job_type = discovery.run`: đúng 1 lượt/mốc; `ensure_run` tạo đúng một `discovery_runs` kể cả khi job được
   giao lại (idempotent); `trigger = SCHEDULE` lấy từ `agent_jobs`; chỉ nguồn `ALLOWED`; không nguồn → `NO_COMPLIANT_SEARCH_SOURCE`; ngân sách
   chưa cấu hình → lịch bị từ chối theo E0 trong `backend/tests/integration/discovery/test_discovery_schedule.py` (TC_E1_FR033_01,
   TC_E1_FR033_02, TC_E1_SC017_04) (FR-033, SC-017)
-- [ ] T121 [P] [US7] Test `POST /api/v1/niches/{niche_id}/reevaluate` + lịch `discovery.reevaluate`: đánh giá mới, giữ đánh giá cũ, so sánh thay đổi,
+- [x] T121 [P] [US7] Test `POST /api/v1/niches/{niche_id}/reevaluate` + lịch `discovery.reevaluate`: đánh giá mới, giữ đánh giá cũ, so sánh thay đổi,
   giữ chỗ ngân sách trong `backend/tests/integration/discovery/test_reevaluate.py` (TC_E1_FR034_01) (FR-034)
-- [ ] T122 [US7] Xử lý lượt theo lịch trong `preflight`/`ensure_run` (đọc `agent_jobs.trigger`, `agent_jobs.schedule_id`; tham số lượt mặc định
+- [x] T122 [US7] Xử lý lượt theo lịch trong `preflight`/`ensure_run` (đọc `agent_jobs.trigger`, `agent_jobs.schedule_id`; tham số lượt mặc định
   khi input lịch thiếu; ghi `data-model.md discovery_runs.job_id`, `data-model.md discovery_runs.trigger`) trong
   `backend/src/nichepilot/jobs/agents/niche_discovery.py` – không sửa `backend/src/nichepilot/jobs/scheduler.py` (FR-033, FR-029)
-- [ ] T123 [US7] `NicheReevaluationAgent` (job type `discovery.reevaluate`, max_steps 60, max_ai_calls 20, có `preflight`; ghi
+- [x] T123 [US7] `NicheReevaluationAgent` (job type `discovery.reevaluate`, max_steps 60, max_ai_calls 20, có `preflight`; ghi
   `data-model.md niche_run_links.role` = REEVALUATED) trong `backend/src/nichepilot/jobs/agents/niche_reevaluate.py` + endpoint
   `POST /api/v1/niches/{niche_id}/reevaluate` (FR-034)
 

@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nichepilot.modules.discovery.dedup import list_similarities
 from nichepilot.modules.discovery.evaluation import evaluation_dto
 from nichepilot.modules.discovery.sources.policy import UsableSourcePolicy
 
@@ -398,6 +399,7 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
         else None
     )
     latest_dto = evaluation_dto(latest) if latest else None
+    similar = await list_similarities(session, status="POSSIBLE", niche_id=niche_id)
     persona = {a: persona_row.get(a) or dict(UNKNOWN_FINDING) for a in PERSONA_ATTRS}
     summary: dict[str, int] = {}
     for f in [*findings.values(), *persona.values()]:
@@ -421,7 +423,9 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
         "ai_recommendation_reason": n["ai_recommendation_reason"] or "",
         "owner_decision_reason": n["owner_decision_reason"],
         "decision_status": n["decision_status"],
-        "has_possible_duplicate": False,
+        "has_possible_duplicate": bool(similar),
+        "possible_duplicates": similar,
+        "merged_into_id": str(n["merged_into_id"]) if n["merged_into_id"] else None,
         "data_origin": n["data_origin"],
         "disclaimer_key": DISCLAIMER_KEY,
         "pain_points": [
@@ -472,3 +476,45 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
         "opportunity_disclaimer_key": "discovery.opportunity.disclaimer",
         "run_ids": [str(r) for r in run_ids],
     }
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Quyết định của chủ sở hữu (T118; FR-025, FR-036) – không ghi đè đề xuất AI
+# ---------------------------------------------------------------------------------------------------------------------
+async def record_decision(
+    session: AsyncSession,
+    niche_id: uuid.UUID,
+    *,
+    decision: str,
+    reason: str | None,
+    actor_id: uuid.UUID,
+    request_id: str | None,
+) -> bool:
+    from nichepilot.modules.audit.service import record_audit
+
+    row = (
+        await session.execute(
+            text("SELECT decision_status, owner_decision_reason FROM niches WHERE id = :n FOR UPDATE"), {"n": niche_id}
+        )
+    ).first()
+    if row is None:
+        return False
+    await session.execute(
+        text(
+            "UPDATE niches SET decision_status = :d, owner_decision_reason = :r, decided_by = :u, decided_at = now(),"
+            " updated_at = now() WHERE id = :n"
+        ),
+        {"d": decision, "r": reason, "u": actor_id, "n": niche_id},
+    )
+    await record_audit(
+        session,
+        action="niche.decision_recorded",
+        actor_type="USER",
+        actor_id=actor_id,
+        entity_type="niche",
+        entity_id=niche_id,
+        before={"decision_status": row.decision_status, "reason": row.owner_decision_reason},
+        after={"decision_status": decision, "reason": reason},
+        request_id=request_id,
+    )
+    return True

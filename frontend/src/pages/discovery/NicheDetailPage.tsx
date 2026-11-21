@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { ApiError } from '@/api/client'
-import { useEraseEvidence, useNiche } from '@/api/discovery'
+import { useEraseEvidence, useNiche, useRecordDecision, useResolveSimilarity } from '@/api/discovery'
 import { Layout } from '@/app/Layout'
 import { NicheDetailView } from '@/pages/discovery/NicheDetailView'
 
@@ -16,6 +16,8 @@ export function NicheDetailPage() {
   const { nicheId = '' } = useParams()
   const niche = useNiche(nicheId)
   const erase = useEraseEvidence(nicheId)
+  const resolve = useResolveSimilarity(nicheId)
+  const decide = useRecordDecision(nicheId)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   return (
     <Layout
@@ -39,6 +41,9 @@ export function NicheDetailPage() {
           erase.mutate({ evidenceId, reason, scope }, { onSuccess: () => setConfirmId(null) })
         }
         onRetry={() => void niche.refetch()}
+        onResolveDuplicate={(pair, status, keep) => resolve.mutate({ id: pair.id, status, keep })}
+        onDecision={(decision, reason) => decide.mutate({ decision, reason })}
+        decisionError={code(decide.error) ?? null}
       />
     </Layout>
   )

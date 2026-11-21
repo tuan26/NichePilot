@@ -146,6 +146,21 @@ describe('TC_E1_FR026_02 màn hình chi tiết ngách', () => {
     expect(html).toContain('Chưa có pain point')
   })
 
+  it('ngách có thể trùng: hộp xác nhận, không tự gộp', () => {
+    const pair = { id: 'p1', niche_a_id: 'n1', niche_b_id: 'n2', niche_a_name: 'A', niche_b_name: '[MOCK] Bakery stock', score: 0.87, status: 'POSSIBLE' as const }
+    const html = render({ niche: { ...niche, possible_duplicates: [pair], has_possible_duplicate: true } })
+    expect(html).toContain('data-testid="possible-duplicates"')
+    expect(html).toContain('[MOCK] Bakery stock')
+    expect(html).toContain('Không trùng')
+  })
+
+  it('ghi quyết định: 5 trạng thái, cần lý do, đề xuất AI hiển thị riêng', () => {
+    const html = render({})
+    expect(html).toContain('data-testid="decision"')
+    for (const s of ['Theo dõi', 'Tiếp tục', 'Loại bỏ', 'Ẩn', 'Ứng viên']) expect(html).toContain(s)
+    expect(html).toContain('Đề xuất của AI')
+  })
+
   it('xóa bằng chứng cần xác nhận', () => {
     expect(render({})).toContain('data-testid="erase-e1"')
     const confirm = render({ confirmEvidenceId: 'e1' })

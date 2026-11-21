@@ -137,6 +137,8 @@ export interface NicheDetail {
   evidence: NicheEvidence[]
   latest_evaluation: Evaluation | null
   ai_recommendation_reason?: string
+  possible_duplicates?: SimilarityPair[]
+  has_possible_duplicate?: boolean
   opportunity_disclaimer_key?: string
   run_ids: string[]
 }
@@ -216,4 +218,15 @@ export interface SourceUpdate {
   allowed_access_methods?: string[]
   permitted_use_scope?: string
   enabled?: boolean
+}
+
+// E1 US5 – cặp ngách có thể tương đồng
+export interface SimilarityPair {
+  id: string
+  niche_a_id: string
+  niche_b_id: string
+  niche_a_name?: string | null
+  niche_b_name?: string | null
+  score: number
+  status: 'POSSIBLE' | 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'
 }

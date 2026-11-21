@@ -64,6 +64,8 @@ describe('TC_E1_FR026_01 màn hình lượt khám phá', () => {
     expect(html).toContain('0.0007')
     expect(html).toContain('data-testid="run-cost-real"')
     expect(html).toContain('test:mock-engine')
+    expect(html).toContain('data-testid="report-download"')
+    expect(html).toContain('format=markdown')
   })
 
   it('báo lỗi không có nguồn hợp lệ và không có tùy chọn nguồn chưa xác minh', () => {

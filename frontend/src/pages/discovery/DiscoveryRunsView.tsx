@@ -2,7 +2,7 @@
 // Không có tùy chọn dùng nguồn chưa xác minh (quyết định A1). Dữ liệu MOCK luôn gắn nhãn.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { RunAction } from '@/api/discovery'
+import { reportUrl, type RunAction } from '@/api/discovery'
 import type { DiscoveryRun, DiscoveryRunCreate } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,7 @@ function metric(run: DiscoveryRun, key: string): string {
 }
 
 function RunRow({ run, onAction }: { run: DiscoveryRun; onAction: DiscoveryRunsViewProps['onAction'] }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const status = run.job.status
   return (
     <Card className="space-y-3" data-testid="run-row">
@@ -85,6 +85,16 @@ function RunRow({ run, onAction }: { run: DiscoveryRun; onAction: DiscoveryRunsV
           <Button size="sm" variant="outline" onClick={() => onAction(run.job.job_id, 'resume')}>
             {t('discovery.runs.resume')}
           </Button>
+        )}
+        {run.outcome && (
+          <a
+            className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1 text-sm"
+            href={reportUrl(run.id, i18n.language)}
+            download
+            data-testid="report-download"
+          >
+            {t('discovery.runs.downloadReport')}
+          </a>
         )}
         {(ACTIVE.has(status) || PAUSED.has(status)) && (
           <Button size="sm" variant="outline" onClick={() => onAction(run.job.job_id, 'cancel')}>

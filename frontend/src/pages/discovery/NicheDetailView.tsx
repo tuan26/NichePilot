@@ -2,7 +2,7 @@
 // View thuần (dễ kiểm thử); container ở NicheDetailPage. MOCK luôn gắn nhãn; UNKNOWN hiển thị rõ, không suy diễn giá trị.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Evaluation, Finding, NicheDetail } from '@/api/types'
+import type { Evaluation, Finding, NicheDetail, SimilarityPair } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card, Input, Label } from '@/components/ui/form'
@@ -19,6 +19,9 @@ export interface NicheDetailViewProps {
   onConfirmErase: (evidenceId: string, reason: string, scope: 'EVIDENCE' | 'SOURCE') => void
   onCancelErase: () => void
   onRetry: () => void
+  onResolveDuplicate?: (pair: SimilarityPair, status: 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE', keep?: string) => void
+  onDecision?: (decision: string, reason: string) => void
+  decisionError?: string | null
 }
 
 const PERSONA = ['segment', 'context', 'goals', 'obstacles', 'ability_to_pay']
@@ -124,6 +127,76 @@ function ScoringCard({ ev, n }: { ev: Evaluation | null; n: NicheDetail }) {
   )
 }
 
+function DuplicatesCard({ n, props }: { n: NicheDetail; props: NicheDetailViewProps }) {
+  const { t } = useTranslation()
+  const pairs = n.possible_duplicates ?? []
+  if (pairs.length === 0) return null
+  return (
+    <Alert variant="warning" data-testid="possible-duplicates">
+      <p className="font-medium">{t('discovery.dedup.title')}</p>
+      <ul className="mt-2 space-y-2">
+        {pairs.map((p) => {
+          const otherName = p.niche_a_id === n.id ? p.niche_b_name : p.niche_a_name
+          return (
+            <li key={p.id} className="flex flex-wrap items-center gap-2">
+              <span>{t('discovery.dedup.pair', { name: otherName ?? '', score: p.score })}</span>
+              <Button size="sm" variant="outline" onClick={() => props.onResolveDuplicate?.(p, 'CONFIRMED_DUPLICATE', n.id)}>
+                {t('discovery.dedup.mergeHere')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => props.onResolveDuplicate?.(p, 'NOT_DUPLICATE')}>
+                {t('discovery.dedup.notDuplicate')}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </Alert>
+  )
+}
+
+const DECISIONS = ['WATCH', 'PURSUE', 'REJECTED', 'HIDDEN', 'CANDIDATE']
+
+function DecisionCard({ n, props }: { n: NicheDetail; props: NicheDetailViewProps }) {
+  const { t } = useTranslation()
+  const [decision, setDecision] = useState(n.decision_status === 'CANDIDATE' ? 'WATCH' : n.decision_status)
+  const [reason, setReason] = useState('')
+  return (
+    <Card className="space-y-2" data-testid="decision">
+      <h2 className="text-lg font-semibold">{t('discovery.decision.title')}</h2>
+      <p className="text-sm">
+        {t('discovery.decision.current')}: <strong>{t(`discovery.decision.status.${n.decision_status}`)}</strong>
+      </p>
+      {props.decisionError && <Alert>{t(`errors.${props.decisionError}`, t('errors.generic'))}</Alert>}
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          props.onDecision?.(decision, reason.trim())
+        }}
+      >
+        <div className="space-y-1">
+          <Label htmlFor="decision">{t('discovery.decision.choose')}</Label>
+          <select id="decision" value={decision} onChange={(e) => setDecision(e.target.value)}>
+            {DECISIONS.map((d) => (
+              <option key={d} value={d}>
+                {t(`discovery.decision.status.${d}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="min-w-64 flex-1 space-y-1">
+          <Label htmlFor="decision-reason">{t('discovery.decision.reason')}</Label>
+          <Input id="decision-reason" value={reason} maxLength={2000} onChange={(e) => setReason(e.target.value)} />
+        </div>
+        <Button size="sm" type="submit" disabled={decision !== 'CANDIDATE' && reason.trim().length < 3}>
+          {t('discovery.decision.save')}
+        </Button>
+      </form>
+      <p className="text-xs text-slate-500">{t('discovery.decision.hint')}</p>
+    </Card>
+  )
+}
+
 function EraseConfirm({ id, props }: { id: string; props: NicheDetailViewProps }) {
   const { t } = useTranslation()
   const [reason, setReason] = useState('')
@@ -189,7 +262,9 @@ export function NicheDetailView(props: NicheDetailViewProps) {
         <Alert variant="info">{t(n.disclaimer_key)}</Alert>
       </div>
 
+      <DuplicatesCard n={n} props={props} />
       <ScoringCard ev={n.latest_evaluation} n={n} />
+      <DecisionCard n={n} props={props} />
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">{t('discovery.niche.painPoints')}</h2>

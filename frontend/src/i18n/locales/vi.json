@@ -123,7 +123,9 @@
     "PII_ENGINE_NOT_APPROVED": "Bộ che thông tin cá nhân chưa được phê duyệt cho môi trường này.",
     "TASK_TYPE_NOT_ALLOWED": "Loại tác vụ AI này chưa được đăng ký cho agent.",
     "ERASURE_LEDGER_WRITE_FAILED": "Không ghi được sổ xóa bằng chứng; chưa có gì bị xóa.",
-    "SOURCE_NOT_FOUND": "Không tìm thấy nguồn."
+    "SOURCE_NOT_FOUND": "Không tìm thấy nguồn.",
+    "SIMILARITY_NOT_FOUND": "Không tìm thấy cặp ngách.",
+    "SIMILARITY_ALREADY_RESOLVED": "Cặp ngách này đã được xử lý."
   },
   "discovery": {
     "opportunity": {
@@ -152,7 +154,8 @@
       "noSources": "Không có nguồn",
       "pause": "Tạm dừng",
       "resume": "Tiếp tục",
-      "cancel": "Hủy"
+      "cancel": "Hủy",
+      "downloadReport": "Tải báo cáo (Markdown)"
     },
     "outcome": {
       "COMPLETED": "Hoàn tất",
@@ -288,6 +291,27 @@
       "verifiedOn": "xác minh ngày {{date}}",
       "restart": "Cấu hình SearXNG đã thay đổi – cần khởi động lại dịch vụ searxng (docker compose restart searxng).",
       "empty": "Chưa có nguồn nào."
+    },
+    "dedup": {
+      "title": "Có thể trùng với ngách khác – chủ sở hữu quyết định (hệ thống không tự gộp).",
+      "pair": "{{name}} (độ tương đồng {{score}})",
+      "mergeHere": "Gộp vào ngách này",
+      "notDuplicate": "Không trùng"
+    },
+    "decision": {
+      "title": "Quyết định của chủ sở hữu",
+      "current": "Hiện tại",
+      "choose": "Quyết định",
+      "reason": "Lý do (bắt buộc)",
+      "save": "Ghi quyết định",
+      "hint": "Quyết định được ghi audit và không thay đổi đề xuất của AI.",
+      "status": {
+        "CANDIDATE": "Ứng viên",
+        "WATCH": "Theo dõi",
+        "PURSUE": "Tiếp tục",
+        "REJECTED": "Loại bỏ",
+        "HIDDEN": "Ẩn"
+      }
     }
   },
   "nav": {

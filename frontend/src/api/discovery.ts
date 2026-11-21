@@ -77,3 +77,25 @@ export function useUpdateSource() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['sources'] }),
   })
 }
+
+export function useResolveSimilarity(nicheId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status, keep }: { id: string; status: 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'; keep?: string }) =>
+      api(`/api/v1/niche-similarities/${id}`, { method: 'PUT', body: { status, keep_niche_id: keep } }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['niche', nicheId] }),
+  })
+}
+
+export function useRecordDecision(nicheId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ decision, reason }: { decision: string; reason: string }) =>
+      api<NicheDetail>(`/api/v1/niches/${nicheId}/decision`, { method: 'PUT', body: { decision, reason } }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['niche', nicheId] }),
+  })
+}
+
+export function reportUrl(runId: string, lang: string): string {
+  return `/api/v1/discovery/runs/${runId}/report?format=markdown&include_mock=true&lang=${lang === 'en' ? 'en' : 'vi'}`
+}

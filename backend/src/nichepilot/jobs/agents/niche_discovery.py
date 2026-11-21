@@ -31,7 +31,7 @@ from nichepilot.ai.sanitize import wrap_untrusted
 from nichepilot.core.errors import AppError
 from nichepilot.discovery_wiring import DISCOVERY_TOOLS, current_discovery
 from nichepilot.jobs.runtime import AgentDefinition, JobContext, StepOutcome
-from nichepilot.modules.discovery import analysis, evaluation
+from nichepilot.modules.discovery import analysis, dedup, evaluation
 from nichepilot.modules.discovery import service as svc
 from nichepilot.modules.discovery.access import DomainAccessService, domain_of
 from nichepilot.modules.discovery.fingerprint import content_hash, registered_domain, simhash64, url_hash
@@ -112,7 +112,11 @@ DEFINITION = AgentDefinition(
 
 
 def _params(ctx: JobContext) -> DiscoveryRunParams:
-    return DiscoveryRunParams.model_validate({k: v for k, v in ctx.params.items() if v is not None})
+    """Tham số lượt; khóa ngoài DiscoveryRunParams (vd. `niche_id` của job đánh giá lại) bị bỏ qua. Lượt theo lịch
+    thiếu tham số
+    → giá trị mặc định của DiscoveryRunParams (FR-033)."""
+    fields = DiscoveryRunParams.model_fields
+    return DiscoveryRunParams.model_validate({k: v for k, v in ctx.params.items() if v is not None and k in fields})
 
 
 async def ensure_run(ctx: JobContext) -> uuid.UUID:
@@ -141,6 +145,12 @@ class NicheDiscoveryAgent:
                 "queue": [],
                 "ci": 0,
             }
+            async with ctx.sessionmaker() as s:
+                usable = await SourcePolicyService(s).usable_for_run()
+            if (
+                not usable
+            ):  # lượt theo lịch/đánh giá lại không có nguồn ALLOWED → dừng ngay, 0 lời gọi AI (FR-006e, SC-017)
+                return await self._finalize(new_state, ctx, started, "PARTIAL_COMPLETED", "NO_COMPLIANT_SEARCH_SOURCE")
             return self._outcome("preflight", "LOGIC", {"run_id": str(run_id)}, new_state, started)
         state = {**state, "metrics": dict(state["metrics"])}
         phase = state["phase"]
@@ -214,18 +224,53 @@ class NicheDiscoveryAgent:
                 )
             ).one()
             origin = "MOCK" if "MOCK" in (run.data_origin, res.data_origin) else "REAL"
+            params = dedup.DedupParams.from_json(
+                (
+                    await s.execute(text("SELECT dedup_params FROM scoring_weights_versions WHERE is_active"))
+                ).scalar_one()
+            )
+            seen: set[str] = set()
             for c in out.candidates[: p.max_candidates]:
-                niche_id = await svc.upsert_candidate(
+                # FR-022: so với ngách đã có (cả lượt trước và ứng viên vừa tạo trong lượt này) – mã xác định
+                matches = await dedup.find_matches(
                     s,
-                    run_id=uuid.UUID(state["run_id"]),
                     project_id=run.project_id,
                     country=p.market,
-                    name=c.name,
-                    micro_niche=c.micro_niche,
+                    data_origin=origin,
                     customer_group=c.customer_group,
                     core_problem=c.core_problem,
-                    data_origin=origin,
+                    params=params,
                 )
+                dup = next((mt for mt in matches if mt.verdict == "DUPLICATE"), None)
+                if dup is not None:  # trùng chắc chắn → dùng lại ngách cũ, liên kết lượt mới
+                    niche_id = dup.niche_id
+                    await s.execute(
+                        text(
+                            "INSERT INTO niche_run_links (niche_id, run_id, role) VALUES (:n, :r, 'DISCOVERED')"
+                            " ON CONFLICT (niche_id, run_id) DO NOTHING"
+                        ),
+                        {"n": niche_id, "r": state["run_id"]},
+                    )
+                    m_ = state["metrics"]
+                    m_["duplicates_linked"] = int(m_.get("duplicates_linked", 0)) + 1
+                else:
+                    niche_id = await svc.upsert_candidate(
+                        s,
+                        run_id=uuid.UUID(state["run_id"]),
+                        project_id=run.project_id,
+                        country=p.market,
+                        name=c.name,
+                        micro_niche=c.micro_niche,
+                        customer_group=c.customer_group,
+                        core_problem=c.core_problem,
+                        data_origin=origin,
+                    )
+                    for mt in matches:  # không chắc chắn → chờ chủ sở hữu, không tự gộp
+                        if mt.niche_id != niche_id:
+                            await dedup.record_possible(s, niche_id, mt.niche_id, mt.similarity.score)
+                if str(niche_id) in seen:  # hai ứng viên trong cùng lượt trỏ về một ngách
+                    continue
+                seen.add(str(niche_id))
                 domains.add(c.domain.strip().lower())
                 candidates.append({"niche_id": str(niche_id), "queries": c.queries[:QUERIES_PER_CANDIDATE]})
         m = state["metrics"]

@@ -187,6 +187,14 @@
     "status": 503,
     "title": "Service temporarily unavailable"
   },
+  "SIMILARITY_ALREADY_RESOLVED": {
+    "status": 409,
+    "title": "Similarity pair was already resolved"
+  },
+  "SIMILARITY_NOT_FOUND": {
+    "status": 404,
+    "title": "Similarity pair not found"
+  },
   "SOURCE_CONFIG_INVALID": {
     "status": 422,
     "title": "Source configuration is invalid"

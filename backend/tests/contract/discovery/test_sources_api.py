@@ -83,7 +83,12 @@ async def test_TC_E1_FR006g_03_TC_E1_FR036_01_config_validation_and_audit(
     clean_db: AsyncEngine, migrated_db: str
 ) -> None:
     async with discovery_client(migrated_db) as client:
-        bad = {**NEW, "source_key": "test:bad", "config": {"engine_name": "x", "api_key": "sk-not-allowed"}}
+        # khóa gợi ý credential (vd. "accessKey") bị từ chối ở mọi cấp; giá trị là chuỗi giữ chỗ, không phải secret
+        bad = {
+            **NEW,
+            "source_key": "test:bad",
+            "config": {"engine_name": "x", "nested": {"accessKey": "PLACEHOLDER-VALUE"}},
+        }
         r = await client.post("/api/v1/sources", json=bad, headers=csrf_headers(client))
         assert r.status_code == 422 and r.json()["code"] == "SOURCE_CONFIG_INVALID"
         api = {
@@ -117,4 +122,4 @@ async def test_TC_E1_FR006g_03_TC_E1_FR036_01_config_validation_and_audit(
             audits[1].before["compliance_status"] == "UNVERIFIED" and audits[1].after["compliance_status"] == "ALLOWED"
         )
         listed = (await client.get("/api/v1/sources")).text
-        assert "sk-not-allowed" not in listed
+        assert "PLACEHOLDER-VALUE" not in listed

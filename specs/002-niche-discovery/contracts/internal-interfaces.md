@@ -164,7 +164,7 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 | Job type | Agent | Giới hạn (định nghĩa agent E0) | Ghi chú |
 |---|---|---|---|
 | `discovery.run` | `NicheDiscoveryAgent` | max_steps 240, max_ai_calls 120, timeout 6000 s | Bước ở plan.md "Luồng xử lý" |
-| `discovery.reevaluate` | `NicheReevaluationAgent` | max_steps 60, max_ai_calls 20 | Thu thập bổ sung + đánh giá lại 1 ngách |
+| `discovery.reevaluate` | `NicheReevaluationAgent` (kế thừa pipeline `discovery.run`) | max_steps 60, max_ai_calls 20 | Thu thập bổ sung + đánh giá lại 1 ngách; truy vấn sinh xác định từ nhóm KH + vấn đề (không AI đề xuất ứng viên); kết quả job có `comparison` before/after |
 | `discovery.recompute` | `NicheRecomputeAgent` (không AI) | max_steps 10, max_ai_calls 1 (ràng buộc E0 `≥ 1`; agent không gọi AI – test kiểm tra 0 `ai_usage_logs`) | Sau đổi trọng số / xóa bằng chứng |
 
 - Bước `preflight` (đầu tiên, idempotent): kiểm tra ledger; `ensure_run` tạo hoặc lấy `discovery_runs` theo `job_id` (UNIQUE –
@@ -180,6 +180,7 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
   - 429/503: thử lại tối đa 2 lần theo `Retry-After` (mặc định 30 s nếu thiếu); `Retry-After` > thời gian còn lại → bỏ tên miền ngay
     (mọi URL của tên miền ghi `RATE_LIMITED`), lưu `domain_access_state.blocked_until/block_reason`.
   - Job E0 bị hủy giữa chừng: API lượt trả `outcome = PARTIAL_COMPLETED`, `stop_reason = CANCELLED` (suy ra, không sửa runtime E0).
+- `preflight`: không có nguồn ALLOWED (lượt theo lịch/đánh giá lại) → `PARTIAL_COMPLETED/NO_COMPLIANT_SEARCH_SOURCE` ngay, 0 lời gọi AI.
 - Checkpoint chỉ chứa ID, hash, bộ đếm (trang, thời gian hoạt động), con trỏ hàng đợi URL – không chứa văn bản.
 - Hết thời gian khi đang chờ lời gọi AI: lời gọi đang dở xử lý theo quy tắc E0 (giữ chỗ/đối soát), không gửi lời gọi mới, chuyển sang
   `evaluate`/`finalize` → `PARTIAL_COMPLETED` / `TIME_LIMIT_REACHED`.

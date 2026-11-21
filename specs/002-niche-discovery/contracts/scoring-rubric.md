@@ -104,3 +104,9 @@ danh sách ưu tiên affiliate còn đòi hỏi `SIGNALS_FOUND`; báo cáo/UI lu
 `sim = 0,6 · token_set_ratio(core_problem) + 0,4 · token_set_ratio(customer_group)` (rapidfuzz, 0–1) trên dạng chuẩn hóa
 (`discovery.normalize`) cùng `country` và cùng `data_origin`.
 `sim ≥ 0,85` → trùng chắc chắn: gộp vào ngách cũ, liên kết lượt mới. `0,60 ≤ sim < 0,85` → `niche_similarity POSSIBLE` chờ chủ sở hữu.
+
+Bổ sung (US5, 2026-11-21): tự gộp chỉ khi `sim ≥ 0,85` **và** cả hai thành phần (vấn đề, nhóm khách hàng) ≥ `component_min = 0,80`;
+đạt 0,85 nhưng thiếu điều kiện thành phần → POSSIBLE. Lý do: bộ cặp có nhãn có "freelance designers" ↔ "freelance photographers" cùng vấn đề
+(sim 0,867) – công thức gốc sẽ gộp nhầm. Kết quả trên 42 cặp: 41/42 đúng (97,6%), 0 gộp nhầm. Không dùng lời gọi AI
+`discovery.normalize` (chuẩn hóa xác định). Gộp: ngách bị gộp có `merged_into_id`, ẩn khỏi xếp hạng; bằng chứng/đánh giá cũ giữ nguyên để truy vết
+(không trộn bằng chứng vào ngách giữ lại).

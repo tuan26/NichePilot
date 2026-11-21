@@ -22,10 +22,18 @@ from nichepilot.core.errors import AppError
 from nichepilot.core.logging import get_logger
 from nichepilot.discovery_wiring import DiscoveryServices
 from nichepilot.jobs.scheduler import budget_configured
+from nichepilot.modules.audit.service import record_audit
+from nichepilot.modules.discovery import dedup, ranking, report, weights
 from nichepilot.modules.discovery import evaluation as evaluation_svc
-from nichepilot.modules.discovery import ranking, weights
 from nichepilot.modules.discovery.schemas import DiscoveryRunParams
-from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs, niche_detail
+from nichepilot.modules.discovery.service import (
+    create_run_record,
+    get_run,
+    get_run_by_job,
+    list_runs,
+    niche_detail,
+    record_decision,
+)
 from nichepilot.modules.discovery.sources.policy import PolicyCreate, PolicyUpdate, SourcePolicyService
 from nichepilot.modules.discovery.sources.searxng_config import write_settings
 from nichepilot.modules.settings.service import get_setting_values
@@ -410,3 +418,165 @@ async def update_source(
     if row["adapter_type"] == "searxng_engine":
         restart = await _regenerate_searxng(session, ds)
     return source_dto(row, requires_service_restart=restart)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US5 – ngách có thể tương đồng (T114; FR-022). Chủ sở hữu quyết định gộp; AI không tự gộp.
+# ---------------------------------------------------------------------------------------------------------------------
+@router.get("/niche-similarities", dependencies=[LedgerGate])
+async def list_similarities(
+    _user: UserDep,
+    session: SessionDep,
+    status_: Annotated[Literal["POSSIBLE", "CONFIRMED_DUPLICATE", "NOT_DUPLICATE"], Query(alias="status")] = "POSSIBLE",
+    niche_id: uuid.UUID | None = None,
+) -> list[dict[str, Any]]:
+    return await dedup.list_similarities(session, status=status_, niche_id=niche_id)
+
+
+class SimilarityResolve(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["CONFIRMED_DUPLICATE", "NOT_DUPLICATE"]
+    keep_niche_id: uuid.UUID | None = None
+
+
+@router.put("/niche-similarities/{similarity_id}", dependencies=[LedgerGate])
+async def resolve_similarity(
+    similarity_id: uuid.UUID, body: SimilarityResolve, user: UserDep, session: SessionDep, meta: MetaDep
+) -> dict[str, Any]:
+    row = (
+        (await session.execute(text("SELECT * FROM niche_similarity WHERE id = :i FOR UPDATE"), {"i": similarity_id}))
+        .mappings()
+        .first()
+    )
+    if row is None:
+        raise AppError("SIMILARITY_NOT_FOUND")
+    if row["status"] != "POSSIBLE":
+        raise AppError("SIMILARITY_ALREADY_RESOLVED")
+    pair = {row["niche_a_id"], row["niche_b_id"]}
+    merged: uuid.UUID | None = None
+    if body.status == "CONFIRMED_DUPLICATE":
+        if body.keep_niche_id not in pair:
+            raise AppError("VALIDATION_ERROR", errors=[{"field": "keep_niche_id", "code": "not_in_pair"}])
+        merged = next(n for n in pair if n != body.keep_niche_id)
+        await session.execute(  # ngách bị gộp ẩn khỏi xếp hạng; bằng chứng/đánh giá cũ vẫn giữ để truy vết
+            text("UPDATE niches SET merged_into_id = :k, updated_at = now() WHERE id = :m"),
+            {"k": body.keep_niche_id, "m": merged},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO niche_run_links (niche_id, run_id, role) SELECT :k, run_id, role FROM niche_run_links"
+                " WHERE niche_id = :m ON CONFLICT (niche_id, run_id) DO NOTHING"
+            ),
+            {"k": body.keep_niche_id, "m": merged},
+        )
+    updated = (
+        (
+            await session.execute(
+                text(
+                    "UPDATE niche_similarity SET status = :s, resolved_by = :u, resolved_at = now(), updated_at = now()"
+                    " WHERE id = :i RETURNING *"
+                ),
+                {"s": body.status, "u": user.id, "i": similarity_id},
+            )
+        )
+        .mappings()
+        .one()
+    )
+    await record_audit(
+        session,
+        action="niche.similarity_resolved",
+        actor_type="USER",
+        actor_id=user.id,
+        entity_type="niche_similarity",
+        entity_id=similarity_id,
+        before={"status": "POSSIBLE"},
+        after={
+            "status": body.status,
+            "keep_niche_id": str(body.keep_niche_id) if body.keep_niche_id else None,
+            "merged_niche_id": str(merged) if merged else None,
+        },
+        request_id=meta.request_id,
+    )
+    return dedup.similarity_dto(dict(updated))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US6 – báo cáo theo lượt + quyết định chủ sở hữu (T117, T118; FR-024, FR-025)
+# ---------------------------------------------------------------------------------------------------------------------
+@router.get("/discovery/runs/{run_id}/report", dependencies=[LedgerGate], response_model=None)
+async def run_report(
+    run_id: uuid.UUID,
+    _user: UserDep,
+    session: SessionDep,
+    format_: Annotated[Literal["json", "markdown"], Query(alias="format")] = "json",
+    include_mock: bool = False,
+    lang: Literal["vi", "en"] = "vi",
+) -> dict[str, Any] | Response:
+    data = await report.build_report(session, run_id, include_mock=include_mock)
+    if data is None:
+        raise AppError("DISCOVERY_RUN_NOT_FOUND")
+    if format_ == "markdown":
+        return Response(
+            report.to_markdown(data, lang),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="niche-report-{run_id}.md"'},
+        )
+    return data
+
+
+class DecisionBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["CANDIDATE", "WATCH", "PURSUE", "REJECTED", "HIDDEN"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+@router.put("/niches/{niche_id}/decision", dependencies=[LedgerGate])
+async def niche_decision(
+    niche_id: uuid.UUID, body: DecisionBody, user: UserDep, session: SessionDep, meta: MetaDep
+) -> dict[str, Any]:
+    reason = (body.reason or "").strip() or None
+    if body.decision != "CANDIDATE" and (reason is None or len(reason) < 3):  # quyết định phải kèm lý do (FR-025)
+        raise AppError("VALIDATION_ERROR", errors=[{"field": "reason", "code": "required"}])
+    if not await record_decision(
+        session, niche_id, decision=body.decision, reason=reason, actor_id=user.id, request_id=meta.request_id
+    ):
+        raise AppError("NICHE_NOT_FOUND")
+    detail = await niche_detail(session, niche_id)
+    assert detail is not None
+    return detail
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US7 – đánh giá lại ngách (T123; FR-034): job `discovery.reevaluate` qua đường tạo job E0 (giữ chỗ ngân sách khi gọi
+# AI)
+# ---------------------------------------------------------------------------------------------------------------------
+@router.post("/niches/{niche_id}/reevaluate", status_code=status.HTTP_202_ACCEPTED, dependencies=[LedgerGate])
+async def reevaluate_niche(
+    niche_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    user: UserDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    meta: MetaDep,
+) -> dict[str, Any]:
+    niche = (
+        await session.execute(text("SELECT country, merged_into_id FROM niches WHERE id = :n"), {"n": niche_id})
+    ).first()
+    if niche is None or niche.merged_into_id is not None:
+        raise AppError("NICHE_NOT_FOUND")
+    if not await budget_configured(session):
+        raise AppError("BUDGET_NOT_CONFIGURED")
+    if not await SourcePolicyService(session).usable_for_run():
+        raise AppError("NO_COMPLIANT_SEARCH_SOURCE")
+    job = await create_job(
+        CreateJobRequest(job_type="discovery.reevaluate", params={"niche_id": str(niche_id), "market": niche.country}),
+        request,
+        response,
+        user,
+        session,
+        settings,
+        meta,
+    )
+    response.status_code = status.HTTP_202_ACCEPTED
+    return {"job_id": job["id"], "job_type": job["job_type"], "status": job["status"]}

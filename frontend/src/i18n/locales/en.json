@@ -123,7 +123,9 @@
     "PII_ENGINE_NOT_APPROVED": "The PII redaction engine is not approved for this environment.",
     "TASK_TYPE_NOT_ALLOWED": "This AI task type is not registered for the agent.",
     "ERASURE_LEDGER_WRITE_FAILED": "The erasure ledger could not be written; nothing was erased.",
-    "SOURCE_NOT_FOUND": "Source not found."
+    "SOURCE_NOT_FOUND": "Source not found.",
+    "SIMILARITY_NOT_FOUND": "Similarity pair not found.",
+    "SIMILARITY_ALREADY_RESOLVED": "This pair was already resolved."
   },
   "discovery": {
     "opportunity": {
@@ -152,7 +154,8 @@
       "noSources": "No sources",
       "pause": "Pause",
       "resume": "Resume",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "downloadReport": "Download report (Markdown)"
     },
     "outcome": {
       "COMPLETED": "Completed",
@@ -288,6 +291,27 @@
       "verifiedOn": "verified on {{date}}",
       "restart": "SearXNG configuration changed – restart the searxng service (docker compose restart searxng).",
       "empty": "No sources yet."
+    },
+    "dedup": {
+      "title": "Possible duplicate of another niche – the owner decides (no automatic merge).",
+      "pair": "{{name}} (similarity {{score}})",
+      "mergeHere": "Merge into this niche",
+      "notDuplicate": "Not a duplicate"
+    },
+    "decision": {
+      "title": "Owner decision",
+      "current": "Current",
+      "choose": "Decision",
+      "reason": "Reason (required)",
+      "save": "Record decision",
+      "hint": "Decisions are audited and do not change the AI recommendation.",
+      "status": {
+        "CANDIDATE": "Candidate",
+        "WATCH": "Watch",
+        "PURSUE": "Pursue",
+        "REJECTED": "Rejected",
+        "HIDDEN": "Hidden"
+      }
     }
   },
   "nav": {
