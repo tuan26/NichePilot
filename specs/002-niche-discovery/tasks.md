@@ -478,27 +478,27 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 ### Tests cho User Story 4 (viết trước, phải FAIL)
 
-- [ ] T100 [P] [US4] Test ngân sách: mọi lời gọi qua Gateway + giữ chỗ; vượt lượt/ngày/tháng → `PAUSED_BUDGET`, không lời gọi vượt; không tự tăng
+- [x] T100 [P] [US4] Test ngân sách: mọi lời gọi qua Gateway + giữ chỗ; vượt lượt/ngày/tháng → `PAUSED_BUDGET`, không lời gọi vượt; không tự tăng
   ngân sách trong `backend/tests/integration/discovery/test_run_budget.py` (TC_E1_FR028_01, TC_E1_FR030e_01, TC_E1_SC006_01, TC_E1_SC012_01)
   (FR-028, FR-030e, SC-006, SC-012)
-- [ ] T101 [P] [US4] Test giới hạn: `page_limit`, `time_limit` (tạm dừng không tính), dừng sớm, phân bổ trang, outcome + stop_reason; chạm 90 phút
+- [x] T101 [P] [US4] Test giới hạn: `page_limit`, `time_limit` (tạm dừng không tính), dừng sớm, phân bổ trang, outcome + stop_reason; chạm 90 phút
   khi đang chờ lời gọi AI → không gửi lời gọi mới, `PARTIAL_COMPLETED/TIME_LIMIT_REACHED` trong
   `backend/tests/integration/discovery/test_run_limits.py` (TC_E1_FR030b_01, TC_E1_FR030c_01, TC_E1_FR030d_01, TC_E1_FR030d_02,
   TC_E1_SC015_01) (FR-030b, FR-030c, FR-030d, SC-015)
-- [ ] T102 [P] [US4] Test tốc độ và lỗi: khoảng cách cùng tên miền ≥ trần/Crawl-delay; 429/503 thử lại ≤ 2 lần theo Retry-After rồi
+- [x] T102 [P] [US4] Test tốc độ và lỗi: khoảng cách cùng tên miền ≥ trần/Crawl-delay; 429/503 thử lại ≤ 2 lần theo Retry-After rồi
   `RATE_LIMITED`; Retry-After dài hơn thời gian còn lại → bỏ tên miền ngay; trang lỗi bỏ qua không dừng lượt (QA-06, QA-07) trong
   `backend/tests/integration/discovery/test_rate_and_errors.py` (TC_E1_FR030_01, TC_E1_FR030_02, TC_E1_FR030a_04, TC_E1_FR031_02,
   TC_E1_SC015_02) (FR-030, FR-030a, FR-031, SC-015)
-- [ ] T103 [P] [US4] Test bền: pause/resume/cancel qua API job E0; kill worker giữa `fetch` → tiếp tục từ checkpoint, 0 trùng ngách/pain point/nguồn/
+- [x] T103 [P] [US4] Test bền: pause/resume/cancel qua API job E0; kill worker giữa `fetch` → tiếp tục từ checkpoint, 0 trùng ngách/pain point/nguồn/
   `page_fetch_log` trong `backend/tests/integration/discovery/test_run_resume.py` (TC_E1_FR027_01, TC_E1_FR029_02, TC_E1_SC007_01)
   (FR-027, FR-029, SC-007)
-- [ ] T104 [P] [US4] Test lỗi hạ tầng khi đang chạy (C5): mất kết nối PostgreSQL giữa bước → worker E0 khởi động lại, tiếp tục từ checkpoint, 0
+- [x] T104 [P] [US4] Test lỗi hạ tầng khi đang chạy (C5): mất kết nối PostgreSQL giữa bước → worker E0 khởi động lại, tiếp tục từ checkpoint, 0
   trùng; mất Internet (adapter/fetcher ném lỗi mạng) → trang `NETWORK_ERROR`, mọi nguồn lỗi → `PARTIAL_COMPLETED/SOURCES_UNAVAILABLE`, không
   dữ liệu thay thế; AI provider không kết nối được → xử lý theo E0 (thử lại/UNCERTAIN) trong
   `backend/tests/integration/discovery/test_infra_failures.py` (TC_E1_FR027_02, TC_E1_FR006a_02, TC_E1_SC008_02) (FR-027, FR-006a, SC-008)
-- [ ] T105 [P] [US4] Test metrics FR-032 (trang theo kết quả/lý do, `needs_review_segments` của `data-model.md discovery_runs.metrics`, nguồn độc lập, lời gọi AI, chi phí REAL/MOCK) trong
+- [x] T105 [P] [US4] Test metrics FR-032 (trang theo kết quả/lý do, `needs_review_segments` của `data-model.md discovery_runs.metrics`, nguồn độc lập, lời gọi AI, chi phí REAL/MOCK) trong
   `backend/tests/integration/discovery/test_run_metrics.py` (TC_E1_FR032_01) (FR-032)
-- [ ] T106 [P] [US4] Contract test `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{source_id}`: bật nguồn `UNVERIFIED`/`PROHIBITED` → 409
+- [x] T106 [P] [US4] Contract test `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{source_id}`: bật nguồn `UNVERIFIED`/`PROHIBITED` → 409
   `SOURCE_NOT_ALLOWED`; trường lạ (ví dụ cờ xác nhận cảnh báo) → 422; `ALLOWED` thiếu căn cứ → 422 `SOURCE_VERIFICATION_INCOMPLETE`; rời
   `ALLOWED` → tự tắt; `SOURCE_CONFIG_INVALID`; `requires_service_restart`; audit trước/sau; không trả giá trị biến môi trường trong
   `backend/tests/contract/discovery/test_sources_api.py` (TC_E1_FR006c_04, TC_E1_FR006d_03, TC_E1_FR006g_03, TC_E1_FR036_01, TC_E1_SC017_03)
@@ -506,14 +506,14 @@ mất mạng → `SOURCES_UNAVAILABLE`; bật nguồn chưa `ALLOWED` → `SOURC
 
 ### Implementation cho User Story 4
 
-- [ ] T107 [US4] Bộ đếm thời gian/trang trong checkpoint, kiểm tra giới hạn trước mỗi `fetch`, phân bổ trang, dừng sớm, `finalize` ghi
+- [x] T107 [US4] Bộ đếm thời gian/trang trong checkpoint, kiểm tra giới hạn trước mỗi `fetch`, phân bổ trang, dừng sớm, `finalize` ghi
   `data-model.md discovery_runs.outcome`, `data-model.md discovery_runs.stop_reason`, `data-model.md discovery_runs.metrics` trong
   `backend/src/nichepilot/jobs/agents/niche_discovery.py` (FR-030b, FR-030c, FR-030d, FR-032)
-- [ ] T108 [US4] Thử lại có giới hạn theo `Retry-After`, bỏ tên miền khi vượt thời gian còn lại, ghi `data-model.md domain_access_state.blocked_until`,
+- [x] T108 [US4] Thử lại có giới hạn theo `Retry-After`, bỏ tên miền khi vượt thời gian còn lại, ghi `data-model.md domain_access_state.blocked_until`,
   `data-model.md domain_access_state.block_reason` trong `backend/src/nichepilot/modules/discovery/access.py` (FR-030, FR-031)
-- [ ] T109 [US4] Endpoint `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{source_id}` (gọi `SourcePolicyService` + `SearxngConfigWriter`;
+- [x] T109 [US4] Endpoint `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{source_id}` (gọi `SourcePolicyService` + `SearxngConfigWriter`;
   `data-model.md source_policies.verified_by` = người gọi) trong `backend/src/nichepilot/api/v1/discovery.py` (FR-006c, FR-006d, FR-006g, FR-036)
-- [ ] T110 [US4] Màn hình quản lý nguồn (danh sách, trạng thái, form xác minh đủ mục source-verification.md §2; nút bật chỉ hiển thị cho nguồn
+- [x] T110 [US4] Màn hình quản lý nguồn (danh sách, trạng thái, form xác minh đủ mục source-verification.md §2; nút bật chỉ hiển thị cho nguồn
   `ALLOWED`; lưu ý khởi động lại SearXNG) trong `frontend/src/pages/discovery/SourcesPage.tsx` + route trong `frontend/src/app/router.tsx`
   (FR-006c, FR-006d, FR-026)
 

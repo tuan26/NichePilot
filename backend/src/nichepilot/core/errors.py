@@ -74,6 +74,7 @@ ERROR_CATALOG: dict[str, ErrorSpec] = {
     "SOURCE_VERIFICATION_INCOMPLETE": ErrorSpec(422, "Source verification evidence is incomplete"),
     "SOURCE_CONFIG_INVALID": ErrorSpec(422, "Source configuration is invalid"),
     "SOURCE_EXISTS": ErrorSpec(409, "Source already exists"),
+    "SOURCE_NOT_FOUND": ErrorSpec(404, "Source not found"),
     "RUN_BUDGET_EXCEEDS_DAILY_LIMIT": ErrorSpec(409, "Run budget exceeds the daily budget"),
     "WEIGHTS_INVALID": ErrorSpec(422, "Scoring weights are invalid"),
     "DISCOVERY_RUN_NOT_FOUND": ErrorSpec(404, "Discovery run not found"),

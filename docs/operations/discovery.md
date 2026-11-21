@@ -71,3 +71,12 @@ Chưa được phê duyệt cho production (quyết định I2).
   `docker compose run --rm migrate` (hoặc `python -m nichepilot.jobs.erasure_ledger --strict`) để áp dụng nốt.
 - Nội dung trùng `content_hash` (trích đoạn hoặc cả trang) đã xóa sẽ bị bỏ khi thu thập lại (`page_fetch_log.reason = ERASED_CONTENT`),
   kể cả khi xuất hiện trên tên miền khác.
+
+## 6. Quản lý nguồn (US4 – FR-006c/d/g)
+
+- Màn hình `/sources` hoặc API `GET/POST /api/v1/sources`, `PUT /api/v1/sources/{id}`. Nguồn mới luôn `UNVERIFIED` + tắt.
+- Chỉ nguồn `ALLOWED` (đủ: ngày xác minh, căn cứ, phương thức truy cập, phạm vi sử dụng – `source-verification.md` §2) mới bật được;
+  không có tùy chọn bỏ qua cảnh báo. Rời `ALLOWED` → tự tắt.
+- Bật/tắt nguồn `searxng_engine` → backend sinh lại `settings.yml` (volume `searxng-config`, file base mount read-only tại
+  `/opt/nichepilot/searxng/settings.base.yml`) và trả `requires_service_restart: true` → chạy `docker compose restart searxng`.
+- NOT_TESTED trên stack thật: quyền ghi của backend (user `app`) lên volume `searxng-config` dùng chung với container SearXNG.

@@ -170,6 +170,16 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 - Bước `preflight` (đầu tiên, idempotent): kiểm tra ledger; `ensure_run` tạo hoặc lấy `discovery_runs` theo `job_id` (UNIQUE –
   `INSERT … ON CONFLICT (job_id) DO NOTHING`) với `trigger` và `schedule_id` đọc từ `agent_jobs` của E0. Nhờ đó lượt theo lịch (scheduler E0
   tạo job `discovery.run` bình thường) có bản ghi lượt mà **không** sửa Scheduler/Job Runtime (H1, U1).
+- Giới hạn/thu thập (US4, triển khai 2026-11-21):
+  - Phân bổ trang: mỗi ứng viên tối đa `ceil(page_limit / số ứng viên)` lượt thử trước; phần dư dành cho ứng viên còn URL; tổng ≤ `page_limit`.
+  - Dừng sớm: ứng viên "đủ tạm thời" khi có ≥ `min_items + 1` trích đoạn từ ≥ `min_independent_groups + 1` tên miền (dư 1 vì `assess`
+    có thể loại); ứng viên không còn URL coi như đã quyết. Mọi ứng viên đủ/đã quyết → bỏ hàng đợi còn lại; `stop_reason =
+    ALL_CANDIDATES_SUFFICIENT` chỉ khi đánh giá xác định cuối cùng xác nhận mọi ứng viên đủ.
+  - Chạm `page_limit`: dừng thu thập nhưng vẫn `extract`/`assess` dữ liệu đã có → `PARTIAL_COMPLETED/PAGE_LIMIT_REACHED`. Hết thời gian:
+    không gửi lời gọi AI mới, đánh giá xác định → `PARTIAL_COMPLETED/TIME_LIMIT_REACHED`.
+  - 429/503: thử lại tối đa 2 lần theo `Retry-After` (mặc định 30 s nếu thiếu); `Retry-After` > thời gian còn lại → bỏ tên miền ngay
+    (mọi URL của tên miền ghi `RATE_LIMITED`), lưu `domain_access_state.blocked_until/block_reason`.
+  - Job E0 bị hủy giữa chừng: API lượt trả `outcome = PARTIAL_COMPLETED`, `stop_reason = CANCELLED` (suy ra, không sửa runtime E0).
 - Checkpoint chỉ chứa ID, hash, bộ đếm (trang, thời gian hoạt động), con trỏ hàng đợi URL – không chứa văn bản.
 - Hết thời gian khi đang chờ lời gọi AI: lời gọi đang dở xử lý theo quy tắc E0 (giữ chỗ/đối soát), không gửi lời gọi mới, chuyển sang
   `evaluate`/`finalize` → `PARTIAL_COMPLETED` / `TIME_LIMIT_REACHED`.

@@ -1,7 +1,16 @@
 // E1 – hook API lượt khám phá (T067). Điều khiển job dùng API job của E0 (/api/v1/jobs/{id}/pause|resume|cancel).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
-import type { DiscoveryRun, DiscoveryRunCreate, EraseResponse, NicheDetail, NicheSummary, RankingList } from '@/api/types'
+import type {
+  DiscoveryRun,
+  DiscoveryRunCreate,
+  EraseResponse,
+  NicheDetail,
+  NicheSummary,
+  RankingList,
+  SourcePolicy,
+  SourceUpdate,
+} from '@/api/types'
 
 export type RunAction = 'pause' | 'resume' | 'cancel'
 
@@ -53,5 +62,18 @@ export function useNiches(list: RankingList, includeMock: boolean) {
       api<{ items: NicheSummary[]; disclaimer_key: string }>(
         `/api/v1/niches?list=${list}&include_mock=${includeMock ? 'true' : 'false'}`,
       ).then((r) => r.items),
+  })
+}
+
+export function useSources() {
+  return useQuery({ queryKey: ['sources'], queryFn: () => api<SourcePolicy[]>('/api/v1/sources') })
+}
+
+export function useUpdateSource() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: SourceUpdate }) =>
+      api<SourcePolicy>(`/api/v1/sources/${id}`, { method: 'PUT', body }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['sources'] }),
   })
 }

@@ -4,6 +4,7 @@ import { RequireAuth, SetupGate } from '@/app/guards'
 import { DiscoveryRunsPage } from '@/pages/discovery/DiscoveryRunsPage'
 import { NicheDetailPage } from '@/pages/discovery/NicheDetailPage'
 import { NicheRankingPage } from '@/pages/discovery/NicheRankingPage'
+import { SourcesPage } from '@/pages/discovery/SourcesPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { StatusPage } from '@/pages/StatusPage'
 
@@ -21,6 +22,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <DiscoveryRunsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/sources',
+    element: (
+      <RequireAuth>
+        <SourcesPage />
       </RequireAuth>
     ),
   },

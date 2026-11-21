@@ -29,6 +29,7 @@ def make_discovery_settings(**overrides: Any) -> Any:
         "discovery_source_mode": "mock",
         "erasure_ledger_dir": tmp / "ledger",
         "searxng_config_dir": tmp / "searxng",
+        "searxng_base_settings": Path(__file__).resolve().parents[2] / "deploy" / "searxng" / "settings.base.yml",
     }
     values.update(overrides)
     return DiscoverySettings(**values)

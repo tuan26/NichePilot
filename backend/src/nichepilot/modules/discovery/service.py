@@ -119,6 +119,11 @@ RUN_SELECT = (
 def run_dto(row: Any) -> dict[str, Any]:
     r = dict(row)
     metrics = dict(r["metrics"] or {})
+    outcome, stop_reason = r["outcome"], r["stop_reason"]
+    if outcome is None and r["job_status"] == "CANCELLED":
+        # job E0 bị hủy giữa chừng (runtime E0 không gọi lại agent) – kết quả nghiệp vụ suy ra, không ghi đè state
+        # machine E0
+        outcome, stop_reason = "PARTIAL_COMPLETED", "CANCELLED"
     return {
         "id": str(r["id"]),
         "job": {"job_id": str(r["job_id"]), "job_type": r["job_type"], "status": r["job_status"]},
@@ -134,8 +139,8 @@ def run_dto(row: Any) -> dict[str, Any]:
         "source_mode": r["source_mode"],
         "trigger": r["trigger"],
         "sources": [{"source_key": s["source_key"], "verified_at": s["verified_at"]} for s in (r["sources"] or [])],
-        "outcome": r["outcome"],
-        "stop_reason": r["stop_reason"],
+        "outcome": outcome,
+        "stop_reason": stop_reason,
         "metrics": metrics,
         "data_origin": r["data_origin"],
         "created_at": r["created_at"].isoformat(),

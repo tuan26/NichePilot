@@ -30,6 +30,7 @@ class DiscoverySettings(BaseSettings):
     discovery_source_mode: SourceMode = "real"
     erasure_ledger_dir: Path = Path("/var/lib/nichepilot/erasure-ledger")
     searxng_config_dir: Path = Path("/var/lib/nichepilot/searxng")
+    searxng_base_settings: Path = Path("/opt/nichepilot/searxng/settings.base.yml")
     discovery_user_agent: str = "NichePilotResearchBot/0.1 (+self-hosted research; contact: site owner)"
     fetch_timeout_s: float = Field(default=20.0, gt=0, le=60)
     fetch_max_bytes: int = Field(default=3 * 1024 * 1024, gt=0)

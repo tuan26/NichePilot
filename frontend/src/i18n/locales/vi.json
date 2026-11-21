@@ -122,7 +122,8 @@
     "ERASURE_LEDGER_NOT_APPLIED": "Sổ xóa bằng chứng chưa được áp dụng đầy đủ – dữ liệu nghiên cứu tạm thời không được cung cấp. Xem hướng dẫn khôi phục.",
     "PII_ENGINE_NOT_APPROVED": "Bộ che thông tin cá nhân chưa được phê duyệt cho môi trường này.",
     "TASK_TYPE_NOT_ALLOWED": "Loại tác vụ AI này chưa được đăng ký cho agent.",
-    "ERASURE_LEDGER_WRITE_FAILED": "Không ghi được sổ xóa bằng chứng; chưa có gì bị xóa."
+    "ERASURE_LEDGER_WRITE_FAILED": "Không ghi được sổ xóa bằng chứng; chưa có gì bị xóa.",
+    "SOURCE_NOT_FOUND": "Không tìm thấy nguồn."
   },
   "discovery": {
     "opportunity": {
@@ -268,11 +269,31 @@
         "REJECT": "Loại bỏ",
         "UNKNOWN": "Chưa đủ cơ sở"
       }
+    },
+    "sources": {
+      "title": "Nguồn dữ liệu",
+      "description": "Chỉ nguồn đã xác minh ALLOWED mới được bật. Nguồn UNVERIFIED/PROHIBITED không bao giờ được dùng.",
+      "verify": "Cập nhật xác minh",
+      "status": "Trạng thái tuân thủ",
+      "verifiedAt": "Ngày xác minh",
+      "note": "Căn cứ xác minh (ToS/giấy phép, 10–2000 ký tự)",
+      "scope": "Phạm vi được phép dùng",
+      "verifyHint": "ALLOWED cần đủ: ngày xác minh, căn cứ, phương thức truy cập, phạm vi sử dụng (source-verification.md §2).",
+      "save": "Lưu",
+      "enabled": "Đang bật",
+      "disabled": "Đang tắt",
+      "enable": "Bật nguồn",
+      "disable": "Tắt nguồn",
+      "tos": "Điều khoản",
+      "verifiedOn": "xác minh ngày {{date}}",
+      "restart": "Cấu hình SearXNG đã thay đổi – cần khởi động lại dịch vụ searxng (docker compose restart searxng).",
+      "empty": "Chưa có nguồn nào."
     }
   },
   "nav": {
     "status": "Trạng thái",
     "discovery": "Khám phá ngách",
-    "ranking": "Bảng xếp hạng"
+    "ranking": "Bảng xếp hạng",
+    "sources": "Nguồn dữ liệu"
   }
 }

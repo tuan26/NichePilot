@@ -23,6 +23,9 @@ export function DiscoveryRunsPage() {
           <Link to="/niches" className="text-sm text-slate-600 underline">
             {t('nav.ranking')}
           </Link>
+          <Link to="/sources" className="text-sm text-slate-600 underline">
+            {t('nav.sources')}
+          </Link>
           <Link to="/" className="text-sm text-slate-600 underline">
             {t('nav.status')}
           </Link>

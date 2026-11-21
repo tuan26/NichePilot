@@ -18,6 +18,7 @@ Quy tắc an toàn:
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 import uuid
 from decimal import Decimal
@@ -47,6 +48,8 @@ from nichepilot.modules.evidence.service import EvidenceService
 from nichepilot.tools.privacy.pii import PROFILE_URL_RE, RedactedText, RedactionResult, ensure_ai_safe
 
 FETCH_BATCH = 5
+MAX_RATE_RETRIES = 2  # FR-030: thử lại có giới hạn theo Retry-After
+DEFAULT_RETRY_AFTER_S = 30.0
 MAX_DEFERRALS = 3
 MAX_WAIT_IN_STEP_S = 30.0
 MIN_SEGMENT_CHARS = 60
@@ -300,12 +303,30 @@ class NicheDiscoveryAgent:
             run = (
                 await s.execute(text("SELECT project_id, data_origin FROM discovery_runs WHERE id = :r"), {"r": run_id})
             ).one()
+        per_niche: dict[str, int] = state.setdefault("per_niche", {})
+        cap = math.ceil(p.page_limit / max(1, len(state["candidates"])))  # FR-030b: phân bổ trang giữa các ứng viên
+        if await self._early_stop(state, ctx):  # FR-030c: mọi ứng viên đã đủ (hoặc không còn URL) → dừng thu thập sớm
+            state.update(phase="extract", ci=0)
+            return self._outcome("fetch", "LOGIC", {"early_stop": True}, state, started)
+        deferred_in_row = 0
         while state["queue"] and processed < FETCH_BATCH:
-            if m["pages_attempted"] >= p.page_limit:
-                return await self._finalize(state, ctx, started, "PARTIAL_COMPLETED", "PAGE_LIMIT_REACHED")
-            if self._time_left(state, ctx, started) <= 0:
+            if m["pages_attempted"] >= p.page_limit:  # FR-030d: dừng thu thập, vẫn phân tích dữ liệu đã có
+                state["queue"] = []
+                state["stop"] = ["PARTIAL_COMPLETED", "PAGE_LIMIT_REACHED"]
+                break
+            if self._time_left(state, ctx, started) <= 0:  # hết thời gian: không gửi lời gọi AI mới
                 return await self._finalize(state, ctx, started, "PARTIAL_COMPLETED", "TIME_LIMIT_REACHED")
             item = state["queue"].pop(0)
+            nid = item["niche_id"]
+            if (
+                per_niche.get(nid, 0) >= cap
+                and deferred_in_row < len(state["queue"]) + 1
+                and any(per_niche.get(q["niche_id"], 0) < cap for q in state["queue"])
+            ):
+                state["queue"].append(item)  # ứng viên đã dùng hết phần trang – nhường ứng viên khác trước
+                deferred_in_row += 1
+                continue
+            deferred_in_row = 0
             url, domain, uh = item["url"], domain_of(item["url"]), url_hash(item["url"])
             async with ctx.sessionmaker() as s:
                 if await svc.already_fetched(s, run_id, uh):  # tiếp tục sau sự cố: không thu thập lại
@@ -335,9 +356,24 @@ class NicheDiscoveryAgent:
             page = await ctx.call_tool("page.fetch", {"url": url, "language": p.research_language, "country": p.market})
             processed += 1
             m["needs_review_segments"] += int(page.get("needs_review_segments", 0))
+            per_niche[nid] = per_niche.get(nid, 0) + 1
             if page["status"] != "SUCCESS":
-                if page["reason"] == "RATE_LIMITED" and page.get("retry_after_s"):
-                    await access.record_retry_after(domain, float(page["retry_after_s"]))
+                if page["reason"] == "RATE_LIMITED":
+                    retry_after = float(page.get("retry_after_s") or DEFAULT_RETRY_AFTER_S)
+                    await access.record_retry_after(domain, retry_after)
+                    if retry_after > self._time_left(state, ctx, started):
+                        # chờ lâu hơn thời gian còn lại → bỏ tên miền ngay (kể cả URL khác của tên miền đó)
+                        same = [q for q in state["queue"] if domain_of(q["url"]) == domain]
+                        state["queue"] = [q for q in state["queue"] if domain_of(q["url"]) != domain]
+                        for q in [item, *same]:
+                            await self._log(
+                                run_id, url_hash(q["url"]), domain, "SKIPPED", "RATE_LIMITED", None, None, m
+                            )
+                        continue
+                    if int(item.get("r", 0)) < MAX_RATE_RETRIES:
+                        per_niche[nid] -= 1  # lần thử lại không tính thêm trang
+                        state["queue"].append({**item, "r": int(item.get("r", 0)) + 1, "d": 0})
+                        continue
                 await self._log(run_id, uh, domain, page["status"], page["reason"], page["http_status"], None, m)
                 continue
             seg_hashes = [content_hash(str(seg["text"])) for seg in page["segments"]]
@@ -349,11 +385,46 @@ class NicheDiscoveryAgent:
                 continue
             source_id = await self._store({**page, "segments": kept}, item, run, policies, ctx)
             await self._log(run_id, uh, domain, "SUCCESS", None, page["http_status"], source_id, m)
-        if not state["queue"]:
+            if await self._early_stop(state, ctx):
+                break
+        if not state["queue"] or await self._early_stop(state, ctx):
             state.update(phase="extract", ci=0)
         return self._outcome(
             "fetch", "TOOL_CALL", {"processed": processed, "remaining": len(state["queue"])}, state, started
         )
+
+    async def _early_stop(self, state: dict[str, Any], ctx: JobContext) -> bool:
+        """Ứng viên "đủ tạm thời" khi có ≥ min_items+1 trích đoạn từ ≥ min_groups+1 tên miền (dư 1 vì bước assess có
+        thể loại
+        bớt); ứng viên không còn URL trong hàng đợi coi như đã quyết định. Mọi ứng viên đủ/đã quyết → bỏ phần hàng
+        đợi còn lại.
+        Kết luận cuối cùng vẫn do `evaluate_and_store` (xác định) quyết định."""
+        if not state["queue"]:
+            return False
+        pending = {q["niche_id"] for q in state["queue"]}
+        async with ctx.sessionmaker() as s:
+            rules = await analysis.active_rules(s)
+            rows = (
+                await s.execute(
+                    text(
+                        "SELECT e.subject_id, count(*), count(DISTINCT src.registered_domain) FROM research_evidence e"
+                        " JOIN research_sources src ON src.id = e.source_id WHERE e.subject_id = ANY(CAST(:n AS"
+                        " uuid[]))"
+                        " AND e.lifecycle_status = 'ACTIVE' AND e.collected_by_job_id = :j GROUP BY e.subject_id"
+                    ),
+                    {"n": sorted(pending), "j": ctx.job_id},
+                )
+            ).all()
+        enough = {
+            str(r[0])
+            for r in rows
+            if int(r[1]) >= rules.min_items + 1 and int(r[2]) >= rules.min_independent_groups + 1
+        }
+        if pending <= enough:
+            state["queue"] = []
+            state["early_stop"] = True
+            return True
+        return False
 
     async def _log(
         self,
@@ -407,6 +478,20 @@ class NicheDiscoveryAgent:
             policy_verified_at=policy.verified_at if policy else None,
         )
         for seg in [t for t in texts if len(t) >= MIN_SEGMENT_CHARS][:MAX_SEGMENTS_PER_PAGE]:
+            async with (
+                ctx.sessionmaker() as s
+            ):  # tiếp tục sau sự cố giữa lưu và ghi log: không tạo bằng chứng trùng (SC-007)
+                dup = (
+                    await s.execute(
+                        text(
+                            "SELECT 1 FROM research_evidence WHERE source_id = :s AND subject_id = :n AND"
+                            " content_hash = :h"
+                        ),
+                        {"s": source_id, "n": item["niche_id"], "h": content_hash(seg)},
+                    )
+                ).first()
+            if dup:
+                continue
             await ev.add_evidence(
                 run.project_id,
                 "page_excerpt",
@@ -478,6 +563,8 @@ class NicheDiscoveryAgent:
         return ci
 
     async def _extract(self, state: dict[str, Any], ctx: JobContext, started: float) -> StepOutcome:
+        if self._time_left(state, ctx, started) <= 0:  # FR-030d: hết giờ → không gửi lời gọi AI mới
+            return await self._finalize(state, ctx, started, "PARTIAL_COMPLETED", "TIME_LIMIT_REACHED")
         ci = self._next_candidate(state, "assess")
         if ci is None:
             return self._outcome("extract", "LOGIC", {"done": True}, state, started)
@@ -517,9 +604,12 @@ class NicheDiscoveryAgent:
         return "MOCK" if "MOCK" in (niche_origin, ai_origin) else "REAL"
 
     async def _assess(self, state: dict[str, Any], ctx: JobContext, started: float) -> StepOutcome:
+        if self._time_left(state, ctx, started) <= 0:
+            return await self._finalize(state, ctx, started, "PARTIAL_COMPLETED", "TIME_LIMIT_REACHED")
         ci = self._next_candidate(state, "finalize")
         if ci is None:
-            return await self._finalize(state, ctx, started, "COMPLETED", "CANDIDATES_EXHAUSTED")
+            outcome, reason = state.get("stop") or ["COMPLETED", "CANDIDATES_EXHAUSTED"]
+            return await self._finalize(state, ctx, started, outcome, reason)
         cand = state["candidates"][ci]
         async with ctx.sessionmaker() as s:
             linked = {
@@ -616,6 +706,9 @@ class NicheDiscoveryAgent:
             m["evidence_items"], m["independent_sources"] = int(counts[0]), int(counts[1])
             m["evidence_sufficient"], m["insufficient_evidence"] = sufficient, insufficient
             m["insufficient_scoring_data"] = scoring_insufficient
+            n_cand = len(state.get("candidates", []))
+            if outcome == "COMPLETED" and state.get("early_stop") and n_cand and sufficient == n_cand:
+                stop_reason = "ALL_CANDIDATES_SUFFICIENT"  # FR-030c
             await svc.finish_run(s, run_id, outcome=outcome, stop_reason=stop_reason, metrics=m)
         result = {"run_id": str(run_id), "outcome": outcome, "stop_reason": stop_reason}
         return StepOutcome(name="finalize", step_type="LOGIC", output=result, state=state, done=True, result=result)

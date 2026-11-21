@@ -15,6 +15,7 @@ x-backend: &backend
     - erasure-ledger:/var/lib/nichepilot/erasure-ledger
     # E1 (X1): cấu hình SearXNG sinh từ source_policies (chỉ nguồn ALLOWED đang bật)
     - searxng-config:/var/lib/nichepilot/searxng
+    - ./searxng/settings.base.yml:/opt/nichepilot/searxng/settings.base.yml:ro
   logging:
     # Stdout chỉ là bản sao để xem nhanh; bản lưu chính là file log theo ngày trong volume `logs` (FR-057)
     driver: json-file

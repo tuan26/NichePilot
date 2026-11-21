@@ -122,7 +122,8 @@
     "ERASURE_LEDGER_NOT_APPLIED": "The evidence erasure ledger has not been fully applied – research data is temporarily unavailable. See the restore guide.",
     "PII_ENGINE_NOT_APPROVED": "The PII redaction engine is not approved for this environment.",
     "TASK_TYPE_NOT_ALLOWED": "This AI task type is not registered for the agent.",
-    "ERASURE_LEDGER_WRITE_FAILED": "The erasure ledger could not be written; nothing was erased."
+    "ERASURE_LEDGER_WRITE_FAILED": "The erasure ledger could not be written; nothing was erased.",
+    "SOURCE_NOT_FOUND": "Source not found."
   },
   "discovery": {
     "opportunity": {
@@ -268,11 +269,31 @@
         "REJECT": "Reject",
         "UNKNOWN": "Not enough basis"
       }
+    },
+    "sources": {
+      "title": "Data sources",
+      "description": "Only sources verified as ALLOWED can be enabled. UNVERIFIED/PROHIBITED sources are never used.",
+      "verify": "Update verification",
+      "status": "Compliance status",
+      "verifiedAt": "Verified on",
+      "note": "Verification basis (ToS/licence, 10–2000 chars)",
+      "scope": "Permitted use scope",
+      "verifyHint": "ALLOWED requires: verification date, basis, access method, use scope (source-verification.md §2).",
+      "save": "Save",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enable": "Enable source",
+      "disable": "Disable source",
+      "tos": "Terms",
+      "verifiedOn": "verified on {{date}}",
+      "restart": "SearXNG configuration changed – restart the searxng service (docker compose restart searxng).",
+      "empty": "No sources yet."
     }
   },
   "nav": {
     "status": "Status",
     "discovery": "Niche discovery",
-    "ranking": "Ranking"
+    "ranking": "Ranking",
+    "sources": "Sources"
   }
 }

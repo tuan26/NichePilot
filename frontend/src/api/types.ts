@@ -189,3 +189,31 @@ export interface Evaluation {
   data_origin: 'REAL' | 'MOCK'
   created_at: string
 }
+
+// E1 US4 – hồ sơ tuân thủ nguồn (openapi SourcePolicy)
+export interface SourcePolicy {
+  id: string
+  source_key: string
+  display_name: string
+  adapter_type: string
+  config: Record<string, unknown>
+  tos_url: string
+  verified_at: string | null
+  verification_note: string | null
+  allowed_access_methods: string[]
+  permitted_use_scope: string | null
+  compliance_status: 'ALLOWED' | 'UNVERIFIED' | 'PROHIBITED'
+  known_limits: string | null
+  enabled: boolean
+  usable: boolean
+  verified_by: string | null
+  requires_service_restart: boolean
+}
+export interface SourceUpdate {
+  compliance_status?: 'ALLOWED' | 'UNVERIFIED' | 'PROHIBITED'
+  verified_at?: string
+  verification_note?: string
+  allowed_access_methods?: string[]
+  permitted_use_scope?: string
+  enabled?: boolean
+}

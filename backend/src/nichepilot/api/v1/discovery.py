@@ -26,7 +26,8 @@ from nichepilot.modules.discovery import evaluation as evaluation_svc
 from nichepilot.modules.discovery import ranking, weights
 from nichepilot.modules.discovery.schemas import DiscoveryRunParams
 from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs, niche_detail
-from nichepilot.modules.discovery.sources.policy import SourcePolicyService
+from nichepilot.modules.discovery.sources.policy import PolicyCreate, PolicyUpdate, SourcePolicyService
+from nichepilot.modules.discovery.sources.searxng_config import write_settings
 from nichepilot.modules.settings.service import get_setting_values
 
 router = APIRouter(tags=["discovery"])
@@ -327,3 +328,85 @@ async def erase_evidence(
         "affected_niche_ids": [str(n) for n in result.affected_niche_ids],
         "recompute_job": recompute,
     }
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US4 – hồ sơ tuân thủ nguồn (T109; FR-006c, FR-006d, FR-006g, FR-036). Chỉ ALLOWED mới bật được; không có cờ xác
+# nhận cảnh báo.
+# ---------------------------------------------------------------------------------------------------------------------
+SOURCE_FIELDS = (
+    "source_key",
+    "display_name",
+    "adapter_type",
+    "config",
+    "tos_url",
+    "verified_at",
+    "verification_note",
+    "allowed_access_methods",
+    "permitted_use_scope",
+    "compliance_status",
+    "known_limits",
+    "enabled",
+)
+
+
+def source_dto(row: dict[str, Any], *, requires_service_restart: bool = False) -> dict[str, Any]:
+    out: dict[str, Any] = {"id": str(row["id"])}
+    for k in SOURCE_FIELDS:
+        v: Any = row.get(k)
+        out[k] = (
+            v.isoformat()
+            if v is not None and hasattr(v, "isoformat")
+            else (list(v) if isinstance(v, tuple | list) else v)
+        )
+    out["verified_by"] = str(row["verified_by"]) if row.get("verified_by") else None
+    out["usable"] = bool(row["enabled"]) and row["compliance_status"] == "ALLOWED"
+    out["requires_service_restart"] = requires_service_restart
+    return out
+
+
+async def _regenerate_searxng(session: Any, ds: DiscoveryServices) -> bool:
+    """Sinh lại settings.yml của SearXNG từ nguồn searxng_engine ALLOWED đang bật; True nếu đổi (cần khởi động lại
+    `searxng`)."""
+    engines = [
+        str(r[0])
+        for r in (
+            await session.execute(
+                text(
+                    "SELECT config->>'engine_name' FROM source_policies WHERE adapter_type = 'searxng_engine' AND"
+                    " enabled"
+                    " AND compliance_status = 'ALLOWED' AND config ? 'engine_name'"
+                )
+            )
+        ).all()
+    ]
+    try:
+        return write_settings(ds.settings.searxng_config_dir, ds.settings.searxng_base_settings, engines)
+    except OSError as exc:  # volume không ghi được: không chặn cập nhật hồ sơ nguồn, nhưng báo rõ để chủ sở hữu xử lý
+        log.error("searxng.settings_write_failed", error=type(exc).__name__)
+        raise AppError("SERVICE_UNAVAILABLE") from None
+
+
+@router.get("/sources")
+async def list_sources(_user: UserDep, session: SessionDep) -> list[dict[str, Any]]:
+    return [source_dto(r) for r in await SourcePolicyService(session).list_policies()]
+
+
+@router.post("/sources", status_code=status.HTTP_201_CREATED)
+async def create_source(body: PolicyCreate, user: UserDep, session: SessionDep, meta: MetaDep) -> dict[str, Any]:
+    row = await SourcePolicyService(session).create_policy(user.id, body, request_id=meta.request_id)
+    return source_dto(row)  # luôn UNVERIFIED + tắt
+
+
+@router.put("/sources/{source_id}")
+async def update_source(
+    source_id: uuid.UUID, body: PolicyUpdate, user: UserDep, session: SessionDep, meta: MetaDep, ds: DiscoveryDep
+) -> dict[str, Any]:
+    svc = SourcePolicyService(session)
+    if await svc.get(source_id) is None:
+        raise AppError("SOURCE_NOT_FOUND")
+    row = await svc.update_policy(user.id, source_id, body, request_id=meta.request_id)
+    restart = False
+    if row["adapter_type"] == "searxng_engine":
+        restart = await _regenerate_searxng(session, ds)
+    return source_dto(row, requires_service_restart=restart)

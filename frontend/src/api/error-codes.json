@@ -199,6 +199,10 @@
     "status": 409,
     "title": "Only ALLOWED sources can be enabled"
   },
+  "SOURCE_NOT_FOUND": {
+    "status": 404,
+    "title": "Source not found"
+  },
   "SOURCE_VERIFICATION_INCOMPLETE": {
     "status": 422,
     "title": "Source verification evidence is incomplete"
