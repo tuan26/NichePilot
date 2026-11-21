@@ -120,7 +120,9 @@
     "EVIDENCE_NOT_FOUND": "Evidence not found.",
     "EVIDENCE_ALREADY_ERASED": "This evidence was already erased.",
     "ERASURE_LEDGER_NOT_APPLIED": "The evidence erasure ledger has not been fully applied – research data is temporarily unavailable. See the restore guide.",
-    "PII_ENGINE_NOT_APPROVED": "The PII redaction engine is not approved for this environment."
+    "PII_ENGINE_NOT_APPROVED": "The PII redaction engine is not approved for this environment.",
+    "TASK_TYPE_NOT_ALLOWED": "This AI task type is not registered for the agent.",
+    "ERASURE_LEDGER_WRITE_FAILED": "The erasure ledger could not be written; nothing was erased."
   },
   "discovery": {
     "opportunity": {
@@ -173,7 +175,66 @@
       "SUCCEEDED": "Succeeded",
       "FAILED": "Failed",
       "CANCELLED": "Cancelled"
-    }
+    },
+    "verification": {
+      "VERIFIED": "Verified",
+      "INFERRED": "Inferred (AI)",
+      "UNKNOWN": "UNKNOWN – no data",
+      "CONFLICTING": "Conflicting sources"
+    },
+    "evidenceStatus": {
+      "EVIDENCE_SUFFICIENT": "Evidence sufficient",
+      "INSUFFICIENT_EVIDENCE": "Insufficient evidence"
+    },
+    "monetization": {
+      "SIGNALS_FOUND": "Monetization signals found (check in E2)",
+      "MONETIZATION_UNVERIFIED": "Monetization unverified",
+      "NO_AFFILIATE_FOUND": "No affiliate programme found"
+    },
+    "disclaimer": {
+      "evidence_not_profitability": "Note: meeting the evidence threshold does not mean the niche is profitable; monetization and the Opportunity Score are assessed separately."
+    },
+    "persona": {
+      "segment": "Customer segment",
+      "context": "Context",
+      "goals": "Goals",
+      "obstacles": "Obstacles",
+      "ability_to_pay": "Ability to pay"
+    },
+    "finding": {
+      "CURRENT_SOLUTIONS": "Current solutions",
+      "MARKET_GAPS": "Market gaps",
+      "POTENTIAL_PRODUCTS": "Potential products",
+      "MONETIZATION": "Monetization",
+      "CHANNELS": "Channels",
+      "RISKS": "Risks"
+    },
+    "competitorKind": {
+      "PRODUCT": "product",
+      "SERVICE": "service",
+      "MANUAL_WORKAROUND": "manual workaround"
+    },
+    "niche": {
+      "painPoints": "Pain points",
+      "noPainPoints": "No evidenced pain points yet.",
+      "persona": "Buyer persona",
+      "findings": "Solutions, gaps and monetization",
+      "competitors": "Competitors",
+      "evidence": "Evidence and sources",
+      "noEvidence": "No evidence yet.",
+      "severity": "Severity: {{value}}/5",
+      "evidenceCount": "{{count}} evidence items",
+      "collectedAt": "Collected: {{at}}",
+      "policyVerifiedAt": "ALLOWED source verified on {{date}}",
+      "counted": "Counted for threshold",
+      "erase": "Erase evidence",
+      "eraseWarning": "The evidence will be permanently erased and cannot be undone; related niches will be recomputed.",
+      "eraseReason": "Reason (required)",
+      "eraseWholeSource": "Erase all evidence from this source",
+      "eraseConfirm": "Confirm erase",
+      "eraseCancel": "Cancel"
+    },
+    "unknown": "UNKNOWN"
   },
   "nav": {
     "status": "Status",

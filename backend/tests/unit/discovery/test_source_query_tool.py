@@ -128,3 +128,23 @@ async def test_TC_E1_FR012b_01_network_error_and_auth_failure_statuses() -> None
 
     out = await _run(_tool(down), _policy(max_retries=0))
     assert out["status"] == "UNAVAILABLE" and out["reason"] == "NETWORK_ERROR"
+
+
+async def test_TC_E1_FR012c_03_profile_or_pii_urls_dropped_from_tool_output() -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {"url": "https://forum.example/user/groomfixer99", "title": "Profile", "content": "member"},
+                    {"url": "https://www.reddit.com/u/somebody42", "title": "u/somebody42", "content": "profile"},
+                    {"url": "https://site.example/contact?mail=a.b@example.com", "title": "Contact", "content": "x"},
+                    {"url": "https://forum.example/t/1", "title": "Flour stock", "content": "we run out of flour"},
+                ]
+            },
+        )
+
+    out = await _run(_tool(handler), _policy())
+    assert [h["url"] for h in out["hits"]] == ["https://forum.example/t/1"]
+    assert out["skipped_pii_urls"] == 3
+    assert "groomfixer99" not in str(out) and "somebody42" not in str(out) and "a.b@example.com" not in str(out)

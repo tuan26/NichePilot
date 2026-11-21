@@ -56,10 +56,79 @@ class PainPointOut(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(max_length=2000)
     severity: int | None = Field(default=None, ge=1, le=5)
+    severity_reason: str | None = Field(default=None, max_length=500)
     status: Status
-    evidence_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=50)
+
+
+class ConflictValue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    value: str | int | float | bool | list[str] | dict[str, str]
+    evidence_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class FindingOut(BaseModel):
+    """Một kết luận có trạng thái xác minh (FR-014): UNKNOWN không có giá trị; CONFLICTING lưu MỌI giá trị kèm nguồn
+    (QA-05)."""
+
+    model_config = ConfigDict(extra="forbid")
+    value: str | int | float | bool | list[str] | dict[str, str] | None = None
+    status: Status
+    evidence_ids: list[str] = Field(default_factory=list, max_length=50)
+    conflicting_values: list[ConflictValue] = Field(default_factory=list, max_length=10)
+
+
+class PersonaOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    segment: FindingOut | None = None
+    context: FindingOut | None = None
+    goals: FindingOut | None = None
+    obstacles: FindingOut | None = None
+    ability_to_pay: FindingOut | None = None
+
+
+class FindingsOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    CURRENT_SOLUTIONS: FindingOut | None = None
+    MARKET_GAPS: FindingOut | None = None
+    POTENTIAL_PRODUCTS: FindingOut | None = None
+    MONETIZATION: FindingOut | None = None
+    CHANNELS: FindingOut | None = None
+    RISKS: FindingOut | None = None
+
+
+class CompetitorOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    kind: Literal["PRODUCT", "SERVICE", "MANUAL_WORKAROUND"]
+    url: str | None = Field(default=None, max_length=2000, pattern=r"^https?://")
+    strengths: list[str] = Field(default_factory=list, max_length=10)
+    weaknesses: list[str] = Field(default_factory=list, max_length=10)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=50)
 
 
 class ExtractOutput(BaseModel):
+    """Đầu ra `discovery.extract`. `extra=forbid`: trường lạ (vd. search_volume, CPC) → đầu ra bị loại (FR-011,
+    SC-004)."""
+
     model_config = ConfigDict(extra="forbid")
     pain_points: list[PainPointOut] = Field(default_factory=list, max_length=20)
+    persona: PersonaOut | None = None
+    findings: FindingsOut | None = None
+    competitors: list[CompetitorOut] = Field(default_factory=list, max_length=20)
+
+
+class EvidenceAssessmentOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    evidence_id: str
+    relevance: float = Field(ge=0, le=1)
+    quality: float = Field(ge=0, le=1)
+    copy_suspected: bool = False
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class AssessOutput(BaseModel):
+    """Đầu ra `discovery.assess` (US2: đánh giá từng bằng chứng – nhận định INFERRED, đầu vào cho logic ngưỡng)."""
+
+    model_config = ConfigDict(extra="forbid")
+    evidence: list[EvidenceAssessmentOut] = Field(default_factory=list, max_length=50)

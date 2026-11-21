@@ -125,9 +125,13 @@ def apply_erasure_ledger(*, strict: bool = True) -> LedgerApplyResult   # CLI: p
 async def ledger_health() -> LedgerHealth                              # dùng cho API gate + GET /api/v1/discovery/status
 ```
 
-- `erase`: (1) append dòng vào ledger (hash chain, fsync) → (2) transaction DB (xóa nội dung, `ERASED`, `evidence_erasure_requests`,
-  audit `evidence.erased`, cập nhật `erasure_ledger_state`) → (3) tạo job `discovery.recompute`. Lỗi ở (2) → trả lỗi; dòng sổ được áp
-  dụng ở lần kiểm tra kế tiếp (idempotent).
+- `erase`: khóa `erasure_ledger_state` (FOR UPDATE – tuần tự hóa xóa/áp dụng sổ) → sổ phải đồng bộ với DB (`tail_seq = applied_seq`,
+  nếu không → `ERASURE_LEDGER_NOT_APPLIED`) → (1) append dòng vào ledger (hash chain, fsync; lỗi I/O → 503 `ERASURE_LEDGER_WRITE_FAILED`,
+  DB không đổi) → (2) CÙNG transaction DB: xóa nội dung, `ERASED`, `evidence_erasure_requests`, audit `evidence.erased` (định danh + lý do,
+  không nội dung/URL), cập nhật `erasure_ledger_state`, **tính lại đồng bộ** ngưỡng bằng chứng của các ngách liên quan → (3) API tạo job
+  `discovery.recompute` (qua đường tạo job E0). Lỗi ở (2) → rollback, trả lỗi; cache sức khỏe sổ bị xóa nên cổng 503 bật ngay; dòng sổ
+  được áp dụng (kèm tính lại ngách) ở lần `apply_erasure_ledger` kế tiếp (idempotent).
+- `apply_erasure_ledger` tính lại các ngách bị ảnh hưởng trong cùng transaction áp dụng sổ (sau restore, ngách không giữ trạng thái cũ).
 - `apply_erasure_ledger --strict`: xác minh genesis/`ledger_id`, chuỗi hash, `applied_seq ≤ tail_seq`; áp dụng các dòng
   `seq > applied_seq` trong **một** transaction; thành công → `status = OK`. Bất kỳ lỗi nào → rollback, `status = BLOCKED`, thoát mã ≠ 0.
   Gọi trong service `migrate` (sau `alembic upgrade`) và trong `restore.sh` sau `pg_restore`.
@@ -161,7 +165,7 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 |---|---|---|---|
 | `discovery.run` | `NicheDiscoveryAgent` | max_steps 240, max_ai_calls 120, timeout 6000 s | Bước ở plan.md "Luồng xử lý" |
 | `discovery.reevaluate` | `NicheReevaluationAgent` | max_steps 60, max_ai_calls 20 | Thu thập bổ sung + đánh giá lại 1 ngách |
-| `discovery.recompute` | (không AI) | max_steps 10, max_ai_calls 0 | Sau đổi trọng số / xóa bằng chứng |
+| `discovery.recompute` | `NicheRecomputeAgent` (không AI) | max_steps 10, max_ai_calls 1 (ràng buộc E0 `≥ 1`; agent không gọi AI – test kiểm tra 0 `ai_usage_logs`) | Sau đổi trọng số / xóa bằng chứng |
 
 - Bước `preflight` (đầu tiên, idempotent): kiểm tra ledger; `ensure_run` tạo hoặc lấy `discovery_runs` theo `job_id` (UNIQUE –
   `INSERT … ON CONFLICT (job_id) DO NOTHING`) với `trigger` và `schedule_id` đọc từ `agent_jobs` của E0. Nhờ đó lượt theo lịch (scheduler E0
@@ -182,6 +186,11 @@ def similarity(a: NicheKey, b: NicheKey, params: DedupParams) -> float
 | `discovery.extract` | trích đoạn đã che PII (≤ 12) của 1 ngách | pain_points, persona, solutions, competitors, monetization_signals, channels – mỗi mục kèm evidence_ids | claude-haiku-5-5 |
 | `discovery.assess` | tóm tắt bằng chứng + kết quả extract | per-evidence {relevance, quality, copy_suspected, reason}; per-criterion {level 0/25/50/75/100 \| null, status, reason}; recommendation | claude-sonnet-5-5 |
 | `discovery.normalize` | tên/nhóm KH/vấn đề | dạng chuẩn hóa | claude-haiku-5-5 |
+
+Gọi task type phụ: `NicheDiscoveryAgent.definition.task_type = "discovery.candidates"`,
+`extra_task_types = ("discovery.extract", "discovery.assess", "discovery.normalize")`; bước gọi `ctx.call_ai(..., task_type="discovery.extract")`.
+`JobContext.call_ai` (E0, bổ sung tham số tùy chọn được duyệt 2026-11-20) từ chối task type chưa đăng ký với `TASK_TYPE_NOT_ALLOWED`; mọi lời
+gọi vẫn qua `AIGateway` (profile, giá đã xác minh, ngân sách, giới hạn lời gọi/token của job). Không truyền `task_type` → hành vi E0 giữ nguyên.
 
 Model chỉ được chọn qua Model Task Profile của E0 (dữ liệu cấu hình, đổi được qua API) – business logic chỉ nêu task type, không
 nêu model ID. Tác vụ đơn giản (`extract`, `normalize`) seed model tiết kiệm; tác vụ phân tích (`candidates`, `assess`) seed model mạnh

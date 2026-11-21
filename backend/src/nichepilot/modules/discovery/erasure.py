@@ -24,7 +24,11 @@ from typing import Any, Literal
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from nichepilot.core.errors import AppError
 from nichepilot.core.logging import get_logger
+from nichepilot.modules.audit.service import record_audit
+from nichepilot.modules.discovery import analysis
+from nichepilot.modules.discovery.fingerprint import url_hash as compute_url_hash
 
 log = get_logger(__name__)
 LEDGER_FILE = "ledger.jsonl"
@@ -240,6 +244,21 @@ async def apply_entry(session: AsyncSession, entry: LedgerEntry) -> None:
     )
 
 
+async def _affected_by(session: AsyncSession, entry: LedgerEntry) -> list[uuid.UUID]:
+    if entry.target_type == "EVIDENCE":
+        ids = [uuid.UUID(entry.target_id)]
+    else:
+        ids = [
+            uuid.UUID(str(r[0]))
+            for r in (
+                await session.execute(
+                    text("SELECT id FROM research_evidence WHERE source_id = CAST(:s AS uuid)"), {"s": entry.target_id}
+                )
+            ).all()
+        ]
+    return await analysis.affected_niches(session, ids)
+
+
 async def _block(sm: async_sessionmaker[AsyncSession], code: str) -> None:
     async with sm() as s, s.begin():
         await s.execute(
@@ -288,8 +307,16 @@ async def apply_erasure_ledger(
                 raise LedgerError("LEDGER_HASH_MISMATCH")
             todo = [e for e in entries if e.seq > applied_seq]
             try:
+                affected: set[uuid.UUID] = set()
                 for entry in todo:
+                    affected.update(await _affected_by(s, entry))
                     await apply_entry(s, entry)
+                if (
+                    affected
+                ):  # bằng chứng bị xóa (lại) → tính lại ngách liên quan TRƯỚC khi dữ liệu được dùng (FR-013e/f)
+                    rules = await analysis.active_rules(s)
+                    for niche_id in sorted(affected, key=str):
+                        await analysis.evaluate_niche(s, niche_id, rules=rules)
             except Exception as exc:
                 raise LedgerError("LEDGER_APPLY_FAILED", type(exc).__name__) from None
             await s.execute(
@@ -325,3 +352,148 @@ async def ledger_health(sm: async_sessionmaker[AsyncSession], ledger: Ledger) ->
     if tail != applied or (applied > 0 and tail_hash != state["applied_hash"]):
         return LedgerHealth("OUT_OF_SYNC", applied, tail, "LEDGER_NOT_APPLIED")
     return LedgerHealth("OK", applied, tail)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# EvidenceErasureService (T082; internal-interfaces §4): ghi sổ → transaction DB → (API) job `discovery.recompute`
+# ---------------------------------------------------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ErasureResult:
+    erasure_id: uuid.UUID
+    ledger_seq: int
+    target_type: str
+    target_id: uuid.UUID
+    evidence_ids: list[uuid.UUID]
+    affected_niche_ids: list[uuid.UUID]
+
+
+class EvidenceErasureService:
+    """Xóa một bằng chứng (EVIDENCE) hoặc mọi bằng chứng của nguồn (SOURCE) theo yêu cầu hợp lệ (FR-013e).
+
+    Thứ tự bền vững (X4): khóa `erasure_ledger_state` (tuần tự hóa mọi lần xóa/áp dụng sổ) → kiểm tra sổ đồng bộ với
+    DB → ghi
+    dòng sổ (fsync; lỗi I/O → `ERASURE_LEDGER_WRITE_FAILED`, DB không đổi) → trong CÙNG transaction: xóa nội dung, ghi
+    `evidence_erasure_requests`, audit (không nội dung), cập nhật `applied_seq`, tính lại ngưỡng của các ngách liên
+    quan (đồng
+    bộ, không AI). Lỗi DB sau khi đã ghi sổ → rollback; sổ đi trước DB → cổng 503 cho tới lần `apply_erasure_ledger`
+    kế tiếp
+    (idempotent) hoàn tất việc xóa.
+    """
+
+    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], ledger: Ledger) -> None:
+        self.sessionmaker = sessionmaker
+        self.ledger = ledger
+
+    async def erase(
+        self,
+        evidence_id: uuid.UUID,
+        *,
+        scope: TargetType,
+        reason: str,
+        actor_id: uuid.UUID,
+        request_id: str | None = None,
+    ) -> ErasureResult:
+        async with self.sessionmaker() as s, s.begin():
+            state = (
+                (await s.execute(text("SELECT * FROM erasure_ledger_state WHERE id = 1 FOR UPDATE"))).mappings().one()
+            )
+            ev = (
+                await s.execute(
+                    text("SELECT id, source_id, content_hash, lifecycle_status FROM research_evidence WHERE id = :i"),
+                    {"i": evidence_id},
+                )
+            ).first()
+            if ev is None:
+                raise AppError("EVIDENCE_NOT_FOUND")
+            if scope == "EVIDENCE":
+                if ev.lifecycle_status != "ACTIVE":
+                    raise AppError("EVIDENCE_ALREADY_ERASED")
+                target_id, chash, uhash = uuid.UUID(str(ev.id)), ev.content_hash, None
+                evidence_ids = [target_id]
+            else:
+                if ev.source_id is None:
+                    raise AppError("EVIDENCE_NOT_FOUND")
+                src = (
+                    await s.execute(
+                        text("SELECT id, url, content_hash, lifecycle_status FROM research_sources WHERE id = :i"),
+                        {"i": ev.source_id},
+                    )
+                ).one()
+                if src.lifecycle_status != "ACTIVE":
+                    raise AppError("EVIDENCE_ALREADY_ERASED")
+                target_id, chash, uhash = uuid.UUID(str(src.id)), src.content_hash, compute_url_hash(src.url)
+                evidence_ids = [
+                    uuid.UUID(str(r[0]))
+                    for r in (
+                        await s.execute(
+                            text(
+                                "SELECT id FROM research_evidence WHERE source_id = :s AND lifecycle_status = 'ACTIVE'"
+                            ),
+                            {"s": target_id},
+                        )
+                    ).all()
+                ]
+            if state["status"] != "OK":
+                raise AppError("ERASURE_LEDGER_NOT_APPLIED")
+            try:
+                tail_seq, _ = self.ledger.tail()
+            except OSError:
+                raise AppError("ERASURE_LEDGER_WRITE_FAILED") from None
+            except LedgerError:
+                raise AppError("ERASURE_LEDGER_NOT_APPLIED") from None
+            if tail_seq != int(state["applied_seq"]):  # sổ và DB lệch nhau → không ghi thêm cho tới khi áp dụng sổ
+                raise AppError("ERASURE_LEDGER_NOT_APPLIED")
+            niches = await analysis.affected_niches(s, evidence_ids)
+            try:
+                entry = self.ledger.append(scope, target_id, content_hash=chash, url_hash=uhash, requested_by=actor_id)
+            except OSError:
+                log.error("erasure.ledger_write_failed", target_type=scope)
+                raise AppError("ERASURE_LEDGER_WRITE_FAILED") from None
+            except LedgerError as exc:
+                log.error("erasure.ledger_write_failed", target_type=scope, code=exc.code)
+                raise AppError("ERASURE_LEDGER_NOT_APPLIED") from None
+            await apply_entry(s, entry)
+            erasure_id = (
+                await s.execute(
+                    text(
+                        "INSERT INTO evidence_erasure_requests (target_type, target_id, content_hash, reason,"
+                        " requested_by, applied_at, ledger_seq) VALUES (:t, :i, :h, :r, :u, now(), :q) RETURNING id"
+                    ),
+                    {"t": scope, "i": target_id, "h": chash, "r": reason, "u": actor_id, "q": entry.seq},
+                )
+            ).scalar_one()
+            await record_audit(
+                s,
+                action="evidence.erased",
+                actor_type="USER",
+                actor_id=actor_id,
+                entity_type="research_source" if scope == "SOURCE" else "research_evidence",
+                entity_id=target_id,
+                after={  # chỉ định danh + lý do – KHÔNG nội dung/URL đã xóa (FR-013e)
+                    "scope": scope,
+                    "reason": reason,
+                    "ledger_seq": entry.seq,
+                    "evidence_count": len(evidence_ids),
+                    "affected_niches": len(niches),
+                },
+                request_id=request_id,
+            )
+            await s.execute(
+                text(
+                    "UPDATE erasure_ledger_state SET applied_seq = :q, applied_hash = :h, checked_at = now(),"
+                    " updated_at = now() WHERE id = 1"
+                ),
+                {"q": entry.seq, "h": entry.hash},
+            )
+            rules = await analysis.active_rules(s)
+            for niche_id in niches:
+                await analysis.evaluate_niche(s, niche_id, rules=rules)
+        log.info("evidence.erased", target_type=scope, ledger_seq=entry.seq, affected_niches=len(niches))
+        return ErasureResult(
+            erasure_id=uuid.UUID(str(erasure_id)),
+            ledger_seq=entry.seq,
+            target_type=scope,
+            target_id=target_id,
+            evidence_ids=evidence_ids,
+            affected_niche_ids=niches,
+        )

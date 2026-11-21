@@ -7,6 +7,8 @@ ngoài được bọc trong <untrusted_content>). KHÔNG phải dữ liệu nghi
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Callable
 from typing import Any
 
 from nichepilot.ai.providers.base import ConnectionCheckResult, LLMRequest, LLMResponse, TokenUsage
@@ -41,21 +43,115 @@ CANDIDATES = {
 }
 
 
+Script = dict[str, Any] | Callable[[LLMRequest], dict[str, Any]]
+UNTRUSTED_RE = re.compile(r"<untrusted_content[^>]*>\n(.*?)\n</untrusted_content>", re.S)
+
+
+def excerpts_in(req: LLMRequest) -> list[dict[str, str]]:
+    """Trích danh sách {evidence_id, excerpt} agent đã gửi (trong khối <untrusted_content>)."""
+    out: list[dict[str, str]] = []
+    for m in req.messages:
+        for body in UNTRUSTED_RE.findall(str(m.content)):
+            out.extend(json.loads(body))
+    return out
+
+
+def default_extract(req: LLMRequest) -> dict[str, Any]:
+    """[MOCK] Một pain point dẫn MỌI bằng chứng được cung cấp; persona/khoảng trống có trạng thái; monetization UNKNOWN."""
+    ids = [e["evidence_id"] for e in excerpts_in(req)]
+    if not ids:
+        return {"pain_points": []}
+    return {
+        "pain_points": [
+            {
+                "title": "[MOCK] Running out of ingredients without warning",
+                "description": "[MOCK] Owners discover missing stock too late and count by hand.",
+                "severity": 4,
+                "severity_reason": "[MOCK] repeated weekly losses described",
+                "status": "VERIFIED",
+                "evidence_ids": ids,
+            }
+        ],
+        "persona": {
+            "segment": {
+                "value": "[MOCK] owners of very small food businesses",
+                "status": "VERIFIED",
+                "evidence_ids": ids[:1],
+            },
+            "context": {
+                "value": "[MOCK] busy mornings, manual counting",
+                "status": "INFERRED",
+                "evidence_ids": ids[:1],
+            },
+            "goals": {"value": "[MOCK] be warned before stock runs out", "status": "VERIFIED", "evidence_ids": ids[:1]},
+            "obstacles": {"value": "[MOCK] existing apps too complex", "status": "INFERRED", "evidence_ids": []},
+            "ability_to_pay": {"status": "UNKNOWN"},
+        },
+        "findings": {
+            "CURRENT_SOLUTIONS": {
+                "value": ["[MOCK] spreadsheets", "[MOCK] paper"],
+                "status": "VERIFIED",
+                "evidence_ids": ids[:1],
+            },
+            "MARKET_GAPS": {
+                "value": "[MOCK] simple phone-first stock alerts",
+                "status": "INFERRED",
+                "evidence_ids": ids,
+            },
+            "MONETIZATION": {"status": "UNKNOWN"},
+        },
+        "competitors": [
+            {
+                "name": "[MOCK] Spreadsheet",
+                "kind": "MANUAL_WORKAROUND",
+                "weaknesses": ["[MOCK] slow"],
+                "evidence_ids": ids[:1],
+            }
+        ],
+    }
+
+
+def default_assess(req: LLMRequest) -> dict[str, Any]:
+    return {
+        "evidence": [
+            {
+                "evidence_id": e["evidence_id"],
+                "relevance": 0.9,
+                "quality": 0.8,
+                "copy_suspected": False,
+                "reason": "[MOCK] describes the pain point directly",
+            }
+            for e in excerpts_in(req)
+        ]
+    }
+
+
 class ScriptedDiscoveryAI:
     name = "mock"
     data_origin = "MOCK"
     paid = False
 
-    def __init__(self, scripts: dict[str, dict[str, Any]] | None = None) -> None:
-        self.scripts = {"discovery.candidates": CANDIDATES, "discovery.extract": {"pain_points": []}, **(scripts or {})}
+    def __init__(self, scripts: dict[str, Script] | None = None) -> None:
+        self.scripts: dict[str, Script] = {
+            "discovery.candidates": CANDIDATES,
+            "discovery.extract": default_extract,
+            "discovery.assess": default_assess,
+            **(scripts or {}),
+        }
         self.requests: list[LLMRequest] = []
+        self.before_generate: Callable[[LLMRequest], Any] | None = None  # hook test (vd. xóa bằng chứng giữa lượt)
 
     async def count_input_tokens(self, req: LLMRequest) -> int:
         return 500
 
     async def generate(self, req: LLMRequest) -> LLMResponse:
+        if self.before_generate is not None:
+            hooked = self.before_generate(req)
+            if hasattr(hooked, "__await__"):
+                await hooked
         self.requests.append(req)
-        parsed = self.scripts.get(req.task_type, {})
+        script = self.scripts.get(req.task_type, {})
+        parsed = script(req) if callable(script) else script
         return LLMResponse(
             outcome="SUCCESS",
             content_text="[MOCK] " + json.dumps(parsed, ensure_ascii=False),
@@ -67,6 +163,9 @@ class ScriptedDiscoveryAI:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return ConnectionCheckResult(provider="mock", result="MOCK")
+
+    def requests_for(self, task_type: str) -> list[LLMRequest]:
+        return [r for r in self.requests if r.task_type == task_type]
 
     def prompt_text(self) -> str:
         return "\n".join(f"{r.system}\n" + "\n".join(str(m.content) for m in r.messages) for r in self.requests)

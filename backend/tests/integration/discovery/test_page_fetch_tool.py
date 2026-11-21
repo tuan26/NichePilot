@@ -89,3 +89,24 @@ async def test_TC_E1_FR030a_05_robots_fetch_statuses() -> None:
     assert ok["status"] == "OK" and "Crawl-delay" in ok["content"]
     missing = await _exec(reg, rows, "robots.fetch", {"domain": "nothing.example"})
     assert missing["status"] == "NOT_FOUND" and missing["content"] == ""
+
+
+async def test_TC_E1_FR012c_02_redirect_to_personal_profile_is_not_collected() -> None:
+    from nichepilot.tools.fetchers.http_fetcher import RawPage
+
+    class Redirecting:
+        data_origin = "MOCK"
+
+        async def fetch(self, url: str, *, timeout_s: float) -> RawPage:
+            body = "<html><body><article><p>" + "profile text " * 20 + "</p></article></body></html>"
+            return RawPage(200, "text/html", body, "https://forum.example/user/groomfixer99")
+
+        async def fetch_robots(self, domain: str, *, timeout_s: float) -> RawPage:
+            return RawPage(404, None, None, None)
+
+    reg = ToolRegistry()
+    reg.register(build_page_fetch_tool(DiscoverySettings(), fetcher=Redirecting()))  # type: ignore[arg-type]
+    rows: list[dict[str, Any]] = []
+    out = await _exec(reg, rows, "page.fetch", {"url": "https://forum.example/t/x", "language": "en", "country": "US"})
+    assert out["status"] == "SKIPPED" and out["reason"] == "PII_UNSAFE" and out["final_url"] is None
+    assert "groomfixer99" not in json.dumps(out) + json.dumps(rows, default=str)

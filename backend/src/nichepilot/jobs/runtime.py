@@ -49,6 +49,8 @@ class AgentDefinition:
     paid: bool
     acceptance: Callable[[dict[str, Any]], list[str]]
     retry_max_attempts: int = 3
+    # E1 (X6): task type phụ agent được phép dùng qua call_ai(task_type=…); rỗng = chỉ task_type chính (E0)
+    extra_task_types: tuple[str, ...] = ()
 
 
 @dataclass
@@ -102,6 +104,9 @@ class JobContext:
         task_type: str | None = None,
     ) -> GatewayResult:
         # E1 (X6): task_type tùy chọn để mỗi bước dùng Model Task Profile riêng; mặc định = task type của agent (E0).
+        # Chỉ task type agent đã đăng ký; lời gọi vẫn qua AIGateway (profile, xác minh giá, giữ chỗ ngân sách).
+        if task_type is not None and task_type not in (self.definition.task_type, *self.definition.extra_task_types):
+            raise AppError("TASK_TYPE_NOT_ALLOWED", params={"task_type": task_type})
         if self.ai_call_count >= self.definition.max_ai_calls:
             raise AppError("MAX_AI_CALLS_EXCEEDED")
         if self.tokens_used >= self.definition.token_budget:

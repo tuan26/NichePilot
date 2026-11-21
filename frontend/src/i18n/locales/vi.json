@@ -120,7 +120,9 @@
     "EVIDENCE_NOT_FOUND": "Không tìm thấy bằng chứng.",
     "EVIDENCE_ALREADY_ERASED": "Bằng chứng này đã bị xóa trước đó.",
     "ERASURE_LEDGER_NOT_APPLIED": "Sổ xóa bằng chứng chưa được áp dụng đầy đủ – dữ liệu nghiên cứu tạm thời không được cung cấp. Xem hướng dẫn khôi phục.",
-    "PII_ENGINE_NOT_APPROVED": "Bộ che thông tin cá nhân chưa được phê duyệt cho môi trường này."
+    "PII_ENGINE_NOT_APPROVED": "Bộ che thông tin cá nhân chưa được phê duyệt cho môi trường này.",
+    "TASK_TYPE_NOT_ALLOWED": "Loại tác vụ AI này chưa được đăng ký cho agent.",
+    "ERASURE_LEDGER_WRITE_FAILED": "Không ghi được sổ xóa bằng chứng; chưa có gì bị xóa."
   },
   "discovery": {
     "opportunity": {
@@ -173,7 +175,66 @@
       "SUCCEEDED": "Thành công",
       "FAILED": "Thất bại",
       "CANCELLED": "Đã hủy"
-    }
+    },
+    "verification": {
+      "VERIFIED": "Đã xác minh",
+      "INFERRED": "Suy luận (AI)",
+      "UNKNOWN": "UNKNOWN – chưa có dữ liệu",
+      "CONFLICTING": "Mâu thuẫn giữa các nguồn"
+    },
+    "evidenceStatus": {
+      "EVIDENCE_SUFFICIENT": "Đủ bằng chứng",
+      "INSUFFICIENT_EVIDENCE": "Chưa đủ bằng chứng"
+    },
+    "monetization": {
+      "SIGNALS_FOUND": "Có tín hiệu kiếm tiền (cần kiểm tra ở E2)",
+      "MONETIZATION_UNVERIFIED": "Chưa xác minh khả năng kiếm tiền",
+      "NO_AFFILIATE_FOUND": "Không tìm thấy chương trình affiliate"
+    },
+    "disclaimer": {
+      "evidence_not_profitability": "Lưu ý: đạt ngưỡng bằng chứng không có nghĩa là ngách sinh lợi; khả năng kiếm tiền và Opportunity Score được đánh giá riêng."
+    },
+    "persona": {
+      "segment": "Nhóm khách hàng",
+      "context": "Bối cảnh",
+      "goals": "Mục tiêu",
+      "obstacles": "Rào cản",
+      "ability_to_pay": "Khả năng chi trả"
+    },
+    "finding": {
+      "CURRENT_SOLUTIONS": "Giải pháp hiện tại",
+      "MARKET_GAPS": "Khoảng trống thị trường",
+      "POTENTIAL_PRODUCTS": "Sản phẩm tiềm năng",
+      "MONETIZATION": "Khả năng kiếm tiền",
+      "CHANNELS": "Kênh tiếp cận",
+      "RISKS": "Rủi ro"
+    },
+    "competitorKind": {
+      "PRODUCT": "sản phẩm",
+      "SERVICE": "dịch vụ",
+      "MANUAL_WORKAROUND": "cách làm thủ công"
+    },
+    "niche": {
+      "painPoints": "Pain point",
+      "noPainPoints": "Chưa có pain point nào có bằng chứng.",
+      "persona": "Buyer persona",
+      "findings": "Giải pháp, khoảng trống và kiếm tiền",
+      "competitors": "Đối thủ",
+      "evidence": "Bằng chứng và nguồn",
+      "noEvidence": "Chưa có bằng chứng nào.",
+      "severity": "Mức độ: {{value}}/5",
+      "evidenceCount": "{{count}} bằng chứng",
+      "collectedAt": "Thu thập: {{at}}",
+      "policyVerifiedAt": "Nguồn ALLOWED xác minh ngày {{date}}",
+      "counted": "Tính vào ngưỡng",
+      "erase": "Xóa bằng chứng",
+      "eraseWarning": "Bằng chứng sẽ bị xóa vĩnh viễn, không thể hoàn tác; các ngách liên quan sẽ được tính lại.",
+      "eraseReason": "Lý do (bắt buộc)",
+      "eraseWholeSource": "Xóa toàn bộ bằng chứng của nguồn này",
+      "eraseConfirm": "Xác nhận xóa",
+      "eraseCancel": "Hủy"
+    },
+    "unknown": "UNKNOWN"
   },
   "nav": {
     "status": "Trạng thái",

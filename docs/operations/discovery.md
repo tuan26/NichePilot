@@ -59,3 +59,15 @@ Chưa được phê duyệt cho production (quyết định I2).
 - `make restore`: khôi phục DB rồi đặt `erasure_ledger_state = BLOCKED`, sau đó tự chạy `apply_erasure_ledger --strict`. Lỗi (sổ thiếu,
   hỏng, cũ hơn DB, lệch `ledger_id`) → `make` thất bại, dữ liệu nghiên cứu E1 vẫn bị chặn (API 503 `ERASURE_LEDGER_NOT_APPLIED`).
 - Kiểm tra: `GET /api/v1/discovery/status` → `erasure_ledger.status`.
+
+## 5. Xóa bằng chứng (US2 – FR-013e)
+
+- Giao diện: màn hình chi tiết ngách (`/niches/{id}`) → "Xóa bằng chứng" → nhập lý do → xác nhận (tùy chọn xóa toàn bộ nguồn).
+  API: `POST /api/v1/evidence/{evidence_id}/erase` `{reason, scope: EVIDENCE|SOURCE}`.
+- Thứ tự: ghi sổ (fsync) → transaction DB (xóa nội dung, audit `evidence.erased` chỉ có định danh + lý do, tính lại ngưỡng các ngách
+  liên quan ngay) → job `discovery.recompute` (không gọi AI).
+- `503 ERASURE_LEDGER_WRITE_FAILED`: không ghi được sổ (đĩa đầy, quyền volume) – **chưa có gì bị xóa**; sửa volume rồi thử lại.
+- `503 ERASURE_LEDGER_NOT_APPLIED` sau một lần xóa lỗi giữa chừng: sổ đi trước DB. Chạy
+  `docker compose run --rm migrate` (hoặc `python -m nichepilot.jobs.erasure_ledger --strict`) để áp dụng nốt.
+- Nội dung trùng `content_hash` (trích đoạn hoặc cả trang) đã xóa sẽ bị bỏ khi thu thập lại (`page_fetch_log.reason = ERASED_CONTENT`),
+  kể cả khi xuất hiện trên tên miền khác.

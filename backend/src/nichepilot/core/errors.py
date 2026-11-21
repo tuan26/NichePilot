@@ -81,7 +81,11 @@ ERROR_CATALOG: dict[str, ErrorSpec] = {
     "EVIDENCE_NOT_FOUND": ErrorSpec(404, "Evidence not found"),
     "EVIDENCE_ALREADY_ERASED": ErrorSpec(409, "Evidence was already erased"),
     "ERASURE_LEDGER_NOT_APPLIED": ErrorSpec(503, "Evidence erasure ledger has not been fully applied"),
+    "ERASURE_LEDGER_WRITE_FAILED": ErrorSpec(
+        503, "The evidence erasure ledger could not be written; nothing was erased"
+    ),
     "PII_ENGINE_NOT_APPROVED": ErrorSpec(409, "PII engine is not approved for this environment"),
+    "TASK_TYPE_NOT_ALLOWED": ErrorSpec(409, "Task type is not registered for this agent"),
     "SERVICE_UNAVAILABLE": ErrorSpec(503, "Service temporarily unavailable"),
     "INTERNAL_ERROR": ErrorSpec(500, "Internal error"),
 }

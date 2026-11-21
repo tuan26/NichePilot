@@ -350,43 +350,43 @@ xóa bằng chứng → tính lại; restore backup cũ → vẫn ERASED.
 
 ### Tests cho User Story 2 (viết trước, phải FAIL)
 
-- [ ] T069 [P] [US2] Test ngưỡng + nhóm độc lập (eTLD+1, SimHash ≤ 3, `copy_suspected`, relevance/quality, `NEEDS_REVIEW` không tính, MOCK tách;
+- [x] T069 [P] [US2] Test ngưỡng + nhóm độc lập (eTLD+1, SimHash ≤ 3, `copy_suspected`, relevance/quality, `NEEDS_REVIEW` không tính, MOCK tách;
   bằng chứng thiếu URL/trích đoạn/thời điểm/trạng thái không tính) theo scoring-rubric §1 trong
   `backend/tests/unit/discovery/test_evidence_rules.py` (TC_E1_FR013a_01, TC_E1_FR013b_01…TC_E1_FR013b_04, TC_E1_FR015_02, TC_E1_SC003a_01)
   (FR-013a, FR-013b, FR-015, SC-003a)
-- [ ] T070 [P] [US2] Test `INSUFFICIENT_EVIDENCE` được lưu cùng bằng chứng, không vào xếp hạng, không đếm là ngách hợp lệ trong
+- [x] T070 [P] [US2] Test `INSUFFICIENT_EVIDENCE` được lưu cùng bằng chứng, không vào xếp hạng, không đếm là ngách hợp lệ trong
   `backend/tests/integration/discovery/test_insufficient_evidence.py` (TC_E1_FR013c_01) (FR-013c)
-- [ ] T071 [P] [US2] Test đạt ngưỡng ≠ sinh lợi: ngách `EVIDENCE_SUFFICIENT` + `MONETIZATION_UNVERIFIED` có trong bảng cơ hội nhưng không có trong
+- [x] T071 [P] [US2] Test đạt ngưỡng ≠ sinh lợi: ngách `EVIDENCE_SUFFICIENT` + `MONETIZATION_UNVERIFIED` có trong bảng cơ hội nhưng không có trong
   danh sách affiliate; `evidence_status` không phụ thuộc Opportunity; báo cáo/API kèm `disclaimer_key` trong
   `backend/tests/integration/discovery/test_evidence_not_profitability.py` (TC_E1_FR013d_01) (FR-013d)
-- [ ] T072 [P] [US2] Test trích xuất: pain point + severity, persona 5 thuộc tính có trạng thái, giải pháp/khoảng trống, đối thủ, monetization,
+- [x] T072 [P] [US2] Test trích xuất: pain point + severity, persona 5 thuộc tính có trạng thái, giải pháp/khoảng trống, đối thủ, monetization,
   kênh; `evidence_ids` lạ → đầu ra bị loại; `UNKNOWN` không có giá trị; `CONFLICTING` lưu mọi giá trị (QA-05) trong
   `backend/tests/integration/discovery/test_extraction.py` (TC_E1_FR007_01, TC_E1_FR008_01, TC_E1_FR009_01, TC_E1_FR010_01, TC_E1_FR011_01,
   TC_E1_FR013_01, TC_E1_FR014_01, TC_E1_SC004_01, TC_E1_SC008_01) (FR-007, FR-008, FR-009, FR-010, FR-011, FR-013, FR-014, SC-004, SC-008)
-- [ ] T073 [P] [US2] Test đầu-cuối PII: sau lượt mock với trang PII, 0 mẫu PII trong DB (bảng E1, `tool_calls`, audit), log, checkpoint, prompt
+- [x] T073 [P] [US2] Test đầu-cuối PII: sau lượt mock với trang PII, 0 mẫu PII trong DB (bảng E1, `tool_calls`, audit), log, checkpoint, prompt
   MockAIProvider; đoạn `NEEDS_REVIEW` không có trong prompt trong `backend/tests/integration/discovery/test_pii_end_to_end.py`
   (TC_E1_FR012a_07, TC_E1_FR012b_03, TC_E1_FR012c_01, TC_E1_SC016_02) (FR-012a, FR-012b, FR-012c, SC-016)
-- [ ] T074 [P] [US2] Contract + integration test `POST /api/v1/evidence/{evidence_id}/erase` (EVIDENCE/SOURCE; 409 khi đã xóa; audit không nội
+- [x] T074 [P] [US2] Contract + integration test `POST /api/v1/evidence/{evidence_id}/erase` (EVIDENCE/SOURCE; 409 khi đã xóa; audit không nội
   dung; ngách đủ đúng 2 nhóm → `INSUFFICIENT_EVIDENCE`; không thu thập lại cùng `content_hash`) trong
   `backend/tests/contract/discovery/test_erasure_api.py` (TC_E1_FR013e_02…TC_E1_FR013e_04) (FR-013e)
-- [ ] T075 [P] [US2] Test restore: backup trước khi xóa → restore → `apply --strict` → vẫn ERASED, API không trả trích đoạn; sổ OK + DB lỗi →
+- [x] T075 [P] [US2] Test restore: backup trước khi xóa → restore → `apply --strict` → vẫn ERASED, API không trả trích đoạn; sổ OK + DB lỗi →
   lần áp dụng sau hoàn tất trong `backend/tests/integration/discovery/test_erasure_restore.py` (TC_E1_FR013f_09, TC_E1_FR013f_10,
   TC_E1_SC016_03) (FR-013f, SC-016)
-- [ ] T076 [P] [US2] Test xóa khi lượt đang chạy: xóa bằng chứng giữa `fetch` và `extract` → không xuất hiện trong prompt `extract`/`assess`, không
+- [x] T076 [P] [US2] Test xóa khi lượt đang chạy: xóa bằng chứng giữa `fetch` và `extract` → không xuất hiện trong prompt `extract`/`assess`, không
   tính ở `evaluate`; URL trùng `content_hash` đã xóa → `ERASED_CONTENT` trong `backend/tests/integration/discovery/test_erasure_during_run.py`
   (TC_E1_FR013e_05) (FR-013e)
-- [ ] T077 [P] [US2] Contract test `GET /api/v1/niches/{niche_id}` (16 trường BR-07, `redaction_status`, `policy_verified_at`) trong
+- [x] T077 [P] [US2] Contract test `GET /api/v1/niches/{niche_id}` (16 trường BR-07, `redaction_status`, `policy_verified_at`) trong
   `backend/tests/contract/discovery/test_niche_detail_api.py` (TC_E1_FR023_01, TC_E1_SC003_01) (FR-023, SC-003)
-- [ ] T078 [P] [US2] Vitest màn hình 3 phần pain point/persona/bằng chứng (đang tải/rỗng/lỗi, nhãn MOCK) trong
-  `frontend/tests/unit/niche-detail-page.test.tsx` (TC_E1_FR026_02) (FR-026)
+- [x] T078 [P] [US2] Vitest màn hình 3 phần pain point/persona/bằng chứng (đang tải/rỗng/lỗi, nhãn MOCK) trong
+  `frontend/tests/unit/niche-detail-page.test.ts` (TC_E1_FR026_02) (FR-026)
 
 ### Implementation cho User Story 2
 
-- [ ] T079 [US2] Quy tắc ngưỡng + nhóm độc lập (thuần) trong `backend/src/nichepilot/modules/discovery/evidence_rules.py` theo
+- [x] T079 [US2] Quy tắc ngưỡng + nhóm độc lập (thuần) trong `backend/src/nichepilot/modules/discovery/evidence_rules.py` theo
   `data-model.md niche_evidence_links.purpose`, `data-model.md niche_evidence_links.pain_point_id`, `data-model.md niche_evidence_links.relevance`,
   `data-model.md niche_evidence_links.quality`, `data-model.md niche_evidence_links.copy_suspected`,
   `data-model.md niche_evidence_links.independence_group`, `data-model.md niche_evidence_links.counted_for_threshold` (FR-013a, FR-013b, FR-015)
-- [ ] T080 [US2] Hoàn thiện `extract` + bước `assess` lưu kết quả theo `data-model.md pain_points.title`, `data-model.md pain_points.normalized_title`,
+- [x] T080 [US2] Hoàn thiện `extract` + bước `assess` lưu kết quả theo `data-model.md pain_points.title`, `data-model.md pain_points.normalized_title`,
   `data-model.md pain_points.severity`, `data-model.md pain_points.evidence_count`, `data-model.md pain_points.verification_status`,
   `data-model.md buyer_personas.attributes`, `data-model.md competitors.name`, `data-model.md competitors.kind`, `data-model.md competitors.url`,
   `data-model.md competitors.strengths`, `data-model.md competitors.weaknesses`, `data-model.md niche_findings.field`,
@@ -394,9 +394,9 @@ xóa bằng chứng → tính lại; restore backup cũ → vẫn ERASED.
   `data-model.md niche_evidence_links.niche_id`, `data-model.md niche_evidence_links.evidence_id` trong
   `backend/src/nichepilot/jobs/agents/niche_discovery.py` và `backend/src/nichepilot/modules/discovery/service.py`
   (FR-007, FR-008, FR-009, FR-010, FR-011, FR-013, FR-014)
-- [ ] T081 [US2] Đọc lại bằng chứng `ACTIVE` trước mỗi bước `extract`/`assess`/`evaluate`; gán `data-model.md niches.evidence_status` trong
+- [x] T081 [US2] Đọc lại bằng chứng `ACTIVE` trước mỗi bước `extract`/`assess`/`evaluate`; gán `data-model.md niches.evidence_status` trong
   `backend/src/nichepilot/modules/discovery/service.py` (FR-013c, FR-013d, FR-013e)
-- [ ] T082 [US2] `EvidenceErasureService.erase` (ghi sổ → transaction → job `discovery.recompute`) theo
+- [x] T082 [US2] `EvidenceErasureService.erase` (ghi sổ → transaction → job `discovery.recompute`) theo
   `data-model.md evidence_erasure_requests.target_type`, `data-model.md evidence_erasure_requests.target_id`,
   `data-model.md evidence_erasure_requests.content_hash`, `data-model.md evidence_erasure_requests.reason`,
   `data-model.md evidence_erasure_requests.requested_by`, `data-model.md evidence_erasure_requests.applied_at`,
@@ -404,9 +404,9 @@ xóa bằng chứng → tính lại; restore backup cũ → vẫn ERASED.
   `data-model.md research_sources.erased_at`, `data-model.md research_evidence.lifecycle_status`, `data-model.md research_evidence.erased_at`
   trong `backend/src/nichepilot/modules/discovery/erasure.py`; job type `discovery.recompute` (0 lời gọi AI) trong
   `backend/src/nichepilot/jobs/agents/niche_reevaluate.py` (FR-013e, FR-013f)
-- [ ] T083 [US2] Endpoint `POST /api/v1/evidence/{evidence_id}/erase`, `GET /api/v1/niches/{niche_id}` trong
+- [x] T083 [US2] Endpoint `POST /api/v1/evidence/{evidence_id}/erase`, `GET /api/v1/niches/{niche_id}` trong
   `backend/src/nichepilot/api/v1/discovery.py` (FR-013e, FR-023)
-- [ ] T084 [US2] Màn hình 3 (pain point, persona, giải pháp, đối thủ, bằng chứng + nguồn, nút xóa bằng chứng có xác nhận) trong
+- [x] T084 [US2] Màn hình 3 (pain point, persona, giải pháp, đối thủ, bằng chứng + nguồn, nút xóa bằng chứng có xác nhận) trong
   `frontend/src/pages/discovery/NicheDetailPage.tsx` (FR-026, FR-013e)
 
 **Checkpoint**: US2 độc lập với fixture; quickstart §6 PASS (gồm bảng thất bại an toàn).

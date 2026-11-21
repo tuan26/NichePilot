@@ -63,6 +63,10 @@
     "status": 503,
     "title": "Evidence erasure ledger has not been fully applied"
   },
+  "ERASURE_LEDGER_WRITE_FAILED": {
+    "status": 503,
+    "title": "The evidence erasure ledger could not be written; nothing was erased"
+  },
   "EVIDENCE_ALREADY_ERASED": {
     "status": 409,
     "title": "Evidence was already erased"
@@ -198,6 +202,10 @@
   "SOURCE_VERIFICATION_INCOMPLETE": {
     "status": 422,
     "title": "Source verification evidence is incomplete"
+  },
+  "TASK_TYPE_NOT_ALLOWED": {
+    "status": 409,
+    "title": "Task type is not registered for this agent"
   },
   "TOOL_EXTERNAL_EFFECT_DISABLED": {
     "status": 403,

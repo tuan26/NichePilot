@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -15,9 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from nichepilot.core.discovery_config import DiscoverySettings, get_discovery_settings, validate_discovery_settings
 from nichepilot.core.errors import AppError
 from nichepilot.modules.discovery.erasure import (
+    ErasureResult,
+    EvidenceErasureService,
     Ledger,
     LedgerApplyResult,
     LedgerHealth,
+    TargetType,
     apply_erasure_ledger,
     ledger_health,
 )
@@ -52,6 +56,18 @@ class DiscoveryServices:
         """Cổng dữ liệu nghiên cứu E1 (X4): sổ chưa áp dụng đầy đủ → ERASURE_LEDGER_NOT_APPLIED."""
         if (await self.ledger_health(force=force)).status != "OK":
             raise AppError("ERASURE_LEDGER_NOT_APPLIED")
+
+    async def erase(
+        self, evidence_id: uuid.UUID, *, scope: TargetType, reason: str, actor_id: uuid.UUID, request_id: str | None
+    ) -> ErasureResult:
+        """Xóa bằng chứng (FR-013e). Luôn làm mới cache sức khỏe sổ – lỗi giữa ghi sổ và commit phải bật cổng 503
+        ngay."""
+        try:
+            return await EvidenceErasureService(self.sessionmaker, self.ledger).erase(
+                evidence_id, scope=scope, reason=reason, actor_id=actor_id, request_id=request_id
+            )
+        finally:
+            self._health = None
 
     async def apply_ledger(self) -> LedgerApplyResult:
         res = await apply_erasure_ledger(self.sessionmaker, self.ledger)

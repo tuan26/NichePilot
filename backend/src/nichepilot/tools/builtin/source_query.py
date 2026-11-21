@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from nichepilot.core.discovery_config import DiscoverySettings
-from nichepilot.tools.privacy.pii import PiiEngine, select_pii_engine
+from nichepilot.tools.privacy.pii import PROFILE_URL_RE, PiiEngine, select_pii_engine
 from nichepilot.tools.registry import ToolContext, ToolDefinition
 from nichepilot.tools.sources.base import PolicySnapshot, Sleep, SourceAdapter
 
@@ -43,6 +43,7 @@ class SourceQueryOutput(BaseModel):
     reason: str | None
     data_origin: Literal["REAL", "MOCK"]
     hits: list[SourceHitOut]
+    skipped_pii_urls: int = 0
     needs_review_segments: int = 0
 
 
@@ -80,7 +81,13 @@ def build_source_query_tool(
         )
         hits: list[SourceHitOut] = []
         needs_review = 0
+        skipped_pii_urls = 0
         for h in result.hits:
+            # FR-012c: URL hồ sơ cá nhân / URL chứa PII không được trả ra (output tool được lưu vào tool_executions)
+            url_clean, url_status = _clean(h.url, inp.language, inp.market)
+            if PROFILE_URL_RE.match(h.url) or url_clean != h.url or url_status != "REDACTED":
+                skipped_pii_urls += 1
+                continue
             title, t_status = _clean(h.title, inp.language, inp.market)
             snippet, s_status = _clean(h.snippet, inp.language, inp.market)
             worst = max((t_status, s_status), key=("REDACTED", "NEEDS_REVIEW", "UNSAFE").index)
@@ -97,6 +104,7 @@ def build_source_query_tool(
             data_origin=adapter.data_origin,
             hits=hits,
             needs_review_segments=needs_review,
+            skipped_pii_urls=skipped_pii_urls,
         )
 
     return ToolDefinition(

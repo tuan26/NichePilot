@@ -132,6 +132,7 @@ class AgentDefinition(BaseModel):
     job_type: str                     # ví dụ "system.diagnostic"
     description: str
     task_type: str                    # khóa tới ModelTaskProfile – KHÔNG có tên model
+    extra_task_types: tuple[str, ...] = ()   # (bổ sung E1, chủ sở hữu duyệt 2026-11-20) task type phụ được phép
     input_model: type[BaseModel]
     output_model: type[BaseModel]
     allowed_tools: list[str]
@@ -147,6 +148,12 @@ class Agent(Protocol):
     definition: AgentDefinition
     async def step(self, state: AgentState, ctx: JobContext) -> StepOutcome: ...   # một bước; idempotent theo (job_id, seq)
 ```
+
+`JobContext.call_ai(*, system, messages, tools=(), output_model=None, task_type: str | None = None)` – bổ sung E1
+(chủ sở hữu duyệt 2026-11-20): không truyền `task_type` → dùng `definition.task_type` (hành vi E0 không đổi); truyền
+`task_type` → chỉ chấp nhận `definition.task_type` hoặc phần tử của `definition.extra_task_types`, ngược lại
+`AppError("TASK_TYPE_NOT_ALLOWED")`. Mọi lời gọi vẫn qua `AIGateway.call(task_type, …)` – áp dụng Model Task Profile,
+kiểm tra giá đã xác minh, reserve/settle ngân sách, giới hạn `max_ai_calls`/token của job như E0.
 
 Job Runtime (không phải agent) chịu trách nhiệm: vòng lặp, giới hạn bước/lời gọi/token/timeout, checkpoint sau mỗi bước,
 kiểm tra pause/cancel giữa các bước, chuyển trạng thái job.

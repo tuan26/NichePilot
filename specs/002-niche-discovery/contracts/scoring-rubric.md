@@ -12,6 +12,15 @@ Bằng chứng **hợp lệ** cho ngưỡng (FR-013a, FR-013b): có đủ URL ng
 **Nhóm độc lập**: hai bằng chứng cùng nhóm nếu cùng `registered_domain` (eTLD+1) **hoặc** khoảng cách Hamming SimHash ≤ 3 (bản sao
 khác tên miền). Nhóm = thành phần liên thông.
 
+Bổ sung khi triển khai US2 (2026-11-20, chỉ làm **chặt hơn** – gộp thêm nhóm, không bao giờ tách): (a) SimHash so trên cả trích đoạn
+và toàn nguồn; (b) cùng `content_hash`; (c) tỉ lệ chứa shingle 3 từ `|A∩B| / min(|A|,|B|) ≥ 0,5` với trích đoạn ≥ 12 từ – vì test cho
+thấy bản sao sửa 2–3 từ có Hamming SimHash = 5 (> 3) nên SimHash một mình bỏ sót; (d) hậu tố không có trong PSL (vd. `.example`) → eTLD+1
+= 2 nhãn cuối. Nhóm tính trên mọi bằng chứng ACTIVE của ngách (kể cả bằng chứng không hợp lệ, thận trọng). Tham số `shingle_overlap_min`,
+`min_tokens_for_overlap` đọc từ `evidence_rules` (mặc định 0,5 / 12 nếu phiên bản trọng số không có).
+
+Kết luận (pain point, persona, findings) không dẫn ít nhất 1 `evidence_id` hợp lệ → `UNKNOWN` (FR-013, SC-004); một `evidence_id` lạ
+→ loại toàn bộ đầu ra AI của ứng viên đó.
+
 Đạt ngưỡng ⇔ số bằng chứng hợp lệ ≥ 2 **và** số nhóm độc lập ≥ 2 → `EVIDENCE_SUFFICIENT`; ngược lại `INSUFFICIENT_EVIDENCE`.
 
 ## 2. Thang chấm tiêu chí (AI đề xuất mức, mã kiểm tra)

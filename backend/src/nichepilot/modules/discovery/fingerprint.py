@@ -25,6 +25,10 @@ def registered_domain(url: str) -> str:
     ext = _extractor()(host)
     if ext.domain and ext.suffix:
         return f"{ext.domain}.{ext.suffix}"
+    labels = [x for x in host.split(".") if x]
+    if len(labels) >= 2 and not all(x.isdigit() for x in labels):
+        # hậu tố không có trong PSL (vd. `.example`, `.internal`): coi nhãn cuối là hậu tố → eTLD+1 = 2 nhãn cuối
+        return ".".join(labels[-2:])
     return host
 
 
@@ -47,6 +51,19 @@ def simhash64(text: str) -> int:
 
 def hamming(a: int, b: int) -> int:
     return ((a ^ b) & ((1 << 64) - 1)).bit_count()
+
+
+def shingles(text: str, k: int = 3) -> set[str]:
+    tokens = normalize(text)
+    return {" ".join(tokens[i : i + k]) for i in range(len(tokens) - k + 1)}
+
+
+def shingle_containment(a: str, b: str, k: int = 3) -> float:
+    """|A∩B| / min(|A|,|B|) trên shingle k từ – phát hiện bản gần giống/trích một phần (bổ sung cho SimHash)."""
+    sa, sb = shingles(a, k), shingles(b, k)
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / min(len(sa), len(sb))
 
 
 def content_hash(text: str) -> str:

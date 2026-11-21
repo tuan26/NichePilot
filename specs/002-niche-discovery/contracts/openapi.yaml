@@ -283,7 +283,7 @@ paths:
                 reason: { type: string, minLength: 3, maxLength: 500 }
                 scope: { type: string, enum: [EVIDENCE, SOURCE], default: EVIDENCE, description: SOURCE = mọi bằng chứng của URL nguồn }
       responses:
-        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+        "503": { description: "`ERASURE_LEDGER_NOT_APPLIED` (sổ chưa áp dụng/lệch) | `ERASURE_LEDGER_WRITE_FAILED` (không ghi được sổ – không xóa gì)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
         "202":
           description: Đã xóa; trả job tính lại
           content:
@@ -294,7 +294,7 @@ paths:
                 properties:
                   erasure_id: { type: string, format: uuid }
                   affected_niche_ids: { type: array, items: { type: string, format: uuid } }
-                  recompute_job: { $ref: "#/components/schemas/JobRef" }
+                  recompute_job: { oneOf: [{ $ref: "#/components/schemas/JobRef" }, { type: "null" }], description: null nếu không tạo được job (ngách đã được tính lại đồng bộ) }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: "`EVIDENCE_ALREADY_ERASED`", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
@@ -596,10 +596,11 @@ components:
               additionalProperties: { $ref: "#/components/schemas/Finding" }
             competitors: { type: array, items: { type: object } }
             evidence: { type: array, items: { $ref: "#/components/schemas/Evidence" } }
-            latest_evaluation: { $ref: "#/components/schemas/Evaluation" }
+            latest_evaluation: { oneOf: [{ $ref: "#/components/schemas/Evaluation" }, { type: "null" }], description: null cho tới khi chấm điểm (US3) }
             ai_recommendation_reason: { type: string }
             owner_decision_reason: { type: [string, "null"] }
             run_ids: { type: array, items: { type: string, format: uuid } }
+            disclaimer_key: { type: string, description: "Khóa i18n cảnh báo 'đạt ngưỡng bằng chứng ≠ sinh lợi' (FR-013d)" }
     Similarity:
       type: object
       required: [id, niche_a_id, niche_b_id, score, status]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
@@ -19,14 +19,16 @@ from sqlalchemy import text
 from nichepilot.api.deps import MetaDep, SessionDep, SettingsDep, UserDep
 from nichepilot.api.v1.jobs import CreateJobRequest, create_job
 from nichepilot.core.errors import AppError
+from nichepilot.core.logging import get_logger
 from nichepilot.discovery_wiring import DiscoveryServices
 from nichepilot.jobs.scheduler import budget_configured
 from nichepilot.modules.discovery.schemas import DiscoveryRunParams
-from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs
+from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs, niche_detail
 from nichepilot.modules.discovery.sources.policy import SourcePolicyService
 from nichepilot.modules.settings.service import get_setting_values
 
 router = APIRouter(tags=["discovery"])
+log = get_logger(__name__)
 
 
 def discovery_services(request: Request) -> DiscoveryServices:
@@ -162,3 +164,65 @@ async def get_discovery_run(run_id: uuid.UUID, _user: UserDep, session: SessionD
     if run is None:
         raise AppError("DISCOVERY_RUN_NOT_FOUND")
     return run
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# US2 – chi tiết ngách + xóa bằng chứng (T083; FR-013e, FR-023)
+# ---------------------------------------------------------------------------------------------------------------------
+@router.get("/niches/{niche_id}", dependencies=[LedgerGate])
+async def get_niche(niche_id: uuid.UUID, _user: UserDep, session: SessionDep) -> dict[str, Any]:
+    detail = await niche_detail(session, niche_id)
+    if detail is None:
+        raise AppError("NICHE_NOT_FOUND")
+    return detail
+
+
+class EraseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=3, max_length=500)
+    scope: Literal["EVIDENCE", "SOURCE"] = "EVIDENCE"
+
+
+@router.post("/evidence/{evidence_id}/erase", status_code=status.HTTP_202_ACCEPTED, dependencies=[LedgerGate])
+async def erase_evidence(
+    evidence_id: uuid.UUID,
+    body: EraseRequest,
+    request: Request,
+    response: Response,
+    user: UserDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    meta: MetaDep,
+    ds: DiscoveryDep,
+) -> dict[str, Any]:
+    result = await ds.erase(
+        evidence_id, scope=body.scope, reason=body.reason, actor_id=user.id, request_id=meta.request_id
+    )
+    recompute: dict[str, Any] | None = None
+    if result.affected_niche_ids:
+        # ngách đã được tính lại đồng bộ trong transaction xóa; job `discovery.recompute` (0 lời gọi AI) tái dùng
+        # đường tạo job
+        # của E0 (audit, idempotency, hàng đợi). Không tạo được job → không ảnh hưởng việc xóa đã hoàn tất.
+        try:
+            job = await create_job(
+                CreateJobRequest(
+                    job_type="discovery.recompute",
+                    params={"niche_ids": [str(n) for n in result.affected_niche_ids], "reason": "EVIDENCE_ERASED"},
+                    idempotency_key=f"recompute:erasure:{result.erasure_id}",
+                ),
+                request,
+                response,
+                user,
+                session,
+                settings,
+                meta,
+            )
+            recompute = {"job_id": job["id"], "job_type": job["job_type"], "status": job["status"]}
+        except AppError as exc:
+            log.warning("discovery.recompute_not_queued", code=exc.code)
+    response.status_code = status.HTTP_202_ACCEPTED
+    return {
+        "erasure_id": str(result.erasure_id),
+        "affected_niche_ids": [str(n) for n in result.affected_niche_ids],
+        "recompute_job": recompute,
+    }

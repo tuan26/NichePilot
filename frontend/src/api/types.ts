@@ -69,3 +69,77 @@ export interface DiscoveryRunCreate {
   max_candidates?: number
   budget_usd?: string
 }
+
+// E1 US2 – chi tiết ngách (openapi NicheDetail)
+export type VerificationStatus = 'VERIFIED' | 'INFERRED' | 'UNKNOWN' | 'CONFLICTING'
+export interface ConflictValue {
+  value: unknown
+  evidence_ids: string[]
+}
+export interface Finding {
+  value: unknown
+  status: VerificationStatus
+  evidence_ids: string[]
+}
+export interface PainPoint {
+  id: string
+  title: string
+  description: string
+  severity: number | null
+  severity_reason?: string | null
+  evidence_count: number
+  status: VerificationStatus
+}
+export interface Competitor {
+  name: string
+  kind: 'PRODUCT' | 'SERVICE' | 'MANUAL_WORKAROUND'
+  url: string | null
+  strengths: string[]
+  weaknesses: string[]
+}
+export interface NicheEvidence {
+  id: string
+  source_url: string
+  source_domain: string | null
+  excerpt: string
+  collected_at: string
+  published_at?: string | null
+  verification_status: VerificationStatus
+  redaction_status: 'REDACTED' | 'NEEDS_REVIEW'
+  purpose: string | null
+  relevance: number | null
+  quality: number | null
+  independence_group: string
+  counted_for_threshold: boolean
+  policy_verified_at: string | null
+  data_origin: 'REAL' | 'MOCK'
+}
+export interface NicheDetail {
+  id: string
+  name: string
+  micro_niche: string
+  country: string
+  customer_group: string
+  core_problem: string
+  opportunity_score: number | null
+  confidence_score: number | null
+  evidence_status: 'EVIDENCE_SUFFICIENT' | 'INSUFFICIENT_EVIDENCE'
+  monetization_status: 'SIGNALS_FOUND' | 'MONETIZATION_UNVERIFIED' | 'NO_AFFILIATE_FOUND'
+  risk_flags: string[]
+  ai_recommendation: 'PURSUE' | 'REJECT' | 'UNKNOWN'
+  decision_status: string
+  data_origin: 'REAL' | 'MOCK'
+  disclaimer_key: string
+  pain_points: PainPoint[]
+  persona: Record<string, Finding>
+  findings: Record<string, Finding>
+  competitors: Competitor[]
+  evidence: NicheEvidence[]
+  latest_evaluation: unknown
+  run_ids: string[]
+}
+export interface EraseResponse {
+  erasure_id: string
+  affected_niche_ids: string[]
+  recompute_job: { job_id: string; job_type: string; status: string } | null
+}

@@ -107,3 +107,29 @@ async def test_TC_E1_FR006b_01_real_collection_keeps_mock_label_when_ai_is_mock(
             ckpt = (await conn.execute(text("SELECT checkpoint FROM agent_jobs"))).scalar_one()
         assert origins == {"MOCK"}
         assert "run out of flour" not in json.dumps(ckpt)  # checkpoint không chứa văn bản
+
+
+async def test_TC_E1_FR028_05_secondary_task_type_goes_through_gateway_and_budget(
+    clean_db: AsyncEngine, migrated_db: str
+) -> None:
+    """call_ai(task_type="discovery.extract") đi qua AIGateway: profile riêng, ai_usage_logs, giữ chỗ/đối soát ngân sách."""
+    async with discovery_client(migrated_db, ai=ScriptedDiscoveryAI()) as client:
+        await allow_test_source(clean_db)
+        run = await _run(client, clean_db, {"market": "US"})
+        assert run["job"]["status"] == "SUCCEEDED", run
+        async with clean_db.connect() as conn:
+            rows = (
+                await conn.execute(
+                    text("SELECT task_type, count(*) FROM ai_usage_logs WHERE job_id = :j GROUP BY task_type"),
+                    {"j": run["job"]["job_id"]},
+                )
+            ).all()
+            cost = (
+                await conn.execute(
+                    text("SELECT cost_accumulated_usd FROM agent_jobs WHERE id = :j"), {"j": run["job"]["job_id"]}
+                )
+            ).scalar_one()
+        by_type = dict(rows)
+        assert by_type.get("discovery.candidates", 0) >= 1 and by_type.get("discovery.extract", 0) >= 1
+        assert set(by_type) <= {"discovery.candidates", "discovery.extract", "discovery.assess", "discovery.normalize"}
+        assert cost > 0  # chi phí (MOCK) được đối soát vào job qua BudgetService

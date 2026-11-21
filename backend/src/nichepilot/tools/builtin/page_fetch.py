@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from nichepilot.core.discovery_config import DiscoverySettings
 from nichepilot.tools.fetchers.http_fetcher import PageFetcher
-from nichepilot.tools.privacy.pii import PiiEngine, select_pii_engine
+from nichepilot.tools.privacy.pii import PROFILE_URL_RE, PiiEngine, select_pii_engine
 from nichepilot.tools.registry import ToolContext, ToolDefinition
 from nichepilot.tools.sources.searxng_engine import looks_like_challenge
 
@@ -80,13 +80,14 @@ def build_page_fetch_tool(
         assert isinstance(inp, PageFetchInput)
         origin = fetcher.data_origin
         raw = await fetcher.fetch(inp.url, timeout_s=settings.fetch_timeout_s)
+        profile_redirect = bool(raw.final_url and PROFILE_URL_RE.match(raw.final_url))
 
         def out(status: Literal["SUCCESS", "FAILED", "SKIPPED"], reason: str | None, **kw: object) -> PageFetchOutput:
             return PageFetchOutput(
                 status=status,
                 reason=reason,
                 http_status=raw.http_status,
-                final_url=raw.final_url,
+                final_url=None if profile_redirect else raw.final_url,  # FR-012c: không lưu URL hồ sơ cá nhân
                 retry_after_s=raw.retry_after_s,
                 data_origin=origin,
                 **kw,
@@ -94,6 +95,8 @@ def build_page_fetch_tool(
 
         if raw.error:
             return out("FAILED", raw.error)
+        if profile_redirect:  # chuyển hướng tới trang hồ sơ cá nhân → không thu thập (FR-012c)
+            return out("SKIPPED", "PII_UNSAFE")
         if raw.http_status in (429, 503):
             return out("SKIPPED", "RATE_LIMITED")
         body = raw.body or ""
