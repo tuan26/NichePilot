@@ -127,8 +127,41 @@ class EvidenceAssessmentOut(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class CriterionOut(BaseModel):
+    """AI ĐỀ XUẤT mức tiêu chí (scoring-rubric §2); mức ngoài thang → đầu ra bị loại. Tổng điểm do mã tính (FR-017,
+    FR-019)."""
+
+    model_config = ConfigDict(extra="forbid")
+    level: Level | None = None
+    status: Status
+    reason: str = Field(default="", max_length=500)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=50)
+
+
+class CriteriaOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    problem_severity: CriterionOut | None = None
+    monetization: CriterionOut | None = None
+    market_gap: CriterionOut | None = None
+    reachability: CriterionOut | None = None
+    competition_opportunity: CriterionOut | None = None
+    demand_stability: CriterionOut | None = None
+
+
+class RecommendationOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["PURSUE", "REJECT", "UNKNOWN"]
+    reason: str = Field(min_length=1, max_length=1000)
+
+
 class AssessOutput(BaseModel):
-    """Đầu ra `discovery.assess` (US2: đánh giá từng bằng chứng – nhận định INFERRED, đầu vào cho logic ngưỡng)."""
+    """Đầu ra `discovery.assess`: đánh giá từng bằng chứng (US2) + mức đề xuất cho 6 tiêu chí và đề xuất tiếp
+    tục/loại bỏ (US3).
+
+    Mọi phần là nhận định INFERRED – đầu vào cho logic xác định (ngưỡng, Opportunity, Confidence). Không có search
+    volume/CPC."""
 
     model_config = ConfigDict(extra="forbid")
     evidence: list[EvidenceAssessmentOut] = Field(default_factory=list, max_length=50)
+    criteria: CriteriaOut | None = None
+    recommendation: RecommendationOut | None = None

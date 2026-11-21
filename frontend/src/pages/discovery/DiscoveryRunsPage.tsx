@@ -19,9 +19,14 @@ export function DiscoveryRunsPage() {
     <Layout
       syncProfile
       actions={
-        <Link to="/" className="text-sm text-slate-600 underline">
-          {t('nav.status')}
-        </Link>
+        <span className="flex gap-3">
+          <Link to="/niches" className="text-sm text-slate-600 underline">
+            {t('nav.ranking')}
+          </Link>
+          <Link to="/" className="text-sm text-slate-600 underline">
+            {t('nav.status')}
+          </Link>
+        </span>
       }
     >
       <DiscoveryRunsView

@@ -135,11 +135,57 @@ export interface NicheDetail {
   findings: Record<string, Finding>
   competitors: Competitor[]
   evidence: NicheEvidence[]
-  latest_evaluation: unknown
+  latest_evaluation: Evaluation | null
+  ai_recommendation_reason?: string
+  opportunity_disclaimer_key?: string
   run_ids: string[]
 }
 export interface EraseResponse {
   erasure_id: string
   affected_niche_ids: string[]
   recompute_job: { job_id: string; job_type: string; status: string } | null
+}
+
+// E1 US3 – xếp hạng (openapi NicheSummary)
+export type RankingList = 'research' | 'affiliate' | 'needs_research'
+export interface NicheSummary {
+  id: string
+  name: string
+  micro_niche: string
+  country: string
+  opportunity_score: number | null
+  confidence_score: number | null
+  coverage: number | null
+  scoring_status: 'SCORED' | 'INSUFFICIENT_SCORING_DATA' | null
+  evidence_status: 'EVIDENCE_SUFFICIENT' | 'INSUFFICIENT_EVIDENCE'
+  verification_summary: Record<string, number>
+  monetization_status: 'SIGNALS_FOUND' | 'MONETIZATION_UNVERIFIED' | 'NO_AFFILIATE_FOUND'
+  risk_flags: string[]
+  ai_recommendation: 'PURSUE' | 'REJECT' | 'UNKNOWN'
+  decision_status: string
+  has_possible_duplicate: boolean
+  data_origin: 'REAL' | 'MOCK'
+}
+export interface CriterionResult {
+  score: number | null
+  status: VerificationStatus
+  weight: number
+  normalized_weight: number | null
+  reason: string
+  evidence_ids: string[]
+}
+export interface Evaluation {
+  id: string
+  run_id: string | null
+  weights_version: number
+  criteria: Record<string, CriterionResult>
+  coverage: number
+  scoring_status: 'SCORED' | 'INSUFFICIENT_SCORING_DATA'
+  opportunity_score: number | null
+  confidence_score: number
+  confidence_components: Record<string, number>
+  missing_data: string[]
+  computed_without_ai: boolean
+  data_origin: 'REAL' | 'MOCK'
+  created_at: string
 }

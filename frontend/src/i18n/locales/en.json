@@ -234,10 +234,45 @@
       "eraseConfirm": "Confirm erase",
       "eraseCancel": "Cancel"
     },
-    "unknown": "UNKNOWN"
+    "unknown": "UNKNOWN",
+    "ranking": {
+      "title": "Niche ranking",
+      "list": {
+        "research": "Research opportunities",
+        "affiliate": "Affiliate priority",
+        "needs_research": "Needs more research"
+      },
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "monetization": "Monetization",
+      "insufficientScoring": "Insufficient scoring data",
+      "includeMock": "Show simulated (MOCK) data",
+      "empty": "No niches in this list yet.",
+      "possibleDuplicate": "Possible duplicate",
+      "scoring": "Scoring rationale",
+      "weight": "weight {{w}}%",
+      "computedWithoutAi": "Recomputed without AI",
+      "weightsVersion": "Weights version {{v}}",
+      "recommendation": "AI recommendation",
+      "criteria": {
+        "problem_severity": "Problem severity",
+        "monetization": "Monetization",
+        "market_gap": "Market gap",
+        "reachability": "Reachability",
+        "competition_opportunity": "Competition opportunity",
+        "demand_stability": "Demand stability"
+      },
+      "rec": {
+        "PURSUE": "Pursue",
+        "REJECT": "Reject",
+        "UNKNOWN": "Not enough basis"
+      }
+    }
   },
   "nav": {
     "status": "Status",
-    "discovery": "Niche discovery"
+    "discovery": "Niche discovery",
+    "ranking": "Ranking"
   }
 }

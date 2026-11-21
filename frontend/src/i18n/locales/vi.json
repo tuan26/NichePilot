@@ -234,10 +234,45 @@
       "eraseConfirm": "Xác nhận xóa",
       "eraseCancel": "Hủy"
     },
-    "unknown": "UNKNOWN"
+    "unknown": "UNKNOWN",
+    "ranking": {
+      "title": "Bảng xếp hạng ngách",
+      "list": {
+        "research": "Cơ hội nghiên cứu",
+        "affiliate": "Ưu tiên affiliate",
+        "needs_research": "Cần nghiên cứu thêm"
+      },
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "monetization": "Monetization",
+      "insufficientScoring": "Chưa đủ dữ liệu chấm điểm",
+      "includeMock": "Hiện dữ liệu giả lập (MOCK)",
+      "empty": "Chưa có ngách nào trong danh sách này.",
+      "possibleDuplicate": "Có thể trùng",
+      "scoring": "Lý do chấm điểm",
+      "weight": "trọng số {{w}}%",
+      "computedWithoutAi": "Tính lại không dùng AI",
+      "weightsVersion": "Phiên bản trọng số {{v}}",
+      "recommendation": "Đề xuất của AI",
+      "criteria": {
+        "problem_severity": "Mức độ vấn đề",
+        "monetization": "Monetization",
+        "market_gap": "Khoảng trống thị trường",
+        "reachability": "Khả năng tiếp cận",
+        "competition_opportunity": "Cơ hội cạnh tranh",
+        "demand_stability": "Độ ổn định nhu cầu"
+      },
+      "rec": {
+        "PURSUE": "Tiếp tục",
+        "REJECT": "Loại bỏ",
+        "UNKNOWN": "Chưa đủ cơ sở"
+      }
+    }
   },
   "nav": {
     "status": "Trạng thái",
-    "discovery": "Khám phá ngách"
+    "discovery": "Khám phá ngách",
+    "ranking": "Bảng xếp hạng"
   }
 }

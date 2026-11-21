@@ -73,6 +73,20 @@ Confidence = 100 × (0,125 + 0,14 + 0,1 + 0,075 + 0,15 + 0,07) = **66,00**.
 
 Nếu bỏ thêm reach (null): Coverage = 55 < 60 → Opportunity null, `INSUFFICIENT_SCORING_DATA` (Confidence vẫn tính, V = 0,55).
 
+### Quy tắc triển khai bổ sung (US3, 2026-11-21)
+
+- Tiêu chí hợp lệ cho Opportunity: mức ∈ thang, `VERIFIED`/`INFERRED`, có lý do **và** ≥ 1 `evidence_id` còn ACTIVE; còn lại coi như
+  UNKNOWN (CONFLICTING giữ nhãn, không điểm). Bằng chứng của tiêu chí bị xóa hết → tiêu chí UNKNOWN khi tính lại.
+- `monetization_status` lấy từ tiêu chí monetization hợp lệ: mức ≥ 50 → `SIGNALS_FOUND`; mức 0/25 → `NO_AFFILIATE_FOUND`; null →
+  `MONETIZATION_UNVERIFIED` (+ cờ `MONETIZATION_RISK`).
+- Loại nguồn cho D (heuristic theo tên miền/đường dẫn): forum, review, qa, video, article, other. Tuổi F dùng `collected_at` (chưa lưu
+  `published_at`).
+- Cờ rủi ro: `COMPLIANCE_SENSITIVE` theo danh sách từ khóa lĩnh vực nhạy cảm (`modules/discovery/risk.py`, tiếng Anh, chỉ gắn cờ);
+  `LOW_EVIDENCE_FRESHNESS` khi F < 0,25.
+- Đề xuất AI bị đặt `UNKNOWN` (lý do `INSUFFICIENT_EVIDENCE`) khi ngách chưa đủ bằng chứng.
+- Tính lại (đổi trọng số, xóa bằng chứng, cuối lượt) dùng lại mức tiêu chí của đánh giá gần nhất, `computed_without_ai = true`, 0 lời
+  gọi AI; đánh giá trùng hệt đánh giá gần nhất không được ghi thêm.
+
 ## 4. Danh sách xếp hạng (FR-024)
 
 Đạt ngưỡng bằng chứng **không** có nghĩa là ngách sinh lợi (FR-013d): `EVIDENCE_SUFFICIENT` chỉ cho phép ngách vào bảng cơ hội nghiên cứu;

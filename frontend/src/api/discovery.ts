@@ -1,7 +1,7 @@
 // E1 – hook API lượt khám phá (T067). Điều khiển job dùng API job của E0 (/api/v1/jobs/{id}/pause|resume|cancel).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
-import type { DiscoveryRun, DiscoveryRunCreate, EraseResponse, NicheDetail } from '@/api/types'
+import type { DiscoveryRun, DiscoveryRunCreate, EraseResponse, NicheDetail, NicheSummary, RankingList } from '@/api/types'
 
 export type RunAction = 'pause' | 'resume' | 'cancel'
 
@@ -43,5 +43,15 @@ export function useEraseEvidence(nicheId: string) {
     mutationFn: ({ evidenceId, reason, scope }: { evidenceId: string; reason: string; scope: 'EVIDENCE' | 'SOURCE' }) =>
       api<EraseResponse>(`/api/v1/evidence/${evidenceId}/erase`, { method: 'POST', body: { reason, scope } }),
     onSettled: () => qc.invalidateQueries({ queryKey: ['niche', nicheId] }),
+  })
+}
+
+export function useNiches(list: RankingList, includeMock: boolean) {
+  return useQuery({
+    queryKey: ['niches', list, includeMock],
+    queryFn: () =>
+      api<{ items: NicheSummary[]; disclaimer_key: string }>(
+        `/api/v1/niches?list=${list}&include_mock=${includeMock ? 'true' : 'false'}`,
+      ).then((r) => r.items),
   })
 }

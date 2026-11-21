@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from nichepilot.discovery_wiring import current_discovery
 from nichepilot.jobs.runtime import AgentDefinition, JobContext, StepOutcome
-from nichepilot.modules.discovery import analysis
+from nichepilot.modules.discovery import evaluation
 
 
 class RecomputeParams(BaseModel):
@@ -60,9 +60,8 @@ class NicheRecomputeAgent:
         params = RecomputeParams.model_validate(ctx.params)
         sufficient = 0
         async with ctx.sessionmaker() as s, s.begin():
-            rules = await analysis.active_rules(s)
-            for niche_id in params.niche_ids:
-                res = await analysis.evaluate_niche(s, uuid.UUID(niche_id), rules=rules)
-                sufficient += res.status == "EVIDENCE_SUFFICIENT"
+            for niche_id in params.niche_ids:  # ngưỡng + Opportunity + Confidence theo trọng số active, 0 lời gọi AI
+                res = await evaluation.evaluate_and_store(s, uuid.UUID(niche_id), computed_without_ai=True)
+                sufficient += res.evidence_status == "EVIDENCE_SUFFICIENT"
         result = {"recomputed": len(params.niche_ids), "evidence_sufficient": sufficient}
         return StepOutcome(name="recompute", step_type="LOGIC", output=result, state=state, done=True, result=result)

@@ -22,6 +22,8 @@ from nichepilot.core.errors import AppError
 from nichepilot.core.logging import get_logger
 from nichepilot.discovery_wiring import DiscoveryServices
 from nichepilot.jobs.scheduler import budget_configured
+from nichepilot.modules.discovery import evaluation as evaluation_svc
+from nichepilot.modules.discovery import ranking, weights
 from nichepilot.modules.discovery.schemas import DiscoveryRunParams
 from nichepilot.modules.discovery.service import create_run_record, get_run, get_run_by_job, list_runs, niche_detail
 from nichepilot.modules.discovery.sources.policy import SourcePolicyService
@@ -169,6 +171,105 @@ async def get_discovery_run(run_id: uuid.UUID, _user: UserDep, session: SessionD
 # ---------------------------------------------------------------------------------------------------------------------
 # US2 – chi tiết ngách + xóa bằng chứng (T083; FR-013e, FR-023)
 # ---------------------------------------------------------------------------------------------------------------------
+@router.get("/niches", dependencies=[LedgerGate])
+async def list_niches(
+    _user: UserDep,
+    session: SessionDep,
+    list_: Annotated[ranking.ListName, Query(alias="list")] = "research",
+    run_id: uuid.UUID | None = None,
+    country: Annotated[str | None, Query(pattern=r"^[A-Z]{2}$")] = None,
+    decision_status: Annotated[list[str] | None, Query()] = None,
+    include_mock: bool = False,
+    sort: ranking.SortName | None = None,
+    min_opportunity: Annotated[float | None, Query(ge=0, le=100)] = None,
+    min_confidence: Annotated[float | None, Query(ge=0, le=100)] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: Annotated[str | None, Query(pattern=r"^[0-9]{1,9}$")] = None,
+) -> dict[str, Any]:
+    items, nxt = await ranking.list_niches(
+        session,
+        list_name=list_,
+        run_id=run_id,
+        country=country,
+        decision_status=decision_status,
+        include_mock=include_mock,
+        sort=sort,
+        limit=limit,
+        offset=int(cursor or 0),
+        min_opportunity=min_opportunity,
+        min_confidence=min_confidence,
+    )
+    return {
+        "items": items,
+        "next_cursor": str(nxt) if nxt is not None else None,
+        "disclaimer_key": ranking.DISCLAIMER_KEY,
+    }
+
+
+@router.get("/niches/{niche_id}/evaluations", dependencies=[LedgerGate])
+async def niche_evaluations(niche_id: uuid.UUID, _user: UserDep, session: SessionDep) -> list[dict[str, Any]]:
+    if (await niche_detail(session, niche_id)) is None:
+        raise AppError("NICHE_NOT_FOUND")
+    return await evaluation_svc.list_evaluations(session, niche_id)
+
+
+@router.get("/scoring/weights")
+async def list_weights(_user: UserDep, session: SessionDep) -> list[dict[str, Any]]:
+    return await weights.list_versions(session)
+
+
+class WeightsCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    weights: dict[str, float]
+    coverage_threshold: float | None = Field(default=None, gt=0, le=100)
+    recompute_existing: bool = False
+
+
+@router.post("/scoring/weights", status_code=status.HTTP_201_CREATED)
+async def create_weights(
+    body: WeightsCreate,
+    request: Request,
+    response: Response,
+    user: UserDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    meta: MetaDep,
+) -> dict[str, Any]:
+    version = await weights.create_version(
+        session,
+        weights=body.weights,
+        coverage_threshold=body.coverage_threshold,
+        actor_id=user.id,
+        request_id=meta.request_id,
+    )
+    if body.recompute_existing:
+        ids = [
+            str(r[0])
+            for r in (
+                await session.execute(text("SELECT id FROM niches WHERE merged_into_id IS NULL ORDER BY id"))
+            ).all()
+        ]
+        jobs = []
+        for i in range(0, len(ids), 500):  # tính lại theo phiên bản mới – job không AI (FR-018), tối đa 500 ngách/job
+            job = await create_job(
+                CreateJobRequest(
+                    job_type="discovery.recompute",
+                    params={"niche_ids": ids[i : i + 500], "reason": "WEIGHTS_CHANGED"},
+                    idempotency_key=f"recompute:weights:{version['id']}:{i // 500}",
+                ),
+                request,
+                response,
+                user,
+                session,
+                settings,
+                meta,
+            )
+            jobs.append({"job_id": job["id"], "job_type": job["job_type"], "status": job["status"]})
+        version["recompute_jobs"] = jobs
+    response.status_code = status.HTTP_201_CREATED
+    return version
+
+
 @router.get("/niches/{niche_id}", dependencies=[LedgerGate])
 async def get_niche(niche_id: uuid.UUID, _user: UserDep, session: SessionDep) -> dict[str, Any]:
     detail = await niche_detail(session, niche_id)

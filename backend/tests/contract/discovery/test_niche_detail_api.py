@@ -82,7 +82,15 @@ async def test_TC_E1_FR023_01_TC_E1_SC003_01_detail_has_all_br07_fields(
                 )
             assert set(d["persona"]) == {"segment", "context", "goals", "obstacles", "ability_to_pay"}
             assert d["data_origin"] == "MOCK" and d["disclaimer_key"]
-            assert d["latest_evaluation"] is None  # chấm điểm ở US3
+            ev = d["latest_evaluation"]  # US3: mọi ngách có đánh giá (không bằng chứng → INSUFFICIENT_SCORING_DATA)
+            assert ev is not None and set(ev["criteria"]) == {
+                "problem_severity",
+                "monetization",
+                "market_gap",
+                "reachability",
+                "competition_opportunity",
+                "demand_stability",
+            }
         bakery = next(i for i, n in ids if "bakery" in n)
         d = (await client.get(f"/api/v1/niches/{bakery}")).json()
         assert d["evidence_status"] == "EVIDENCE_SUFFICIENT" and d["pain_points"][0]["status"] == "VERIFIED"

@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from nichepilot.core.errors import AppError
 from nichepilot.core.logging import get_logger
 from nichepilot.modules.audit.service import record_audit
-from nichepilot.modules.discovery import analysis
+from nichepilot.modules.discovery import analysis, evaluation
 from nichepilot.modules.discovery.fingerprint import url_hash as compute_url_hash
 
 log = get_logger(__name__)
@@ -311,12 +311,9 @@ async def apply_erasure_ledger(
                 for entry in todo:
                     affected.update(await _affected_by(s, entry))
                     await apply_entry(s, entry)
-                if (
-                    affected
-                ):  # bằng chứng bị xóa (lại) → tính lại ngách liên quan TRƯỚC khi dữ liệu được dùng (FR-013e/f)
-                    rules = await analysis.active_rules(s)
-                    for niche_id in sorted(affected, key=str):
-                        await analysis.evaluate_niche(s, niche_id, rules=rules)
+                # bằng chứng bị xóa (lại) → tính lại ngách liên quan TRƯỚC khi dữ liệu được dùng (FR-013e/f), không AI
+                for niche_id in sorted(affected, key=str):
+                    await evaluation.evaluate_and_store(s, niche_id, computed_without_ai=True)
             except Exception as exc:
                 raise LedgerError("LEDGER_APPLY_FAILED", type(exc).__name__) from None
             await s.execute(
@@ -485,9 +482,8 @@ class EvidenceErasureService:
                 ),
                 {"q": entry.seq, "h": entry.hash},
             )
-            rules = await analysis.active_rules(s)
-            for niche_id in niches:
-                await analysis.evaluate_niche(s, niche_id, rules=rules)
+            for niche_id in niches:  # tính lại đồng bộ: ngưỡng, Opportunity, Confidence (không AI)
+                await evaluation.evaluate_and_store(s, niche_id, computed_without_ai=True)
         log.info("evidence.erased", target_type=scope, ledger_seq=entry.seq, affected_niches=len(niches))
         return ErasureResult(
             erasure_id=uuid.UUID(str(erasure_id)),

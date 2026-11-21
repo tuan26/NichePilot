@@ -2,7 +2,7 @@
 // View thuần (dễ kiểm thử); container ở NicheDetailPage. MOCK luôn gắn nhãn; UNKNOWN hiển thị rõ, không suy diễn giá trị.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Finding, NicheDetail } from '@/api/types'
+import type { Evaluation, Finding, NicheDetail } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card, Input, Label } from '@/components/ui/form'
@@ -70,6 +70,60 @@ function FindingRow({ label, f }: { label: string; f: Finding | undefined }) {
   )
 }
 
+const CRITERIA = ['problem_severity', 'monetization', 'market_gap', 'reachability', 'competition_opportunity', 'demand_stability']
+
+function ScoringCard({ ev, n }: { ev: Evaluation | null; n: NicheDetail }) {
+  const { t } = useTranslation()
+  return (
+    <Card className="space-y-3" data-testid="scoring">
+      <h2 className="text-lg font-semibold">{t('discovery.ranking.scoring')}</h2>
+      <Alert variant="info">{t('discovery.opportunity.disclaimer')}</Alert>
+      {!ev ? (
+        <p className="text-sm text-slate-500">{t('discovery.unknown')}</p>
+      ) : (
+        <>
+          <dl className="grid gap-2 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-slate-500">{t('discovery.ranking.opportunity')}</dt>
+              <dd>{ev.opportunity_score ?? t('discovery.ranking.insufficientScoring')}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">{t('discovery.ranking.confidence')}</dt>
+              <dd>{ev.confidence_score}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">{t('discovery.ranking.coverage')}</dt>
+              <dd>{ev.coverage}%</dd>
+            </div>
+          </dl>
+          <p className="text-xs text-slate-500">
+            {t('discovery.ranking.weightsVersion', { v: ev.weights_version })}
+            {ev.computed_without_ai && ` · ${t('discovery.ranking.computedWithoutAi')}`}
+          </p>
+          <ul className="space-y-1 text-sm">
+            {CRITERIA.map((k) => {
+              const c = ev.criteria[k]
+              return (
+                <li key={k} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{t(`discovery.ranking.criteria.${k}`)}</span>
+                  <span>{c?.score ?? t('discovery.unknown')}</span>
+                  <span className="text-xs text-slate-500">{t('discovery.ranking.weight', { w: c?.weight ?? 0 })}</span>
+                  {c && <StatusChip status={c.status} />}
+                  {c?.reason && <span className="text-slate-600">– {c.reason}</span>}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+      <p className="text-sm">
+        {t('discovery.ranking.recommendation')}: {t(`discovery.ranking.rec.${n.ai_recommendation}`)}
+        {n.ai_recommendation_reason ? ` – ${n.ai_recommendation_reason}` : ''}
+      </p>
+    </Card>
+  )
+}
+
 function EraseConfirm({ id, props }: { id: string; props: NicheDetailViewProps }) {
   const { t } = useTranslation()
   const [reason, setReason] = useState('')
@@ -134,6 +188,8 @@ export function NicheDetailView(props: NicheDetailViewProps) {
         </div>
         <Alert variant="info">{t(n.disclaimer_key)}</Alert>
       </div>
+
+      <ScoringCard ev={n.latest_evaluation} n={n} />
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">{t('discovery.niche.painPoints')}</h2>

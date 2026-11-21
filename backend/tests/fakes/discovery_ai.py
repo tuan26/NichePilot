@@ -111,7 +111,31 @@ def default_extract(req: LLMRequest) -> dict[str, Any]:
     }
 
 
+def default_criteria(ids: list[str]) -> dict[str, Any]:
+    """[MOCK] mức tiêu chí giống ví dụ tính tay scoring-rubric §3 (Opportunity 60,71 khi đủ bằng chứng)."""
+    first = ids[:1]
+    return {
+        "problem_severity": {
+            "level": 75,
+            "status": "VERIFIED",
+            "reason": "[MOCK] weekly losses",
+            "evidence_ids": first,
+        },
+        "monetization": {"level": None, "status": "UNKNOWN", "reason": "[MOCK] no affiliate evidence"},
+        "market_gap": {"level": 50, "status": "INFERRED", "reason": "[MOCK] apps too complex", "evidence_ids": first},
+        "reachability": {"level": 75, "status": "INFERRED", "reason": "[MOCK] active forums", "evidence_ids": first},
+        "competition_opportunity": {
+            "level": 25,
+            "status": "INFERRED",
+            "reason": "[MOCK] several apps",
+            "evidence_ids": first,
+        },
+        "demand_stability": {"level": None, "status": "UNKNOWN", "reason": "[MOCK] no trend data"},
+    }
+
+
 def default_assess(req: LLMRequest) -> dict[str, Any]:
+    ex = excerpts_in(req)
     return {
         "evidence": [
             {
@@ -121,8 +145,10 @@ def default_assess(req: LLMRequest) -> dict[str, Any]:
                 "copy_suspected": False,
                 "reason": "[MOCK] describes the pain point directly",
             }
-            for e in excerpts_in(req)
-        ]
+            for e in ex
+        ],
+        "criteria": default_criteria([e["evidence_id"] for e in ex]),
+        "recommendation": {"decision": "PURSUE", "reason": "[MOCK] clear repeated pain"},
     }
 
 

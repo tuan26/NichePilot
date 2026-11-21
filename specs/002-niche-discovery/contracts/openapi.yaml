@@ -151,6 +151,8 @@ paths:
           in: query
           schema: { type: array, items: { $ref: "#/components/schemas/DecisionStatus" } }
         - { name: include_mock, in: query, schema: { type: boolean, default: false } }
+        - { name: min_opportunity, in: query, schema: { type: number, minimum: 0, maximum: 100 } }
+        - { name: min_confidence, in: query, schema: { type: number, minimum: 0, maximum: 100 } }
         - name: sort
           in: query
           schema: { type: string, enum: [opportunity_desc, confidence_desc, created_desc], default: opportunity_desc }
@@ -385,7 +387,7 @@ paths:
                 coverage_threshold: { type: number, exclusiveMinimum: 0, maximum: 100 }
                 recompute_existing: { type: boolean, default: false }
       responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/WeightsVersion" } } } }
+        "201": { description: "Created – kèm `recompute_jobs` (JobRef[], mỗi job ≤ 500 ngách) khi `recompute_existing`", content: { application/json: { schema: { $ref: "#/components/schemas/WeightsVersion" } } } }
         "422": { description: "`WEIGHTS_INVALID` (tổng ≠ 100, thiếu tiêu chí, giá trị âm)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
 
 components:
@@ -601,6 +603,7 @@ components:
             owner_decision_reason: { type: [string, "null"] }
             run_ids: { type: array, items: { type: string, format: uuid } }
             disclaimer_key: { type: string, description: "Khóa i18n cảnh báo 'đạt ngưỡng bằng chứng ≠ sinh lợi' (FR-013d)" }
+            opportunity_disclaimer_key: { type: string, const: discovery.opportunity.disclaimer }
     Similarity:
       type: object
       required: [id, niche_a_id, niche_b_id, score, status]

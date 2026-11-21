@@ -68,7 +68,24 @@ const niche: NicheDetail = {
       data_origin: 'MOCK',
     },
   ],
-  latest_evaluation: null,
+  latest_evaluation: {
+    id: 'ev1',
+    run_id: 'r1',
+    weights_version: 1,
+    criteria: {
+      problem_severity: { score: 75, status: 'VERIFIED', weight: 25, normalized_weight: 0.357, reason: '[MOCK] weekly losses', evidence_ids: ['e1'] },
+      monetization: { score: null, status: 'UNKNOWN', weight: 20, normalized_weight: null, reason: '', evidence_ids: [] },
+    },
+    coverage: 70,
+    scoring_status: 'SCORED',
+    opportunity_score: 60.71,
+    confidence_score: 30,
+    confidence_components: {},
+    missing_data: ['monetization'],
+    computed_without_ai: false,
+    data_origin: 'MOCK',
+    created_at: '2026-11-20T06:00:00Z',
+  },
   run_ids: ['r1'],
 }
 
@@ -117,6 +134,10 @@ describe('TC_E1_FR026_02 màn hình chi tiết ngách', () => {
     expect(html).toContain('Email [EMAIL] if you found a fix')
     expect(html).toContain('2026-11-01') // ngày xác minh nguồn ALLOWED
     expect(html).toContain('đạt ngưỡng bằng chứng không có nghĩa là ngách sinh lợi')
+    expect(html).toContain('data-testid="scoring"')
+    expect(html).toContain('60.71')
+    expect(html).toContain('[MOCK] weekly losses')
+    expect(html).toContain('không phải dự báo doanh thu')
   })
 
   it('rỗng: không có bằng chứng / pain point', () => {

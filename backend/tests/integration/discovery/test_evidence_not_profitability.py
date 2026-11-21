@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from tests.discovery_helpers import allow_test_source, discovery_client
 from tests.discovery_run import FORUM, REVIEW, run_discovery, set_search
-from tests.fakes.discovery_ai import ScriptedDiscoveryAI, default_extract
+from tests.fakes.discovery_ai import ScriptedDiscoveryAI, default_assess, default_extract
 
 pytestmark = [pytest.mark.integration, pytest.mark.discovery, pytest.mark.mock]
 
@@ -23,6 +23,19 @@ def _with_monetization(req: object) -> dict[str, object]:
             "value": "[MOCK] inventory apps advertise a public affiliate programme",
             "status": "VERIFIED",
             "evidence_ids": ids[:1],
+        }
+    return out
+
+
+def _assess_with_monetization(req: object) -> dict[str, object]:
+    out = default_assess(req)  # type: ignore[arg-type]
+    ev = out["evidence"]
+    if ev:
+        out["criteria"]["monetization"] = {  # type: ignore[index]
+            "level": 75,
+            "status": "VERIFIED",
+            "reason": "[MOCK] public affiliate programme for related apps",
+            "evidence_ids": [ev[0]["evidence_id"]],  # type: ignore[index]
         }
     return out
 
@@ -53,7 +66,7 @@ async def test_TC_E1_FR013d_01_evidence_sufficient_is_not_profitability(
 async def test_TC_E1_FR013d_02_monetization_signal_does_not_change_evidence_status(
     clean_db: AsyncEngine, migrated_db: str
 ) -> None:
-    ai = ScriptedDiscoveryAI({"discovery.extract": _with_monetization})
+    ai = ScriptedDiscoveryAI({"discovery.extract": _with_monetization, "discovery.assess": _assess_with_monetization})
     async with discovery_client(migrated_db, ai=ai) as client:
         await allow_test_source(clean_db)
         set_search(client, [FORUM])  # một nguồn → không đạt ngưỡng dù có tín hiệu monetization

@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from nichepilot.modules.discovery.evaluation import evaluation_dto
 from nichepilot.modules.discovery.sources.policy import UsableSourcePolicy
 
 METRIC_KEYS = (
@@ -376,6 +377,22 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
         .scalars()
         .all()
     )
+    latest = (
+        (
+            await session.execute(
+                text(
+                    "SELECT e.*, w.version AS weights_version FROM niche_evaluations e JOIN scoring_weights_versions w"
+                    " ON w.id = e.weights_version_id WHERE e.id = :e"
+                ),
+                {"e": n["latest_evaluation_id"]},
+            )
+        )
+        .mappings()
+        .first()
+        if n["latest_evaluation_id"]
+        else None
+    )
+    latest_dto = evaluation_dto(latest) if latest else None
     persona = {a: persona_row.get(a) or dict(UNKNOWN_FINDING) for a in PERSONA_ATTRS}
     summary: dict[str, int] = {}
     for f in [*findings.values(), *persona.values()]:
@@ -387,10 +404,10 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
         "country": n["country"],
         "customer_group": n["customer_group"],
         "core_problem": n["core_problem"],
-        "opportunity_score": None,  # chấm điểm ở US3 – chưa có → UNKNOWN trên giao diện
-        "confidence_score": None,
-        "coverage": None,
-        "scoring_status": None,
+        "opportunity_score": latest_dto["opportunity_score"] if latest_dto else None,  # None → UNKNOWN trên giao diện
+        "confidence_score": latest_dto["confidence_score"] if latest_dto else None,
+        "coverage": latest_dto["coverage"] if latest_dto else None,
+        "scoring_status": latest_dto["scoring_status"] if latest_dto else None,
         "evidence_status": n["evidence_status"],
         "verification_summary": summary,
         "monetization_status": n["monetization_status"],
@@ -446,6 +463,7 @@ async def niche_detail(session: AsyncSession, niche_id: uuid.UUID) -> dict[str, 
             }
             for e in evidence
         ],
-        "latest_evaluation": None,
+        "latest_evaluation": latest_dto,
+        "opportunity_disclaimer_key": "discovery.opportunity.disclaimer",
         "run_ids": [str(r) for r in run_ids],
     }

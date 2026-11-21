@@ -422,47 +422,47 @@ xóa bằng chứng → tính lại; restore backup cũ → vẫn ERASED.
 
 ### Tests cho User Story 3 (viết trước, phải FAIL)
 
-- [ ] T085 [P] [US3] Test `compute_opportunity` (đủ 6; thiếu 1; nhiều tiêu chí thiếu; Coverage đúng 60 và dưới 60; CONFLICTING; không gán 0/100
+- [x] T085 [P] [US3] Test `compute_opportunity` (đủ 6; thiếu 1; nhiều tiêu chí thiếu; Coverage đúng 60 và dưới 60; CONFLICTING; không gán 0/100
   cho UNKNOWN; ví dụ 60,71) trong `backend/tests/unit/discovery/test_opportunity.py` (TC_E1_FR017_01, TC_E1_FR019_01…TC_E1_FR019_03,
   TC_E1_FR019a_01, TC_E1_SC005_01, TC_E1_SC005a_01) (FR-017, FR-019, FR-019a, SC-005, SC-005a)
-- [ ] T086 [P] [US3] Test `compute_confidence` (ví dụ 66,00; trần 30 khi INSUFFICIENT_EVIDENCE; chữ ký không có Opportunity) trong
+- [x] T086 [P] [US3] Test `compute_confidence` (ví dụ 66,00; trần 30 khi INSUFFICIENT_EVIDENCE; chữ ký không có Opportunity) trong
   `backend/tests/unit/discovery/test_confidence.py` (TC_E1_FR020_01, TC_E1_FR020_02) (FR-020)
-- [ ] T087 [P] [US3] Test search volume thấp không làm giảm điểm/không loại ngách trong `backend/tests/unit/discovery/test_search_volume.py`
+- [x] T087 [P] [US3] Test search volume thấp không làm giảm điểm/không loại ngách trong `backend/tests/unit/discovery/test_search_volume.py`
   (TC_E1_FR021_01) (FR-021)
-- [ ] T088 [P] [US3] Contract test `GET/POST /api/v1/scoring/weights` (`WEIGHTS_INVALID`; bản cũ không đổi; `recompute_existing` → 0 lời gọi AI)
+- [x] T088 [P] [US3] Contract test `GET/POST /api/v1/scoring/weights` (`WEIGHTS_INVALID`; bản cũ không đổi; `recompute_existing` → 0 lời gọi AI)
   trong `backend/tests/contract/discovery/test_weights_api.py` (TC_E1_FR018_01, TC_E1_FR018_02) (FR-018)
-- [ ] T089 [P] [US3] Contract test `GET /api/v1/niches?list=research|affiliate|needs_research` (scoring-rubric §4; MOCK ẩn mặc định;
+- [x] T089 [P] [US3] Contract test `GET /api/v1/niches?list=research|affiliate|needs_research` (scoring-rubric §4; MOCK ẩn mặc định;
   `disclaimer_key`) trong `backend/tests/contract/discovery/test_ranking_api.py` (TC_E1_FR019b_01, TC_E1_FR019c_01, TC_E1_FR016_02,
   TC_E1_SC009_01) (FR-019b, FR-019c, FR-016, SC-009)
-- [ ] T090 [P] [US3] Test cờ rủi ro tuân thủ cho lĩnh vực nhạy cảm trong `backend/tests/unit/discovery/test_risk_flags.py` (TC_E1_FR035_01) (FR-035)
-- [ ] T091 [P] [US3] Vitest màn hình 2 (3 tab, Opportunity/Confidence/Coverage, trạng thái xác minh, Monetization, chú thích, đang tải/rỗng/lỗi)
-  trong `frontend/tests/unit/niche-ranking-page.test.tsx` (TC_E1_FR026_03) (FR-026)
-- [ ] T092 [P] [US3] Performance test (marker `perf`): `GET /api/v1/niches` p95 < 500 ms với 5.000 ngách giả lập; `discovery.recompute` ≤ 60 s cho
+- [x] T090 [P] [US3] Test cờ rủi ro tuân thủ cho lĩnh vực nhạy cảm trong `backend/tests/unit/discovery/test_risk_flags.py` (TC_E1_FR035_01) (FR-035)
+- [x] T091 [P] [US3] Vitest màn hình 2 (3 tab, Opportunity/Confidence/Coverage, trạng thái xác minh, Monetization, chú thích, đang tải/rỗng/lỗi)
+  trong `frontend/tests/unit/niche-ranking-page.test.ts` (TC_E1_FR026_03) (FR-026)
+- [x] T092 [P] [US3] Performance test (marker `perf`): `GET /api/v1/niches` p95 < 500 ms với 5.000 ngách giả lập; `discovery.recompute` ≤ 60 s cho
   1.000 ngách, 0 lời gọi AI trong `backend/tests/perf/discovery/test_discovery_perf.py` (TC_E1_FR024_02, TC_E1_FR018_03) (FR-024, FR-018)
 
 ### Implementation cho User Story 3
 
-- [ ] T093 [P] [US3] `compute_opportunity` trong `backend/src/nichepilot/modules/discovery/scoring/opportunity.py` theo
+- [x] T093 [P] [US3] `compute_opportunity` trong `backend/src/nichepilot/modules/discovery/scoring/opportunity.py` theo
   `data-model.md niche_evaluations.criteria`, `data-model.md niche_evaluations.coverage`, `data-model.md niche_evaluations.scoring_status`,
   `data-model.md niche_evaluations.opportunity_score` (FR-017, FR-019, FR-019a, FR-021)
-- [ ] T094 [P] [US3] `compute_confidence` trong `backend/src/nichepilot/modules/discovery/scoring/confidence.py` theo
+- [x] T094 [P] [US3] `compute_confidence` trong `backend/src/nichepilot/modules/discovery/scoring/confidence.py` theo
   `data-model.md niche_evaluations.confidence_score`, `data-model.md niche_evaluations.confidence_components`,
   `data-model.md niche_evaluations.evidence_status`, `data-model.md niche_evaluations.independent_groups` (FR-020)
-- [ ] T095 [US3] `EvaluationService` (bước `evaluate` + `recompute`) trong `backend/src/nichepilot/modules/discovery/evaluation.py` theo
+- [x] T095 [US3] `EvaluationService` (bước `evaluate` + `recompute`) trong `backend/src/nichepilot/modules/discovery/evaluation.py` theo
   `data-model.md niche_evaluations.niche_id`, `data-model.md niche_evaluations.run_id`, `data-model.md niche_evaluations.weights_version_id`,
   `data-model.md niche_evaluations.computed_without_ai`, `data-model.md niches.latest_evaluation_id`, `data-model.md niches.monetization_status`,
   `data-model.md niches.risk_flags`, `data-model.md niches.ai_recommendation`, `data-model.md niches.ai_recommendation_reason`
   (FR-017, FR-019b, FR-020, FR-035)
-- [ ] T096 [US3] `WeightsService` (tổng 100, phiên bản mới active, audit `scoring.weights_version_created`) trong
+- [x] T096 [US3] `WeightsService` (tổng 100, phiên bản mới active, audit `scoring.weights_version_created`) trong
   `backend/src/nichepilot/modules/discovery/weights.py` theo `data-model.md scoring_weights_versions.version`,
   `data-model.md scoring_weights_versions.weights`, `data-model.md scoring_weights_versions.coverage_threshold`,
   `data-model.md scoring_weights_versions.evidence_rules`, `data-model.md scoring_weights_versions.confidence_params`,
   `data-model.md scoring_weights_versions.dedup_params`, `data-model.md scoring_weights_versions.is_active`,
   `data-model.md scoring_weights_versions.created_by` (FR-018, FR-036)
-- [ ] T097 [US3] Ba danh sách xếp hạng theo scoring-rubric §4 trong `backend/src/nichepilot/modules/discovery/ranking.py` (FR-013d, FR-019b, FR-024)
-- [ ] T098 [US3] Endpoint `GET/POST /api/v1/scoring/weights`, `GET /api/v1/niches`, `GET /api/v1/niches/{niche_id}/evaluations` trong
+- [x] T097 [US3] Ba danh sách xếp hạng theo scoring-rubric §4 trong `backend/src/nichepilot/modules/discovery/ranking.py` (FR-013d, FR-019b, FR-024)
+- [x] T098 [US3] Endpoint `GET/POST /api/v1/scoring/weights`, `GET /api/v1/niches`, `GET /api/v1/niches/{niche_id}/evaluations` trong
   `backend/src/nichepilot/api/v1/discovery.py` (FR-018, FR-024, FR-034)
-- [ ] T099 [US3] Màn hình 2 `frontend/src/pages/discovery/NicheRankingPage.tsx` và phần lý do chấm điểm trong
+- [x] T099 [US3] Màn hình 2 `frontend/src/pages/discovery/NicheRankingPage.tsx` và phần lý do chấm điểm trong
   `frontend/src/pages/discovery/NicheDetailPage.tsx` (FR-026, FR-019c)
 
 **Checkpoint**: US3 độc lập; quickstart §5 bước 1, 2, 4 và §6c PASS.
