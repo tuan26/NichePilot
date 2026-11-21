@@ -120,4 +120,12 @@ Không sửa Job Runtime, Scheduler, AIGateway, BudgetService, Tool Registry hay
 
 ## 7. GitHub CI
 
-Điền sau khi CI cho commit cuối chạy xong.
+| Run | Commit | Kết quả |
+|---|---|---|
+| #45 | `a467fa3` US3 | success |
+| #46 | `b0c82f5` US4 | **failure** – secret scanner (dương tính giả trong test nguồn); sửa ở #47 |
+| #47 | `db4b959` US5–US7 | success |
+| #48 / #49 | `b11fc2d` Polish / `0594e66` docs | **failure** – secret scanner (mật khẩu E2E E1) |
+| [#50](https://github.com/tuan26/NichePilot/actions/runs/44922598589) | `44b3d9d` | **success** – cả 6 job xanh: backend, frontend, secrets, traceability, smoke, e2e. Job e2e chạy cả bộ E0 (us1) và bộ E1 (discovery) trên stack mới |
+
+Commit chỉ thêm báo cáo sau run #50 sẽ chạy CI lại; mã nguồn không đổi.
