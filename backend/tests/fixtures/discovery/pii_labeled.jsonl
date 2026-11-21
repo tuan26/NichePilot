@@ -1,0 +1,39 @@
+{"_note": "MOCK fixture tự soạn – PII GIẢ, không thuộc người thật; dùng đo chất lượng PiiEngine (T131)"}
+{"text": "I run a two-person bakery and we run out of flour every week.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Spreadsheets take too long to update after a busy morning.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Is there a simple tool that reminds us before an ingredient runs out?", "language": "en", "country": "US", "pii_values": []}
+{"text": "StockPal is built for restaurant chains and is overkill for us.", "language": "en", "country": "US", "pii_values": []}
+{"text": "We lose about three hours each week counting stock by hand.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Our salon double-books appointments every Saturday.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Parents never know which tutoring slot is free.", "language": "en", "country": "US", "pii_values": []}
+{"text": "The cheapest plan costs more than our monthly flour order.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Many reviewers ask for a cheaper plan aimed at home bakers.", "language": "en", "country": "US", "pii_values": []}
+{"text": "What small bakeries need is low-stock alerts and expiry reminders.", "language": "en", "country": "US", "pii_values": []}
+{"text": "I would happily pay a small monthly fee for this.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Barcode scanning does not help because we buy flour in bulk sacks.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Setup took a full weekend and support never answered.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Several owners in my area have the same problem with dairy waste.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Excel crashes when the sheet gets too big.", "language": "en", "country": "US", "pii_values": []}
+{"text": "Contact owner.fake@example.com if you found a fix.", "language": "en", "country": "US", "pii_values": ["owner.fake@example.com"]}
+{"text": "My email is test.user+bakery@mail.example.org.", "language": "en", "country": "US", "pii_values": ["test.user+bakery@mail.example.org"]}
+{"text": "Call +1 202-555-0143 any time.", "language": "en", "country": "US", "pii_values": ["202-555-0143"]}
+{"text": "Text me at (202) 555-0199.", "language": "en", "country": "US", "pii_values": ["555-0199"]}
+{"text": "Ping @bakerjoe on the forum.", "language": "en", "country": "US", "pii_values": ["bakerjoe"]}
+{"text": "Ask u/flour_power_21 about it.", "language": "en", "country": "US", "pii_values": ["flour_power_21"]}
+{"text": "Profile: https://forum.example/user/kneadmore for details.", "language": "en", "country": "US", "pii_values": ["kneadmore"]}
+{"text": "Posted by Taylor Brennan", "language": "en", "country": "US", "pii_values": ["Taylor Brennan"]}
+{"text": "Written by Jamie Fox-Lee", "language": "en", "country": "US", "pii_values": ["Jamie Fox-Lee"]}
+{"text": "Last week Priya Raman told me rescheduling takes days.", "language": "en", "country": "US", "pii_values": ["Priya Raman"]}
+{"text": "Priya Raman runs a tutoring centre.", "language": "en", "country": "US", "pii_values": ["Priya Raman"]}
+{"text": "Thanks, Morgan", "language": "en", "country": "US", "pii_values": ["Morgan"]}
+{"text": "Hi Jordan, did you solve the inventory issue?", "language": "en", "country": "US", "pii_values": ["Jordan"]}
+{"text": "I talked with Maria and she has the same issue.", "language": "en", "country": "US", "pii_values": ["Maria"]}
+{"text": "I emailed Daniel about the refund.", "language": "en", "country": "US", "pii_values": ["Daniel"]}
+{"text": "My friend Alex Chen also struggles with this.", "language": "en", "country": "US", "pii_values": ["Alex Chen"]}
+{"text": "Cheers, Sam", "language": "en", "country": "US", "pii_values": ["Sam"]}
+{"text": "mail me: owner (at) example.com", "language": "en", "country": "US", "pii_values": ["owner (at) example.com"]}
+{"text": "write owner@example .com", "language": "en", "country": "US", "pii_values": ["owner@example .com"]}
+{"text": "Gọi tôi số 0912 345 678 nhé.", "language": "vi", "country": "VN", "pii_values": ["0912 345 678"]}
+{"text": "Chị Nguyễn Thị Lan nói rằng việc đặt lịch rất khó.", "language": "vi", "country": "VN", "pii_values": ["Nguyễn Thị Lan"]}
+{"text": "Tiệm bánh nhỏ thường hết bột mà không biết trước.", "language": "vi", "country": "VN", "pii_values": []}
+{"text": "Gestern hat Anna Schmidt gesagt, dass die Planung schwierig ist.", "language": "de", "country": "DE", "pii_values": ["Anna Schmidt"]}
