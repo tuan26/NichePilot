@@ -145,6 +145,13 @@ Không sửa Job Runtime (ngoài phần trên), Scheduler, AIGateway, BudgetServ
 - E2E Playwright cho màn hình 3 chưa viết (SC-014 thuộc giai đoạn hoàn thiện).
 - Windows/WSL2 – NOT_TESTED.
 
-## 8. GitHub CI cho commit mới nhất
+## 8. GitHub CI
 
-Xem mục cập nhật cuối báo cáo (điền sau khi CI chạy xong).
+| Run | Commit | Kết quả |
+|---|---|---|
+| [#39](https://github.com/tuan26/NichePilot/actions/runs/44685931533) Phase 2, [#40](https://github.com/tuan26/NichePilot/actions/runs/44687959281) US1 | `fdbfee7`, `0324ae6` | **failure** – thiếu fixture `pii_labeled.jsonl` (lỗi #1). Báo cáo trước đây không nêu điều này |
+| [#41](https://github.com/tuan26/NichePilot/actions/runs/44885889776) | `4c8db87` (US2) | **failure** – cùng nguyên nhân (446 passed, 2 failed) |
+| [#42](https://github.com/tuan26/NichePilot/actions/runs/44886152857) | `e0b3968` (sửa fixture) | backend, frontend, secrets, traceability, smoke: success; **e2e: failure** – job e2e không sinh `SEARXNG_SECRET` (hồi quy từ US1, trước đây bị che vì e2e bị skip khi backend đỏ) |
+| [#43](https://github.com/tuan26/NichePilot/actions/runs/44886659917) | `a448a8b` | **success** – cả 6 job xanh: backend, frontend, secrets, traceability, smoke, e2e |
+
+Commit chỉ chứa báo cáo sau run #43 sẽ chạy CI lại; mã nguồn không đổi.
