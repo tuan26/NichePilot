@@ -112,6 +112,8 @@ jobs:
       - name: Start stack (mock provider, paid calls disabled)
         run: |
           cp deploy/env/.env.example deploy/env/.env
+          # E1: SearXNG cần secret cục bộ sinh ngẫu nhiên mỗi lần chạy (không commit, giống deploy/tests/smoke.sh)
+          sed -i "s/^SEARXNG_SECRET=.*/SEARXNG_SECRET=$(openssl rand -hex 32)/" deploy/env/.env
           make up
       - name: Playwright E2E
         working-directory: frontend
