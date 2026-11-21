@@ -7,7 +7,8 @@
 import { expect, type Page, test } from '@playwright/test'
 
 const USER = 'owner'
-const PASSWORD = 'e2e-only-password-123' // chỉ dùng cho E2E
+// Mật khẩu dùng một lần cho DB E2E: CI sinh ngẫu nhiên mỗi lần chạy (E2E_OWNER_PASSWORD) – không có giá trị cố định trong repo
+const PASSWORD = process.env.E2E_OWNER_PASSWORD ?? ''
 
 async function api(page: Page, method: 'POST' | 'PUT', path: string, data: unknown) {
   const cookies = await page.context().cookies()
@@ -18,6 +19,7 @@ async function api(page: Page, method: 'POST' | 'PUT', path: string, data: unkno
 }
 
 test('E1: tạo lượt → xếp hạng → nguồn → VI/EN', async ({ page }) => {
+  expect(PASSWORD.length, 'đặt E2E_OWNER_PASSWORD (≥ 12 ký tự) trước khi chạy E2E_SUITE=discovery').toBeGreaterThanOrEqual(12)
   await page.goto('/')
   await expect(page).toHaveURL(/\/setup$/)
   await page.getByLabel('Tên đăng nhập').fill(USER)

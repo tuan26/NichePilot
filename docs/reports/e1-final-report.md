@@ -84,6 +84,7 @@ Kết quả GitHub CI: xem mục 7.
 | 7 | Secret scanner bắt dương tính giả trong test nguồn | `check_secrets.py` | Đổi literal trong test; **không** thêm vào baseline |
 | 8 | Test ngân sách giả định sai số lời gọi (lời gọi `extract` giữ chỗ nhỏ hơn) | Test FAIL | Sửa test để kiểm tra bất biến: không có lời gọi nào vượt hạn mức |
 | 9 | Script tự động ngắt dòng làm hỏng 2 f-string | ruff | Sửa tay |
+| 10 | **CI đỏ ở run #46 (US4) và #48 (Polish)**: secret scanner bắt dương tính giả trong file test MỚI. `check_secrets.py` ở local chỉ quét file git đã theo dõi, mà file mới lúc đó chưa `git add` nên lọt | GitHub CI | #46: đổi literal (sửa ở #47). #48: E2E E1 đọc mật khẩu từ `E2E_OWNER_PASSWORD`, CI sinh ngẫu nhiên. Không thêm gì vào baseline. Từ nay chạy secret scan SAU `git add` |
 
 ## 5. Thay đổi chạm vào E0
 

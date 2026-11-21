@@ -128,7 +128,9 @@ jobs:
           make up
       - name: Playwright E2E – E1 discovery
         working-directory: frontend
-        run: E2E_SUITE=discovery npm run test:e2e -- --trace off
+        run: |
+          export E2E_OWNER_PASSWORD="$(openssl rand -hex 16)"
+          E2E_SUITE=discovery npm run test:e2e -- --trace off
       - name: Compose logs on failure
         if: failure()
         run: docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env logs
