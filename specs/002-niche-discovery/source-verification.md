@@ -32,6 +32,12 @@ URL dưới đây là trang chính thức dự kiến cần đọc. URL có th�
 
 S12–S13 không phải nguồn dữ liệu; liệt kê vì đang chờ đọc tài liệu chính thức cùng đợt.
 
+### Lần thử xác minh 2026-11-22 (quyết định D2: S2 Stack Exchange API hoặc S1 Wikipedia)
+
+BLOCKED: mạng môi trường chặn `api.stackexchange.com`, `stackoverflow.com`, `stackapps.com`, `en.wikipedia.org`,
+`foundation.wikimedia.org`, `meta.wikimedia.org`, `www.mediawiki.org` (proxy 403 / không phân giải DNS). Chưa đọc được văn bản nào →
+không ghi hồ sơ, không đổi trạng thái nguồn.
+
 ## 2. Nội dung bắt buộc ghi cho mỗi nguồn (khớp cột `source_policies`)
 
 | Mục | Cột | Ví dụ ghi |

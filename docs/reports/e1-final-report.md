@@ -129,3 +129,26 @@ Không sửa Job Runtime, Scheduler, AIGateway, BudgetService, Tool Registry hay
 | [#50](https://github.com/tuan26/NichePilot/actions/runs/44922598589) | `44b3d9d` | **success** – cả 6 job xanh: backend, frontend, secrets, traceability, smoke, e2e. Job e2e chạy cả bộ E0 (us1) và bộ E1 (discovery) trên stack mới |
 
 Commit chỉ thêm báo cáo sau run #50 sẽ chạy CI lại; mã nguồn không đổi.
+
+## 8. Quyết định của chủ sở hữu (2026-11-22)
+
+| # | Quyết định |
+|---|---|
+| D1 | Nghiệm thu E1 ở trạng thái `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION`. Chưa đánh dấu hoàn tất external verification |
+| D2 | Bắt đầu với Wikipedia (qua SearXNG) hoặc Stack Exchange API, ưu tiên nguồn có API chính thức và rủi ro thấp. Trước khi bật: kiểm tra điều khoản, giới hạn truy cập, yêu cầu attribution; lưu hồ sơ xác minh trên `/sources`. Chỉ bật một nguồn |
+| D3 | Chưa bật API có phí. Chạy `live_sources` + quickstart §3 với AI MOCK trước; sau báo cáo, chủ sở hữu quyết định bật Claude API (ngân sách tối đa $2 cho lượt đầu) |
+| D4 | Đồng ý các bổ sung so với spec (mục 4, rubric §1/§3/§5). Tiếp tục ghi rõ; giữ nguyên nguyên tắc không gộp khi chưa đủ độ tương đồng và không làm mất bằng chứng truy vết |
+| D5 | Chưa duyệt spaCy NER cho production; giữ `NEEDS_REVIEW` cho tới khi có dữ liệu thật |
+| D6 | Giữ `browser-fetcher` tắt; chỉ build khi nguồn thật cần render JavaScript |
+| D7 | Chưa bắt đầu E2; chỉ viết spec E2 sau khi kiểm chứng E1 xong và có báo cáo chi phí/chất lượng |
+| D8 | Chưa tạo PR/merge; tạo PR sau khi kiểm chứng nguồn thật |
+
+### Thực hiện D2 – lần thử 2026-11-22: BLOCKED (mạng môi trường)
+
+- Từ sandbox, proxy của môi trường trả `403 – no rule or network setting allows this host` cho `api.stackexchange.com`,
+  `stackoverflow.com`, `en.wikipedia.org`, `foundation.wikimedia.org`, `meta.wikimedia.org`, `www.mediawiki.org`.
+- Công cụ đọc web cũng không truy cập được các trang điều khoản (`stackoverflow.com`, `stackapps.com` bị chặn; tên miền Wikimedia
+  không phân giải được).
+- Vì vậy **chưa đọc được điều khoản, chưa ghi hồ sơ xác minh, chưa bật nguồn nào**; `pytest -m live_sources` và quickstart §3 chưa chạy.
+  Mọi nguồn vẫn `UNVERIFIED`. Không có dữ liệu giả lập nào được dùng thay thế.
+
