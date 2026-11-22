@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 # internal-interfaces §1.1 – chuỗi bị cấm trong TÊN khóa (sau khi chữ thường và bỏ `-`, `_`, `.`)
 FORBIDDEN_KEY_PARTS = (
@@ -87,6 +87,21 @@ class HttpJsonApiConfig(_AccessPolicy):
     result_mapping: dict[str, str]
     auth_env_var: str | None = None
     auth_header_name: str = Field(default="Authorization", max_length=64)
+    # API kiểu MediaWiki (D2, 2026-11-22): kết quả chỉ có tiêu đề → URL dựng từ mẫu `{title}`;
+    # lỗi trả trong body (HTTP 200)
+    url_template: str | None = Field(default=None, pattern=r"^https://", max_length=500)
+    error_key: str | None = Field(default=None, max_length=64)
+
+    @field_validator("url_template")
+    @classmethod
+    def _url_template(cls, v: str | None) -> str | None:
+        if v is not None:
+            import string
+
+            names = {f for _, f, _, _ in string.Formatter().parse(v) if f}
+            if names != {"title"}:
+                raise ValueError("url_template chỉ được chứa đúng một trường {title}")
+        return v
 
     @field_validator("auth_env_var")
     @classmethod
@@ -98,9 +113,13 @@ class HttpJsonApiConfig(_AccessPolicy):
     @field_validator("result_mapping")
     @classmethod
     def _mapping(cls, v: dict[str, str]) -> dict[str, str]:
-        if "url" not in v:
-            raise ValueError("result_mapping phải có 'url'")
         return v
+
+    @model_validator(mode="after")
+    def _url_source(self) -> HttpJsonApiConfig:
+        if "url" not in self.result_mapping and not self.url_template:
+            raise ValueError("result_mapping phải có 'url' hoặc cấu hình url_template")
+        return self
 
 
 class DatasetConfig(_AccessPolicy):

@@ -38,6 +38,32 @@ BLOCKED: mạng môi trường chặn `api.stackexchange.com`, `stackoverflow.co
 `foundation.wikimedia.org`, `meta.wikimedia.org`, `www.mediawiki.org` (proxy 403 / không phân giải DNS). Chưa đọc được văn bản nào →
 không ghi hồ sơ, không đổi trạng thái nguồn.
 
+### S1 Wikipedia (MediaWiki Action API) – hồ sơ xác minh NHÁP, 2026-11-22 (chưa bật)
+
+Mạng: môi trường riêng `nichepilot` mở `en.wikipedia.org`, `foundation.wikimedia.org`, `www.mediawiki.org` (chủ sở hữu duyệt).
+Văn bản đã đọc (bản wikitext gốc, `action=raw`):
+
+| Văn bản | URL | Nội dung liên quan (trích nguyên văn) |
+|---|---|---|
+| Terms of Use (bản hiện hành, thay bản 2014–2023 từ 2023-06-07) | https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use | §4: cấm "automated uses of the Project Websites that are abusive or disruptive of the services, violate acceptable usage policies where available, or have not been approved by the Wikimedia community"; §7: CC BY-SA 4.0 (và GFDL), "these licenses do allow commercial uses"; ghi nguồn khi tái sử dụng: "Through hyperlink (where possible) or URL to the page or pages that you are reusing"; §12: dùng API phải tuân User-Agent Policy, Robot Policy và API:Etiquette (đưa vào bằng tham chiếu) |
+| User-Agent Policy | https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy | "Scripts should use an informative User-Agent string with contact information, or they may be blocked without notice"; liên hệ là "an email address, a website, or a wiki user"; nên có chữ "bot"; không dùng UA trình duyệt hay UA chung chung |
+| API Usage Guidelines (v1.0, 2024-08-26) | https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_API_Usage_Guidelines | phải: tuân User-Agent policy; "Follow rate limiting requests"; tuân giấy phép khi tái phát hành; robot policy "if your software is automatically consuming content at a large scale". Không được: kết nối đồng thời gây suy giảm dịch vụ, tốc độ cao bất thường, chia nhiều UA để che giấu |
+| API:Etiquette | https://www.mediawiki.org/wiki/API:Etiquette | "There is no hard speed limit on read requests"; "Making your requests in series rather than in parallel"; dùng `maxlag` cho tác vụ không tương tác; lỗi `ratelimited` → tăng thời gian chờ (exponential backoff) |
+| robots.txt | https://en.wikipedia.org/robots.txt | `User-agent: *` → `Disallow: /w/` (trang bài viết `/wiki/` được phép; "Friendly, low-speed bots are welcome viewing article pages"). Truy cập `api.php` được điều chỉnh bởi API Usage Guidelines/API:Etiquette (đã đọc) |
+
+Chưa đọc: **Robot Policy** (wikitech.wikimedia.org – không nằm trong host được mở). Theo API Usage Guidelines, chính sách này áp dụng cho
+tiêu thụ nội dung "at a large scale"; lượt E1 tối đa 300 trang, tuần tự, ≥ 2 s/tên miền.
+
+Điều kiện kỹ thuật trước khi bật (đối chiếu mã):
+- Adapter `http_json_api`: đã bổ sung `url_template` (dựng URL `/wiki/{title}`) và `error_key` (lỗi `maxlag`/`ratelimited` trong body →
+  backoff theo `Retry-After`/lũy thừa, thử lại có giới hạn) – test `test_http_json_api_adapter.py`.
+- Cấu hình dự kiến: `base_url = https://en.wikipedia.org/w/api.php`, `query_template = action=query&list=search&srsearch={query}&format=json&srlimit=10&maxlag=5`,
+  `result_mapping = {items: query.search, title: title, snippet: snippet}`, `url_template = https://en.wikipedia.org/wiki/{title}`,
+  `error_key = error`, `rate_limit_per_minute = 30`.
+- **Còn thiếu: User-Agent có thông tin liên hệ thật** (`DISCOVERY_USER_AGENT`) – UA hiện tại không có email/website → chưa đủ điều kiện bật.
+- Phạm vi sử dụng dự kiến: nghiên cứu nội bộ; lưu trích đoạn ≤ 1000 ký tự đã che PII kèm URL bài viết (ghi nguồn bằng hyperlink); báo cáo có
+  thông báo giấy phép CC BY-SA 4.0 cho trích đoạn Wikipedia; không phân phối lại hàng loạt.
+
 ## 2. Nội dung bắt buộc ghi cho mỗi nguồn (khớp cột `source_policies`)
 
 | Mục | Cột | Ví dụ ghi |
