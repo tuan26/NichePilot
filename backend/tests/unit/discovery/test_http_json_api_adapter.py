@@ -122,3 +122,38 @@ def test_TC_E1_FR006g_04_config_requires_url_or_url_template() -> None:
         validate_source_config("http_json_api", {**CFG, "url_template": None, "result_mapping": {"items": "x"}})
     with pytest.raises(SourceConfigError):
         validate_source_config("http_json_api", {**CFG, "url_template": "https://en.wikipedia.org/wiki/{nope}"})
+
+
+async def test_TC_E1_FR030_05_slow_response_triggers_cooldown_before_next_request() -> None:
+    """Robot Policy (Action API rules): "if your request takes more than 1 second to serve, please wait 5 seconds before making
+    another request" – cấu hình qua `slow_response_s` / `slow_cooldown_s` (mặc định tắt)."""
+    import time
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"query": {"search": [{"title": "Bakery"}]}})
+
+    sleeps: list[float] = []
+    adapter = _adapter(handler, sleeps)
+    clock = {"t": 1000.0}
+    adapter.clock = lambda: clock["t"]  # type: ignore[method-assign]
+    cfg = {**CFG, "slow_response_s": 1.0, "slow_cooldown_s": 5.0}
+    real_get = httpx.AsyncClient.get
+
+    async def slow_get(self: httpx.AsyncClient, *a: Any, **k: Any) -> httpx.Response:
+        resp = await real_get(self, *a, **k)
+        clock["t"] += 1.5  # phản hồi mất 1,5 s
+        return resp
+
+    httpx.AsyncClient.get = slow_get  # type: ignore[method-assign]
+    try:
+        await adapter.query(_policy(cfg), "a", market="US", language="en", max_results=5)
+        await adapter.query(_policy(cfg), "b", market="US", language="en", max_results=5)
+    finally:
+        httpx.AsyncClient.get = real_get  # type: ignore[method-assign]
+    assert any(abs(s - 5.0) < 0.01 for s in sleeps), sleeps  # chờ 5 s trước request kế tiếp
+    fast: list[float] = []
+    plain = _adapter(handler, fast)
+    await plain.query(_policy(), "a", market="US", language="en", max_results=5)
+    await plain.query(_policy(), "b", market="US", language="en", max_results=5)
+    assert fast == []  # không cấu hình → không chờ thêm
+    del time

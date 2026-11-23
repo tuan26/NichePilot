@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -37,6 +38,8 @@ class HttpJsonApiAdapter:
     limiter: RateLimiter = field(default_factory=RateLimiter)
     adapter_type: str = "http_json_api"
     data_origin: Literal["REAL", "MOCK"] = "REAL"
+    clock: Callable[[], float] = time.monotonic
+    _cooldown_until: dict[str, float] = field(default_factory=dict)
 
     async def query(
         self, policy: PolicySnapshot, query: str, *, market: str, language: str, max_results: int
@@ -55,11 +58,18 @@ class HttpJsonApiAdapter:
         async with self.client_factory() as client:
             for _ in range(cfg.max_retries + 2):
                 await self.limiter.wait(policy.source_key, cfg.rate_limit_per_minute)
+                pause = self._cooldown_until.get(policy.source_key, 0.0) - self.clock()
+                if pause > 0:  # phản hồi trước chậm → nghỉ trước request kế tiếp (Robot Policy Wikimedia)
+                    await self.sleep(pause)
+                started = self.clock()
                 try:
                     resp = await client.get(url, headers=headers, timeout=cfg.timeout_s)
                 except (httpx.TimeoutException, httpx.TransportError):
                     last = "NETWORK_ERROR"
                     continue
+                finally:
+                    if cfg.slow_response_s is not None and self.clock() - started > cfg.slow_response_s:
+                        self._cooldown_until[policy.source_key] = self.clock() + cfg.slow_cooldown_s
                 if resp.status_code in (401, 403):
                     return SourceResult("UNAVAILABLE", reason="AUTH_FAILED")
                 if resp.status_code == 429:

@@ -51,16 +51,34 @@ Văn bản đã đọc (bản wikitext gốc, `action=raw`):
 | API:Etiquette | https://www.mediawiki.org/wiki/API:Etiquette | "There is no hard speed limit on read requests"; "Making your requests in series rather than in parallel"; dùng `maxlag` cho tác vụ không tương tác; lỗi `ratelimited` → tăng thời gian chờ (exponential backoff) |
 | robots.txt | https://en.wikipedia.org/robots.txt | `User-agent: *` → `Disallow: /w/` (trang bài viết `/wiki/` được phép; "Friendly, low-speed bots are welcome viewing article pages"). Truy cập `api.php` được điều chỉnh bởi API Usage Guidelines/API:Etiquette (đã đọc) |
 
-Chưa đọc: **Robot Policy** (wikitech.wikimedia.org – không nằm trong host được mở). Theo API Usage Guidelines, chính sách này áp dụng cho
-tiêu thụ nội dung "at a large scale"; lượt E1 tối đa 300 trang, tuần tự, ≥ 2 s/tên miền.
+**Robot Policy** – đã đọc 2026-11-23 (chủ sở hữu duyệt mở `wikitech.wikimedia.org` chỉ để đọc):
+https://wikitech.wikimedia.org/wiki/Robot_policy (wikitext `action=raw`). Đối chiếu với mã:
+
+| Quy định (trích) | Hiện trạng NichePilot | Kết luận |
+|---|---|---|
+| "Consider if dumps are more efficient than live requests" | Lượt E1 tìm kiếm theo ngách, ≤ 300 trang/lượt – dump toàn bộ không phù hợp quy mô | Ghi nhận; chủ sở hữu có thể cân nhắc lại khi mở rộng |
+| "Accurately identify your User-Agent" theo User-Agent Policy (có liên hệ) | `DISCOVERY_USER_AGENT` cấu hình được nhưng **chưa có liên hệ thật** | **THIẾU – chặn việc bật** |
+| "avoid user-agent impersonation … Provide a URL [CIDRs] … or Authenticate" khi "a significant number of requests" | Không giả UA trình duyệt; quy mô nhỏ, không xác thực | Đáp ứng ở quy mô hiện tại |
+| "Honor Robots.txt. Honor every directive in our robots.txt file." | `page.fetch` kiểm tra robots trước mỗi trang `/wiki/…` (được phép). `source.query` gọi `api.php` **không** qua robots | **MÂU THUẪN CHƯA GIẢI QUYẾT**: robots.txt có `User-agent: *` → `Disallow: /w/` và `Disallow: /api/` (chỉ ngoại lệ `action=mobileview`, `load.php`, tài liệu REST, sitemap), trong khi cùng Robot Policy có mục "Action API rules" hướng dẫn dùng `api.php`. Cần chủ sở hữu quyết định cách hiểu hoặc hỏi Wikimedia (`bot-traffic@wikimedia.org` – địa chỉ trong chính sách) |
+| "Default to gzip" | httpx gửi `Accept-Encoding: gzip, deflate` mặc định | Đáp ứng |
+| "When we reply with a 429 … respect the delay specified by the Retry-After" | `page.fetch`: chờ `Retry-After`, thử lại ≤ 2, Retry-After dài → bỏ tên miền. `http_json_api`: HTTP 429 → dừng, không gửi lại | Đáp ứng |
+| Website: "/wiki/Article_name URLs, with no query parameters"; không cookie/không JavaScript; "maximum concurrent number of requests is fewer than 10 … average requests per second below 20"; không `oldId`/`curid` | URL dựng `https://en.wikipedia.org/wiki/{title}`, không tham số; HttpPageFetcher tạo client mới mỗi trang (không giữ cookie), không chạy JS (browser-fetcher tắt); tuần tự, ≥ 2 s/tên miền (≤ 0,5 req/s) | Đáp ứng |
+| Action API: "keep the concurrency of your requests to 1 at a time, and below 5 requests per second" (không xác thực) | Tuần tự; cấu hình dự kiến `rate_limit_per_minute = 30` (0,5 req/s) | Đáp ứng |
+| Action API: "Avoid using the action API for HTML content" | `api.php` chỉ dùng tìm kiếm; nội dung lấy qua `/wiki/` | Đáp ứng |
+| Action API: "if your request takes more than 1 second to serve, please wait 5 seconds before making another request" | **Trước đây thiếu** → đã bổ sung `slow_response_s`/`slow_cooldown_s` trong `http_json_api` (test `TC_E1_FR030_05`); cấu hình dự kiến `slow_response_s = 1`, `slow_cooldown_s = 5` | Đáp ứng sau sửa |
+| "Where supported, use batch requests"; `maxlag` (API:Etiquette) | Một request tìm kiếm/truy vấn; `maxlag=5` trong `query_template`; lỗi `maxlag`/`ratelimited` → backoff | Đáp ứng |
+| Giới hạn chung toàn Wikimedia; khối lượng lớn/thương mại → Wikimedia Enterprise | Quy mô nghiên cứu nhỏ | Ghi nhận; nếu tăng quy mô cần xem lại |
 
 Điều kiện kỹ thuật trước khi bật (đối chiếu mã):
 - Adapter `http_json_api`: đã bổ sung `url_template` (dựng URL `/wiki/{title}`) và `error_key` (lỗi `maxlag`/`ratelimited` trong body →
   backoff theo `Retry-After`/lũy thừa, thử lại có giới hạn) – test `test_http_json_api_adapter.py`.
 - Cấu hình dự kiến: `base_url = https://en.wikipedia.org/w/api.php`, `query_template = action=query&list=search&srsearch={query}&format=json&srlimit=10&maxlag=5`,
   `result_mapping = {items: query.search, title: title, snippet: snippet}`, `url_template = https://en.wikipedia.org/wiki/{title}`,
-  `error_key = error`, `rate_limit_per_minute = 30`.
-- **Còn thiếu: User-Agent có thông tin liên hệ thật** (`DISCOVERY_USER_AGENT`) – UA hiện tại không có email/website → chưa đủ điều kiện bật.
+  `error_key = error`, `rate_limit_per_minute = 30`, `slow_response_s = 1`, `slow_cooldown_s = 5`.
+- **Điều kiện còn thiếu trước khi bật (chủ sở hữu quyết định 2026-11-23: giữ `UNVERIFIED`, không ghi `/sources`, không live request):**
+  1. User-Agent có liên hệ thật (email hoặc website riêng cho bot) – chủ sở hữu chưa cung cấp; không dùng email cá nhân, không placeholder.
+  2. Giải quyết mâu thuẫn robots.txt (`Disallow: /w/`, `/api/`) với việc dùng Action API để tìm kiếm.
+  3. Chủ sở hữu xác nhận bật nguồn.
 - Phạm vi sử dụng dự kiến: nghiên cứu nội bộ; lưu trích đoạn ≤ 1000 ký tự đã che PII kèm URL bài viết (ghi nguồn bằng hyperlink); báo cáo có
   thông báo giấy phép CC BY-SA 4.0 cho trích đoạn Wikipedia; không phân phối lại hàng loạt.
 

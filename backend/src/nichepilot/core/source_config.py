@@ -91,6 +91,10 @@ class HttpJsonApiConfig(_AccessPolicy):
     # lỗi trả trong body (HTTP 200)
     url_template: str | None = Field(default=None, pattern=r"^https://", max_length=500)
     error_key: str | None = Field(default=None, max_length=64)
+    # Robot Policy Wikimedia (Action API): phản hồi > slow_response_s → chờ slow_cooldown_s trước request kế tiếp
+    # (mặc định tắt)
+    slow_response_s: float | None = Field(default=None, gt=0, le=60)
+    slow_cooldown_s: float = Field(default=5.0, ge=0, le=600)
 
     @field_validator("url_template")
     @classmethod
