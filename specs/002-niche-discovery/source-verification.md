@@ -38,7 +38,24 @@ BLOCKED: mạng môi trường chặn `api.stackexchange.com`, `stackoverflow.co
 `foundation.wikimedia.org`, `meta.wikimedia.org`, `www.mediawiki.org` (proxy 403 / không phân giải DNS). Chưa đọc được văn bản nào →
 không ghi hồ sơ, không đổi trạng thái nguồn.
 
-### S1 Wikipedia (MediaWiki Action API) – hồ sơ xác minh NHÁP, 2026-11-22 (chưa bật)
+### S1 Wikipedia (MediaWiki Action API) – hồ sơ xác minh NHÁP (trạng thái: `UNVERIFIED`, chưa bật)
+
+**Tóm tắt trạng thái (cập nhật 2026-11-23):**
+- Trạng thái: **`UNVERIFIED`**. Không ghi `/sources`, không bật, không live request (chủ sở hữu quyết định 2026-11-23).
+- Mạng môi trường `nichepilot`: `en.wikipedia.org`, `foundation.wikimedia.org`, `www.mediawiki.org`, `wikitech.wikimedia.org` (chỉ để đọc
+  chính sách); không mở thêm domain; Stack Exchange vẫn bị chặn.
+- Mã đã điều chỉnh theo chính sách Wikimedia: commit `4b9d315` (`url_template`, lỗi `maxlag`/`ratelimited` trong body + backoff) và
+  `c47a08d` (nghỉ 5 s sau phản hồi > 1 s). Kiểm tra: 79 test discovery unit PASS, ruff/mypy PASS, secret scan không finding mới;
+  GitHub CI run #53 (`4b9d315`) và #54 (`c47a08d`) **success**.
+- **Hai điều kiện còn thiếu:**
+  1. Contact thật cho User-Agent (email hoặc website riêng cho bot) – chủ sở hữu chưa cung cấp; không dùng email cá nhân, không
+     placeholder.
+  2. Xác nhận của Wikimedia về việc dùng `/w/api.php` (tìm kiếm) khi robots.txt có `Disallow: /w/` và `Disallow: /api/` – chủ sở hữu chọn
+     hỏi Wikimedia (phương án b); **không** tự diễn giải mục Action API của Robot Policy là ngoại lệ. Bản nháp email (chưa gửi):
+     `docs/operations/drafts/wikimedia-bot-traffic-inquiry.md`.
+- Chỉ bật khi có đủ (1), (2) và chủ sở hữu xác nhận bật nguồn.
+
+Chi tiết (2026-11-22/23):
 
 Mạng: môi trường riêng `nichepilot` mở `en.wikipedia.org`, `foundation.wikimedia.org`, `www.mediawiki.org` (chủ sở hữu duyệt).
 Văn bản đã đọc (bản wikitext gốc, `action=raw`):
