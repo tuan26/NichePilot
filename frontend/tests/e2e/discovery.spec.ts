@@ -77,3 +77,50 @@ test('E1: tạo lượt → xếp hạng → nguồn → VI/EN', async ({ page }
   await expect(page.getByRole('heading', { name: 'Niche ranking' })).toBeVisible()
   await expect(page.getByText('not a revenue forecast')).toBeVisible()
 })
+
+// Ngách DEMO gắn MOCK do `python -m nichepilot.jobs.discovery_demo_seed` nạp trước khi chạy (chỉ dev/test – chủ sở hữu duyệt
+// 2026-11-25). Không phải dữ liệu nghiên cứu; ẩn khỏi xếp hạng mặc định; không liên quan SC-013.
+test('E1 MOCK: xếp hạng (hiện MOCK) → chi tiết → ghi quyết định → xóa bằng chứng', async ({ page }) => {
+  expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
+  await page.goto('/login')
+  await page.getByLabel('Tên đăng nhập').fill(USER)
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page.getByRole('heading', { name: 'Trạng thái hệ thống' })).toBeVisible()
+
+  await page.goto('/niches')
+  await expect(page.getByText('Chưa có ngách nào trong danh sách này.')).toBeVisible() // MOCK ẩn mặc định
+  await page.getByLabel('Hiện dữ liệu giả lập (MOCK)').check()
+  const row = page.getByTestId('ranking-row').filter({ hasText: '[MOCK DEMO]' })
+  await expect(row).toBeVisible()
+  await expect(row.getByTestId('opportunity')).toHaveText('60.71')
+  await expect(row.getByTestId('mock-badge')).toBeVisible()
+  await row.getByRole('link').click()
+
+  // Chi tiết: nhãn MOCK, lý do chấm điểm, pain point, bằng chứng + nguồn
+  await expect(page.getByRole('heading', { name: /\[MOCK DEMO\]/ })).toBeVisible()
+  await expect(page.getByTestId('scoring')).toContainText('60.71')
+  await expect(page.getByTestId('evidence-status')).toHaveText('Đủ bằng chứng')
+  await expect(page.getByTestId('evidence-item')).toHaveCount(2)
+  await expect(page.getByText('[MOCK DEMO] Ingredients run out without warning')).toBeVisible()
+
+  // Ghi quyết định (bắt buộc lý do) – đề xuất AI giữ nguyên
+  const decision = page.getByTestId('decision')
+  await decision.getByLabel('Quyết định').selectOption('WATCH')
+  await decision.getByLabel('Lý do (bắt buộc)').fill('E2E: theo dõi thêm (dữ liệu MOCK)')
+  await decision.getByRole('button', { name: 'Ghi quyết định' }).click()
+  await expect(decision).toContainText('Theo dõi')
+  await expect(page.getByTestId('scoring')).toContainText('Tiếp tục') // đề xuất AI (MOCK) không bị ghi đè
+
+  // Xóa một bằng chứng (có xác nhận) → còn 1 nguồn → ngách tính lại thành chưa đủ bằng chứng
+  await page.getByTestId('evidence-item').first().getByRole('button', { name: 'Xóa bằng chứng' }).click()
+  const confirm = page.getByTestId('erase-confirm')
+  await expect(confirm).toContainText('không thể hoàn tác')
+  await confirm.getByLabel('Lý do (bắt buộc)').fill('E2E erase test (MOCK)')
+  await confirm.getByRole('button', { name: 'Xác nhận xóa' }).click()
+  await expect(page.getByTestId('evidence-item')).toHaveCount(1)
+  await expect(page.getByTestId('evidence-status')).toHaveText('Chưa đủ bằng chứng')
+
+  await page.getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByTestId('evidence-status')).toHaveText('Insufficient evidence')
+})
