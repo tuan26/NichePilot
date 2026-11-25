@@ -152,3 +152,15 @@ Commit chỉ thêm báo cáo sau run #50 sẽ chạy CI lại; mã nguồn khôn
 - Vì vậy **chưa đọc được điều khoản, chưa ghi hồ sơ xác minh, chưa bật nguồn nào**; `pytest -m live_sources` và quickstart §3 chưa chạy.
   Mọi nguồn vẫn `UNVERIFIED`. Không có dữ liệu giả lập nào được dùng thay thế.
 
+## 9. Cập nhật 2026-11-25 (quyết định Q5–Q12)
+
+- **E2E MOCK** (được duyệt cho development/test): lệnh `python -m nichepilot.jobs.discovery_demo_seed` nạp 1 ngách `[MOCK DEMO]`
+  (`data_origin = MOCK`, tên miền `.example`) qua pipeline chấm điểm thật; từ chối khi `APP_ENV=production`; idempotent; lỗi giữa
+  chừng không để lại dữ liệu dở dang. Test tích hợp `TC_E1_FR026_05..07` PASS. Playwright bộ E1 (2 test: luồng tạo lượt/xếp hạng/
+  nguồn/VI-EN và luồng MOCK xếp hạng → chi tiết → quyết định WATCH → xóa bằng chứng → EN) PASS trên stack Docker cục bộ
+  (`DISCOVERY_SOURCE_MODE=mock`, MockAIProvider, không gọi API có phí). CI chạy lệnh seed trước bộ E2E E1.
+  Dữ liệu MOCK bị ẩn mặc định, không xuất hiện trong báo cáo nghiên cứu, không dùng cho SC-013 (giữ `BLOCKED`).
+- **Nguồn thay thế (Q5)**: xem `specs/002-niche-discovery/alternative-sources-research.md` – chưa nguồn nào `ALLOWED`.
+- **S1 Wikipedia**: giữ `UNVERIFIED`; thư nháp chưa gửi.
+- Q6 Claude API tắt; Q7 spaCy chưa duyệt; Q8 browser-fetcher tắt; Q10 chưa E2; Q11–Q12 hoãn.
+- Trạng thái E0/E1 giữ `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION` (không phải `PRODUCTION_VERIFIED`).

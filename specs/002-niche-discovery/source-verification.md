@@ -99,6 +99,12 @@ https://wikitech.wikimedia.org/wiki/Robot_policy (wikitext `action=raw`). Đối
 - Phạm vi sử dụng dự kiến: nghiên cứu nội bộ; lưu trích đoạn ≤ 1000 ký tự đã che PII kèm URL bài viết (ghi nguồn bằng hyperlink); báo cáo có
   thông báo giấy phép CC BY-SA 4.0 cho trích đoạn Wikipedia; không phân phối lại hàng loạt.
 
+### Nghiên cứu nguồn thay thế (Q5, 2026-11-25)
+
+Đánh giá S2 Stack Exchange, S3 Hacker News và nguồn bổ sung (GitHub Search API, Reddit, Mastodon/Lemmy) ở
+[`alternative-sources-research.md`](alternative-sources-research.md). Kết luận: chưa nguồn nào đủ điều kiện `ALLOWED`; tất cả giữ
+`UNVERIFIED`; danh sách tên miền tối thiểu cần mở (chỉ đọc điều khoản) đang chờ chủ sở hữu duyệt.
+
 ## 2. Nội dung bắt buộc ghi cho mỗi nguồn (khớp cột `source_policies`)
 
 | Mục | Cột | Ví dụ ghi |
