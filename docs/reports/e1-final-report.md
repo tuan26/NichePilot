@@ -105,7 +105,7 @@ Không sửa Job Runtime, Scheduler, AIGateway, BudgetService, Tool Registry hay
 
 - **SC-013 / quickstart §3 – BLOCKED:** chưa có nguồn ALLOWED.
 - **API Claude/OpenAI thật – NOT_TESTED.**
-- **E2E màn hình chi tiết + ghi quyết định – NOT_TESTED:** MockAIProvider trả 0 ứng viên nên không có ngách để mở. Đã được kiểm thử bằng contract test và vitest.
+- **E2E màn hình chi tiết + ghi quyết định:** ban đầu NOT_TESTED (MockAIProvider trả 0 ứng viên). Từ 2026-11-25 đã kiểm bằng ngách DEMO gắn `MOCK` (CI #56 PASS) – không phải dữ liệu thật (xem §9).
 - **Chưa kiểm trên stack thật – NOT_TESTED:**
   - `docker compose kill worker`.
   - Dừng PostgreSQL 20 s.
@@ -164,3 +164,5 @@ Commit chỉ thêm báo cáo sau run #50 sẽ chạy CI lại; mã nguồn khôn
 - **S1 Wikipedia**: giữ `UNVERIFIED`; thư nháp chưa gửi.
 - Q6 Claude API tắt; Q7 spaCy chưa duyệt; Q8 browser-fetcher tắt; Q10 chưa E2; Q11–Q12 hoãn.
 - Trạng thái E0/E1 giữ `IMPLEMENTATION_COMPLETE / PENDING_EXTERNAL_VERIFICATION` (không phải `PRODUCTION_VERIFIED`).
+- CI #56 (`648166a`) và #57 (`8125501`): success. Nhánh `main` tạo tại `8125501` (phương án B); rà soát baseline ở
+  `docs/reports/baseline-review-e0-e1.md`.
