@@ -46,12 +46,14 @@ không triển khai, có test xác nhận không có tích hợp.
 | Frontend `lint`, `typecheck`, `test` | PASS – 36/36 (E3: 6 test mới) |
 | Truy vết `--strict` | E0 58/58, E1 59/59, E2 42/42, **E3 31/31** FR Must; SC-008 E3 `LIVE_ONLY` |
 | Secret scan (`check_secrets.py`) | không có finding mới ngoài baseline |
-| Playwright E2E (thêm test E3) | chạy trong CI – xem §4 |
+| Playwright E2E | 4/4 PASS trong CI #85 (không chạy local) |
 | `TC_E3_SC008_01` (nguồn + AI thật) | **BLOCKED** – không có nguồn `ALLOWED`, không gọi AI thật; KHÔNG tính là PASS |
 
 ## 4. CI
 
-CI #84 (`61c4987`): traceability, secrets, frontend PASS; backend/smoke/e2e – xem cập nhật cuối báo cáo (§9).
+CI #84 (`61c4987`, mã E3) và CI #85 (`f294ed7`, + tài liệu): **6/6 job success** (backend, frontend, secrets, traceability, smoke, e2e).
+Playwright trong CI: 4/4 PASS, gồm test mới "E3 MOCK: ngách → keyword (hiện MOCK) → cluster → chỉ số UNKNOWN → quyết định → EN";
+`keywords_demo_seed` trong CI: `CREATED`, 12 keyword, 6 cluster (MOCK).
 
 ## 5. Thay đổi kiến trúc / điểm chạm E0–E2 (đều là bổ sung)
 
@@ -87,7 +89,3 @@ cấu hình mạng, không dùng Claude Pro/Claude Code CLI làm backend, không
 2. Rà soát ngưỡng rubric keyword mặc định (§7).
 3. Các đề xuất đang chờ (không làm gì cho tới khi duyệt): Product Rubric v2 bản 2; phương án PR bản 2. Khi phương án PR được duyệt: mở PR
    cho E3 với head `feature/e3-keyword-audience` (base theo phương án được chọn). Claude không merge, không force-push.
-
-## 9. Cập nhật CI
-
-(điền sau khi CI #84 hoàn tất)
