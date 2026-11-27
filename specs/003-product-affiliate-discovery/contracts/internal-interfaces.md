@@ -4,7 +4,8 @@
 
 Được import: `modules.evidence` (EvidenceService), `modules.audit`, `modules.settings`, và **API công khai chỉ đọc** của
 `modules.discovery` (`fingerprint`, `risk`, `access.DomainAccessService`, `sources.policy.SourcePolicyService`, model đọc `Niche`,
-`PainPoint`, `BuyerPersona`). Hợp đồng import-linter mới: `modules.discovery` và module E0 **không** import `modules.products`.
+`PainPoint`, `BuyerPersona`). Model ORM E1 (`Niche`, `PainPoint`, `BuyerPersona`) là interface công khai **chỉ đọc** cho E2 – E2 không bao giờ ghi bảng E1
+(kiểm bởi TC_E2_FR034_01). Hợp đồng import-linter mới: `modules.discovery` và module E0 **không** import `modules.products`.
 
 | File | Trách nhiệm |
 |---|---|

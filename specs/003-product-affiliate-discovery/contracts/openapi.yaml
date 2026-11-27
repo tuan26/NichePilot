@@ -72,7 +72,8 @@ paths:
   /api/v1/niches/{niche_id}/products:
     get:
       tags: [products]
-      summary: Danh sách sản phẩm của ngách (màn hình 1, FR-032) – tính lại điểm khi bằng chứng đổi (R-06)
+      summary: Danh sách sản phẩm của ngách (màn hình 1, FR-032)
+      description: GET có thể ghi `product_evaluations` mới khi tập bằng chứng ACTIVE đã đổi (tính lại xác định, idempotent, không AI – R-06).
       parameters:
         - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: list, in: query, schema: { type: string, enum: [ranked, needs_research], default: ranked } }
