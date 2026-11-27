@@ -345,3 +345,70 @@ async def evaluate_pair(
         },
     )
     return EvaluationOutcome(eval_id, True, opp.opportunity, conf, opp.coverage, opp.scoring_status, status)
+
+
+async def stale_pairs(session: AsyncSession, pair_ids: Sequence[uuid.UUID]) -> list[uuid.UUID]:
+    """Các cặp có đánh giá gần nhất KHÔNG khớp tập bằng chứng ACTIVE/trọng số/mức AI hiện tại (R-06) – tính theo lô
+    (vài truy
+    vấn cho cả danh sách, không theo từng cặp)."""
+    if not pair_ids:
+        return []
+    ids = list(pair_ids)
+    w = await weights_mod.active(session)
+    pairs = (
+        await session.execute(
+            text("SELECT id, product_id, ai_levels FROM product_niches WHERE id = ANY(:ids)"), {"ids": ids}
+        )
+    ).all()
+    products = list({r[1] for r in pairs})
+    ev: dict[Any, set[str]] = {}
+    for prod, eid in (
+        await session.execute(
+            text(
+                "SELECT subject_id, id FROM research_evidence WHERE subject_type = 'product' AND subject_id = ANY(:p)"
+                " AND lifecycle_status = 'ACTIVE' AND value IS NOT NULL"
+            ),
+            {"p": products},
+        )
+    ).all():
+        ev.setdefault(prod, set()).add(str(eid))
+    for prod, eid in (
+        await session.execute(
+            text(
+                "SELECT pp.product_id, e.id FROM product_programs pp JOIN research_evidence e"
+                " ON e.subject_type = 'affiliate_program' AND e.subject_id = pp.program_id"
+                " AND e.lifecycle_status = 'ACTIVE' AND e.value IS NOT NULL WHERE pp.product_id = ANY(:p)"
+            ),
+            {"p": products},
+        )
+    ).all():
+        ev.setdefault(prod, set()).add(str(eid))
+    links: dict[Any, set[str]] = {}
+    for pair, eid in (
+        await session.execute(
+            text(
+                "SELECT l.product_niche_id, l.evidence_id FROM product_pain_point_links l JOIN research_evidence e"
+                " ON e.id = l.evidence_id AND e.lifecycle_status = 'ACTIVE' WHERE l.product_niche_id = ANY(:ids)"
+            ),
+            {"ids": ids},
+        )
+    ).all():
+        links.setdefault(pair, set()).add(str(eid))
+    latest: dict[Any, Any] = dict(
+        (
+            await session.execute(
+                text(
+                    "SELECT DISTINCT ON (product_niche_id) product_niche_id, evidence_fingerprint FROM"
+                    " product_evaluations"
+                    " WHERE product_niche_id = ANY(:ids) ORDER BY product_niche_id, created_at DESC, id DESC"
+                ),
+                {"ids": ids},
+            )
+        ).all()
+    )
+    out: list[uuid.UUID] = []
+    for pair, prod, levels in pairs:
+        fp = _fingerprint([*ev.get(prod, set()), *links.get(pair, set())], w.id, dict(levels or {}))
+        if latest.get(pair) != fp:
+            out.append(pair)
+    return out

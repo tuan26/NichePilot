@@ -92,7 +92,24 @@ def _value_key(key: str, value: dict[str, Any]) -> str:
     return _identity(key, value) if key == "feature" else _canon(value)
 
 
-def _resolve_single(key: str, rows: Sequence[AttrEvidence]) -> ResolvedAttribute:
+def _latest_per_url(rows: Sequence[AttrEvidence]) -> list[AttrEvidence]:
+    """Cùng một URL được đọc nhiều lần (vd. kiểm tra lại điều khoản – FR-040): giá trị lần đọc mới nhất thay thế giá
+    trị cũ,
+    không bị coi là mâu thuẫn. Bằng chứng không có URL giữ nguyên."""
+    latest: dict[str, AttrEvidence] = {}
+    out: list[AttrEvidence] = []
+    for r in rows:
+        if not r.source_url:
+            out.append(r)
+            continue
+        cur = latest.get(r.source_url)
+        if cur is None or (r.collected_at and cur.collected_at and r.collected_at > cur.collected_at):
+            latest[r.source_url] = r
+    return out + list(latest.values())
+
+
+def _resolve_single(key: str, all_rows: Sequence[AttrEvidence]) -> ResolvedAttribute:
+    rows = _latest_per_url(all_rows)
     verified = {_value_key(key, r.value): r.value for r in rows if r.status == "VERIFIED"}
     inferred = {_value_key(key, r.value): r.value for r in rows if r.status != "VERIFIED"}
     if verified:

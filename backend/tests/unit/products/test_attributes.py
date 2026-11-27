@@ -49,3 +49,20 @@ def test_TC_E2_FR008_04_unknown_without_evidence_and_multi_values() -> None:
         "price", [ev("price", {"plan": "Micro", "amount": 19}), ev("price", {"plan": "micro", "amount": 29})]
     )
     assert prices.status == "CONFLICTING"
+
+
+def test_TC_E2_FR040_00_latest_read_of_same_url_supersedes() -> None:
+    from dataclasses import replace
+    from datetime import UTC, datetime, timedelta
+
+    t0 = datetime(2026, 11, 1, tzinfo=UTC)
+    old = replace(
+        ev("commission", {"kind": "percent", "value": 30}), source_url="https://v.example/terms", collected_at=t0
+    )
+    new = replace(
+        ev("commission", {"kind": "percent", "value": 20}),
+        source_url="https://v.example/terms",
+        collected_at=t0 + timedelta(days=7),
+    )
+    a = resolve("commission", [old, new])
+    assert (a.status, a.value) == ("VERIFIED", {"kind": "percent", "value": 20})
