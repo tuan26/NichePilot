@@ -39,6 +39,9 @@ Toàn bộ kiểm thử dùng nguồn giả lập + AI giả lập (`MOCK`); ch�
 | ruff, ruff format, mypy (131 file), lint-imports (5 hợp đồng), check_secrets | PASS |
 | Truy vết `--strict`: E2 42/42 FR mức Must có test tự động | PASS (SC-008 `LIVE_ONLY`) |
 
+**GitHub CI** run #73 (commit `162b5da`): 6/6 job success – backend, frontend, secrets, traceability, smoke, e2e (gồm Playwright E2 MOCK).
+Các run #69/#71 của commit trung gian thất bại do 3 test danh sách E0/E1 chưa bổ sung E2 – đã sửa ở `162b5da`.
+
 ## 4. Thay đổi kiến trúc / điểm chạm E0–E1 (đều là bổ sung)
 
 | # | Điểm chạm | Ghi chú |
