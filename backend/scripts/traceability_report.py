@@ -7,7 +7,7 @@
 - Tách test tự động (mock / không gọi API thật) và test live (gọi API thật, chỉ chạy thủ công).
 - Mã có hậu tố chữ không phải bullet riêng (ví dụ `TC_FR018f_04`) được tính cho mục (f) của FR-018.
 - `--strict`: thoát mã 1 nếu có FR mức Must chưa có test tự động nào.
-- Nhiều spec (E1, T006): spec 001 dùng `TC_FR…/TC_SC…`, spec 002 dùng `TC_E1_FR…/TC_E1_SC…`
+- Nhiều spec (E1, T006): spec 001 dùng `TC_FR…/TC_SC…`, spec 002 dùng `TC_E1_FR…/TC_E1_SC…`, spec 003 dùng `TC_E2_…`
   (không lẫn mã giữa các spec).
   Yêu cầu chỉ được tham chiếu bởi task chưa hoàn thành trong tasks.md cạnh spec → `PENDING` (chưa bắt buộc có test);
   khi một task tham chiếu yêu cầu được đánh dấu [X], yêu cầu đó phải có test tự động.
@@ -28,8 +28,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SPEC = ROOT / "specs" / "001-foundation-ai-infrastructure" / "spec.md"
 E1_SPEC = ROOT / "specs" / "002-niche-discovery" / "spec.md"
+E2_SPEC = ROOT / "specs" / "003-product-affiliate-discovery" / "spec.md"
 DEFAULT_TEST_DIRS = [ROOT / "backend" / "tests", ROOT / "frontend" / "tests", ROOT / "deploy" / "tests"]
-REQ_LINE = re.compile(r"^- \*\*((?:FR|SC)-\d+[a-z]?)\*\*:\s*(.*)$")
+# chấp nhận chú thích mức ưu tiên sau mã, vd. `**FR-034** *(Should)*:` (sửa nợ truy vết FR-034 E1 – 2026-11-27)
+REQ_LINE = re.compile(r"^- \*\*((?:FR|SC)-\d+[a-z]?)\*\*(?:\s*\*\([^)]*\)\*)?:\s*(.*)$")
 TC_RE = re.compile(r"TC[_-](FR|SC)-?(\d{3}[a-z]?)[_-]([0-9A-Za-z]+)")
 LIVE_DIRS = {"live", "live_sources"}
 TASK_LINE = re.compile(r"^- \[( |x|X)\] T\d{3}")
@@ -186,7 +188,7 @@ def render(
     return "\n".join(lines) + "\n"
 
 
-DEFAULT_PROFILES = [Profile(DEFAULT_SPEC, "", "E0"), Profile(E1_SPEC, "E1", "E1")]
+DEFAULT_PROFILES = [Profile(DEFAULT_SPEC, "", "E0"), Profile(E1_SPEC, "E1", "E1"), Profile(E2_SPEC, "E2", "E2")]
 
 
 def main(argv: list[str] | None = None) -> int:

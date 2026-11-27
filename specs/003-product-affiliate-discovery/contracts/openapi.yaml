@@ -41,8 +41,8 @@ paths:
                   job_id: { type: string, format: uuid }
                   run_id: { type: string, format: uuid }
         "404": { description: "`NICHE_NOT_FOUND`" }
-        "409": { description: "`NICHE_NOT_ELIGIBLE` (INSUFFICIENT_EVIDENCE / REJECTED / HIDDEN / đã gộp) hoặc `PRODUCT_RUN_ACTIVE`" }
-        "422": { description: "`NO_COMPLIANT_SEARCH_SOURCE`, `BUDGET_NOT_CONFIGURED`, `VALIDATION_ERROR`" }
+        "409": { description: "`NICHE_NOT_ELIGIBLE` (INSUFFICIENT_EVIDENCE / REJECTED / HIDDEN / đã gộp), `PRODUCT_RUN_ACTIVE`, `NO_COMPLIANT_SEARCH_SOURCE` (mã E1 – 409)" }
+        "422": { description: "`BUDGET_NOT_CONFIGURED`, `VALIDATION_ERROR`" }
         "503": { $ref: "#/components/responses/LedgerNotApplied" }
     get:
       tags: [products]

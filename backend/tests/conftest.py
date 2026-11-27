@@ -108,6 +108,12 @@ async def engine(migrated_db: str) -> AsyncIterator[AsyncEngine]:
     await eng.dispose()
 
 
+# E2 – bảng nghiệp vụ theo thứ tự khóa ngoại (con trước cha). product_evaluations bất biến (trigger) → dọn riêng.
+E2_TABLES = [
+    "product_pain_point_links",
+    "program_terms_versions",
+    "product_programs",
+]
 # E1 – bảng nghiệp vụ theo thứ tự khóa ngoại (con trước cha). niche_evaluations bất biến (trigger) → dọn riêng.
 E1_TABLES = [
     "niche_run_links",
@@ -147,6 +153,21 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as conn:
         result = await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
         existing = set(result.scalars())  # đọc trọn một lần
+        if "products" in existing:
+            for table in E2_TABLES:
+                await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số
+            await conn.execute(
+                text("ALTER TABLE product_evaluations DISABLE TRIGGER trg_product_evaluations_immutable")
+            )
+            await conn.execute(text("DELETE FROM product_evaluations"))
+            await conn.execute(text("ALTER TABLE product_evaluations ENABLE TRIGGER trg_product_evaluations_immutable"))
+            await conn.execute(text("DELETE FROM product_niches"))
+            await conn.execute(text("DELETE FROM affiliate_programs"))
+            await conn.execute(text("UPDATE products SET merged_into_id = NULL"))
+            await conn.execute(text("DELETE FROM products"))
+            await conn.execute(text("DELETE FROM product_runs"))
+            await conn.execute(text("DELETE FROM product_scoring_weights WHERE version > 1"))
+            await conn.execute(text("UPDATE product_scoring_weights SET is_active = true, created_by = NULL"))
         if "niches" in existing:
             for table in E1_TABLES:
                 await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số

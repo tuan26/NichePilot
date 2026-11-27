@@ -55,6 +55,7 @@ Migration: `0011_products` (bảng), `0012_products_seed` (trọng số v1, Mode
 | persona_match | TEXT | `MATCH`, `PARTIAL`, `NO_MATCH`, `UNKNOWN` |
 | ai_recommendation | TEXT | `SELECT`, `REJECT`, `UNKNOWN` |
 | ai_recommendation_reason | TEXT NULL | |
+| ai_levels | JSONB | mức AI hợp lệ gần nhất (`fit`, `price_fit`, `third_party_mentions`) – dùng khi tính lại không AI (R-06) |
 | decision_status | TEXT | `CANDIDATE`, `SELECTED`, `WATCH`, `REJECTED` |
 | decision_reason | TEXT NULL | bắt buộc khi ≠ CANDIDATE |
 | decided_by / decided_at | UUID FK users / TIMESTAMPTZ NULL | |

@@ -42,3 +42,17 @@ source_modules =
     nichepilot.modules.settings
 forbidden_modules =
     nichepilot.modules.discovery
+
+# E2 (T003): products dùng API công khai chỉ đọc của discovery; discovery và module E0 không phụ thuộc ngược vào products.
+[importlinter:contract:no-reverse-dep-on-products]
+name = Module E0/E1 không import module products (E2)
+type = forbidden
+source_modules =
+    nichepilot.modules.identity
+    nichepilot.modules.evidence
+    nichepilot.modules.audit
+    nichepilot.modules.settings
+    nichepilot.modules.discovery
+forbidden_modules =
+    nichepilot.modules.products
+
