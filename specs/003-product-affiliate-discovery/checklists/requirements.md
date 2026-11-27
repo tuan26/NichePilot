@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain – còn 2 (FR-001 ngách đủ điều kiện, FR-027 tiêu chí/trọng số sản phẩm), chờ chủ sở hữu
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -35,3 +35,4 @@
 - Nhắc tới "AI Gateway", "job của E0", "adapter nguồn" là tham chiếu khả năng đã có của hệ thống (ràng buộc tái sử dụng do chủ sở hữu đặt),
   không phải chi tiết công nghệ.
 - SC-008 phụ thuộc nguồn `ALLOWED` và AI thật – `BLOCKED` như SC-013 của E1.
+- Lần kiểm 2 (2026-11-27, sau clarify): 16/16 đạt.

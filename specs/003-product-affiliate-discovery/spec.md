@@ -14,6 +14,38 @@ BR-04, BR-08, AC-07, AC-08, AC-09, AC-19. Mọi nguồn qua adapter, chỉ ngu�
 (data_origin=MOCK); không tự đăng ký affiliate; không bịa hoa hồng/cookie/giá (UNKNOWN khi không xác minh được); không gọi API có phí;
 tái sử dụng hạ tầng E0/E1 (evidence, source registry, PII, gateway, jobs) không đổi hành vi E0/E1."
 
+## Clarifications
+
+### Session 2026-11-27 (quyết định chủ sở hữu cho Q1–Q2 của /speckit-specify)
+
+- Q: Ngách nào được chạy Product Discovery? → A: **C có điều kiện** – mọi ngách đạt ngưỡng bằng chứng E1 (≥ 2 bằng chứng pain point
+  hợp lệ từ ≥ 2 nhóm nguồn độc lập, trạng thái `EVIDENCE_SUFFICIENT`) và chưa bị loại bỏ: `PURSUE`, `WATCH` hoặc chưa có quyết định.
+  `INSUFFICIENT_EVIDENCE` và `REJECTED` bị từ chối. Chủ sở hữu phải chủ động chọn ngách hoặc tự cấu hình lịch; không chạy hàng loạt tự
+  động khi chưa cấu hình; giữ giới hạn ngân sách AI của E0.
+- Q: Tiêu chí và trọng số Opportunity Score sản phẩm? → A: **A** – phù hợp pain point & buyer persona 25%, hấp dẫn chương trình affiliate
+  25%, khả năng tham gia & quảng bá hợp lệ 20%, uy tín & chất lượng sản phẩm 15%, giá phù hợp khả năng chi trả 15%. Bổ sung: trọng số cấu
+  hình được và có version; chỉ chấm bằng dữ liệu có bằng chứng; `UNKNOWN` không gán điểm giả; Opportunity và Confidence tách biệt; hiển
+  thị Coverage (%) và thông tin còn thiếu; chưa xác minh chương trình → `AFFILIATE_UNVERIFIED`; chưa xác minh điều kiện tham gia từ Việt
+  Nam hoặc quyền quảng bá ở thị trường mục tiêu → không được `READY_TO_PROMOTE`; không đề xuất quảng bá chỉ vì hoa hồng cao; Product Score
+  không phải dự báo doanh thu.
+
+### Session 2026-11-27 (b) (/speckit-clarify – đề xuất theo yêu cầu chủ sở hữu và mặc định cấu hình được; không có câu hỏi nghiệp vụ mới)
+
+- Q: Ngưỡng Coverage mặc định cho sản phẩm? → A: **60%**, giống E1 (FR-019a của E1) – cấu hình được, có version cùng bộ trọng số. Thêm điều
+  kiện: tiêu chí "phù hợp pain point & buyer persona" phải có dữ liệu, nếu không sản phẩm vào "cần nghiên cứu thêm" dù Coverage ≥ 60%.
+  (Chủ sở hữu yêu cầu đề xuất, ưu tiên nhất quán E1.)
+- Q: Điểm số và quyết định gắn với sản phẩm hay với cặp (sản phẩm, ngách)? → A: **Cặp (sản phẩm, ngách)**: mức phù hợp pain point/persona,
+  thị trường mục tiêu và giá so với khả năng chi trả phụ thuộc ngách. Sản phẩm và chương trình affiliate là bản ghi dùng chung trong
+  project (không trùng); đánh giá, xếp hạng, trạng thái sẵn sàng affiliate và quyết định của chủ sở hữu tính theo từng ngách.
+- Q: Ngưỡng chấm mức từng tiêu chí (ví dụ hoa hồng bao nhiêu là "hấp dẫn")? → A: Mức rời rạc 0/25/50/75/100 theo bảng quy tắc mặc định
+  trong `plan.md` (scoring rubric), **lưu cùng phiên bản trọng số và cấu hình được** – thay đổi không cần sửa mã; báo cáo cho chủ sở hữu
+  rà soát.
+- Q: Nguồn để tìm trang sản phẩm/điều khoản? → A: Như E1: tìm kiếm qua nguồn `ALLOWED` trong source registry; trang kết quả (website chính
+  thức, trang điều khoản affiliate) tải qua page fetcher của E1, tuân thủ robots.txt, tốc độ truy cập, chặn CAPTCHA/đăng nhập/paywall. Không
+  thêm loại nguồn mới trong E2.
+- Q: Cảnh báo thay đổi điều khoản gửi qua đâu? → A: Trong ứng dụng (trang chi tiết chương trình + nhật ký thay đổi); không gửi email/kênh
+  ngoài. Lịch kiểm tra mặc định hằng tuần qua scheduler E0, chỉ cho chương trình chủ sở hữu bật theo dõi.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân duy nhất: **chủ sở hữu** (single-user, single-workspace). "Hệ thống" gồm Product Discovery Agent và Affiliate Verification
@@ -154,9 +186,10 @@ tạo phiên bản mới.
 
 **Đầu vào và lượt tìm sản phẩm**
 
-- **FR-001**: Chủ sở hữu MUST chạy được lượt tìm sản phẩm cho một ngách đủ điều kiện. Ngách đủ điều kiện mặc định:
-  [NEEDS CLARIFICATION: chỉ ngách chủ sở hữu đã quyết định "tiếp tục" (PURSUE), hay mọi ngách `EVIDENCE_SUFFICIENT` chưa bị loại bỏ?]
-  Ngách `INSUFFICIENT_EVIDENCE` hoặc đã bị loại bỏ MUST bị từ chối với lý do. *(E2-01)*
+- **FR-001**: Chủ sở hữu MUST chạy được lượt tìm sản phẩm cho một ngách đủ điều kiện: ngách `EVIDENCE_SUFFICIENT` theo ngưỡng E1 (≥ 2
+  bằng chứng pain point hợp lệ từ ≥ 2 nhóm nguồn độc lập) có quyết định `PURSUE`, `WATCH` hoặc chưa có quyết định. Ngách
+  `INSUFFICIENT_EVIDENCE` hoặc `REJECTED` MUST bị từ chối với lý do. Lượt chỉ bắt đầu khi chủ sở hữu chủ động chọn ngách hoặc tự cấu hình
+  lịch cho ngách đó; hệ thống MUST NOT tự chạy Product Discovery hàng loạt khi chưa được cấu hình. *(E2-01; Clarification Q1)*
 - **FR-002**: Mỗi lượt MUST có cấu hình rõ ràng (ngách, thị trường lấy từ ngách, số sản phẩm tối đa – mặc định 10, giới hạn thời gian/số
   trang, nguồn sử dụng) và được lưu cùng kết quả để tái lập.
 - **FR-003**: Lượt tìm sản phẩm MUST chạy như job của E0: trạng thái, tạm dừng/tiếp tục/hủy, checkpoint sau mỗi bước, tiếp tục từ bước
@@ -217,20 +250,36 @@ tạo phiên bản mới.
   `NO_SOCIAL_ADS`, `OTHER` kèm mô tả) kèm bằng chứng; không tìm thấy → `UNKNOWN` (không phải "không có giới hạn"). *(E2-10)*
 - **FR-025**: Hệ thống MUST NOT tự đăng ký tài khoản affiliate, gửi form, chấp nhận điều khoản, đăng nhập vào mạng affiliate hay thanh toán;
   mọi chức năng như vậy không tồn tại trong E2. *(BR-08, AC-19, Constitution IV)*
-- **FR-026**: Sản phẩm không có chương trình nào `VERIFIED`/`PARTIAL` cho phép đăng ký từ Việt Nam (khác `NOT_ALLOWED`) và quảng bá ở thị
-  trường mục tiêu MUST gắn cờ rủi ro monetization; ngách có toàn bộ sản phẩm mang cờ này MUST gắn cờ rủi ro monetization cấp ngách.
-  *(BR-06, Constitution II)*
+- **FR-026**: Mỗi sản phẩm MUST có trạng thái sẵn sàng affiliate, tính bằng mã xác định từ chương trình tốt nhất của nó:
+  - `READY_TO_PROMOTE`: có chương trình `VERIFIED`/`PARTIAL` với điều kiện đăng ký từ Việt Nam `ALLOWED` **và** thị trường mục tiêu của
+    ngách nằm trong phạm vi quảng bá đã xác minh (`VERIFIED`) – cả hai có bằng chứng;
+  - `ELIGIBILITY_UNVERIFIED`: có chương trình `VERIFIED`/`PARTIAL` nhưng điều kiện từ Việt Nam hoặc quyền quảng bá ở thị trường mục tiêu
+    là `UNKNOWN`/`INFERRED`/`CONFLICTING`;
+  - `NOT_ELIGIBLE`: nguồn nêu rõ loại trừ Việt Nam (`NOT_ALLOWED`) hoặc loại trừ thị trường mục tiêu;
+  - `AFFILIATE_UNVERIFIED`: tìm thấy chương trình nhưng chưa xác minh được (`UNVERIFIED`);
+  - `NO_PROGRAM` / `PROGRAM_CLOSED`: không tìm thấy chương trình / chương trình đã đóng (có bằng chứng).
+  Mọi trạng thái khác `READY_TO_PROMOTE` MUST mang cờ rủi ro monetization; ngách có toàn bộ sản phẩm mang cờ này MUST gắn cờ rủi ro
+  monetization cấp ngách. `READY_TO_PROMOTE` chỉ là điều kiện tham gia, không phải khuyến nghị quảng bá. *(BR-06, Constitution II;
+  Clarification Q2)*
 
 **Chấm điểm**
 
-- **FR-027**: Mỗi sản phẩm MUST có Opportunity Score (0–100) là tổng có trọng số của các tiêu chí sản phẩm. Bộ tiêu chí và trọng số mặc định:
-  [NEEDS CLARIFICATION: bộ tiêu chí và trọng số mặc định cho sản phẩm – Master Requirements không quy định (BR-03 chỉ áp dụng cho ngách)]
-  Trọng số MUST cấu hình được, tổng 100%, có phiên bản; mỗi lần chấm MUST lưu phiên bản trọng số và điểm thành phần. *(E2-14,
-  Constitution II)*
-- **FR-028**: Tiêu chí `UNKNOWN` MUST NOT được gán điểm giả; Opportunity tính lại trên các tiêu chí có dữ liệu kèm Coverage (tổng trọng số
-  có dữ liệu); Coverage dưới ngưỡng (mặc định 60%, như E1) → sản phẩm ở danh sách "cần nghiên cứu thêm" với `INSUFFICIENT_SCORING_DATA`.
+- **FR-027**: Mỗi sản phẩm MUST có Opportunity Score (0–100) là tổng có trọng số của 5 tiêu chí, trọng số mặc định: phù hợp pain point &
+  buyer persona 25%, hấp dẫn chương trình affiliate 25%, khả năng tham gia & quảng bá hợp lệ 20%, uy tín & chất lượng sản phẩm 15%, giá phù
+  hợp khả năng chi trả 15%. Mỗi tiêu chí MUST được chấm từ dữ liệu có bằng chứng theo quy tắc xác định (mức điểm rời rạc, không do AI chấm
+  trực tiếp). Trọng số MUST cấu hình được, tổng 100%, có phiên bản; mỗi lần chấm MUST lưu phiên bản trọng số và điểm thành phần.
+  *(E2-14, Constitution II; Clarification Q2)*
+- **FR-028**: Tiêu chí `UNKNOWN` MUST NOT được gán điểm giả; Opportunity tính lại trên các tiêu chí có dữ liệu kèm **Coverage** (tổng trọng
+  số gốc của tiêu chí có dữ liệu, 0–100%) và danh sách thông tin còn thiếu, cả hai hiển thị cùng điểm. Coverage dưới ngưỡng → sản phẩm ở
+  danh sách "cần nghiên cứu thêm" với `INSUFFICIENT_SCORING_DATA`; ngưỡng mặc định **60%** (cấu hình được, có version), và tiêu chí phù hợp
+  pain point & buyer persona MUST có dữ liệu. *(Clarification 2026-11-27 (b))*
+- **FR-028a**: Hệ thống MUST NOT đề xuất quảng bá (khuyến nghị "chọn") một sản phẩm chỉ dựa trên hoa hồng: khuyến nghị "chọn" chỉ hợp lệ khi
+  sản phẩm `READY_TO_PROMOTE`, tiêu chí phù hợp pain point có dữ liệu và Coverage đạt ngưỡng; lý do khuyến nghị MUST dẫn bằng chứng về mức
+  phù hợp pain point. *(Clarification Q2)*
 - **FR-029**: Confidence Score MUST tính riêng, không dùng Opportunity làm đầu vào, phản ánh số lượng, độ đa dạng nguồn, độ mới, tỷ lệ
   thuộc tính `VERIFIED` so với `INFERRED`/`CONFLICTING`/`UNKNOWN`. *(BR-04)*
+- **FR-029a**: Đánh giá, xếp hạng, trạng thái sẵn sàng affiliate (FR-026) và quyết định (FR-033) MUST gắn với cặp (sản phẩm, ngách); sản phẩm
+  và chương trình affiliate là bản ghi dùng chung trong project. *(Clarification 2026-11-27 (b))*
 - **FR-030**: Logic chấm điểm, gộp trùng, đối chiếu thị trường và cờ rủi ro MUST là mã xác định, không giao cho AI; AI chỉ trích xuất có
   bằng chứng. *(Constitution III)*
 - **FR-031**: Opportunity Score MUST NOT được trình bày như dự báo doanh thu; giao diện và báo cáo ghi rõ đây là điểm ưu tiên nghiên cứu.
@@ -259,8 +308,8 @@ tạo phiên bản mới.
 **Theo dõi điều khoản (Should) và tích hợp mạng affiliate (Later)**
 
 - **FR-040** *(Should)*: Chủ sở hữu SHOULD bật/tắt theo dõi điều khoản cho từng chương trình; hệ thống kiểm tra lại theo lịch của E0 (mặc định
-  hằng tuần), lưu phiên bản điều khoản khi thuộc tính thay đổi (giá trị cũ/mới, nguồn, thời điểm) và cảnh báo; lỗi truy cập không xóa giá
-  trị cũ. *(E2-16)*
+  hằng tuần), lưu phiên bản điều khoản khi thuộc tính thay đổi (giá trị cũ/mới, nguồn, thời điểm) và cảnh báo trong ứng dụng (không gửi
+  kênh ngoài); lỗi truy cập không xóa giá trị cũ. *(E2-16)*
 - **FR-041** *(Later)*: Tích hợp API của mạng affiliate (E2-17) nằm ngoài phạm vi triển khai E2; thiết kế MUST để mạng affiliate có thể được
   thêm như một loại adapter nguồn mà không sửa nghiệp vụ. *(E2-17, NFR-07)*
 
@@ -276,7 +325,7 @@ tạo phiên bản mới.
   tính có cấu trúc (hoa hồng, cookie, thanh toán, đăng ký từ Việt Nam, quốc gia quảng bá, giới hạn quảng cáo) mỗi thuộc tính có trạng thái và
   bằng chứng; liên kết với một hoặc nhiều sản phẩm.
 - **Program Terms Version (phiên bản điều khoản)**: ảnh chụp thuộc tính tại một thời điểm, các thay đổi so với phiên bản trước (Should).
-- **Product Evaluation (lần chấm điểm)**: Opportunity, Confidence, Coverage, điểm thành phần, phiên bản trọng số, thời điểm.
+- **Product Evaluation (lần chấm điểm)**: theo cặp (sản phẩm, ngách); Opportunity, Confidence, Coverage, điểm thành phần, phiên bản trọng số, thời điểm.
 - **Product Scoring Weights (bộ trọng số)**: phiên bản, trọng số các tiêu chí, người/thời điểm tạo.
 - Dùng lại: Niche, Pain Point, Buyer Persona (E1); Research Source, Research Evidence (E0/E1); Agent Job, AI Usage, Audit Log (E0).
 

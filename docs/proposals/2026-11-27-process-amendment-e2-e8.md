@@ -1,4 +1,4 @@
-# Đề xuất sửa đổi quy trình cho E2–E8 (CHỜ CHỦ SỞ HỮU DUYỆT) – 2026-11-27
+# Đề xuất sửa đổi quy trình cho E2–E8 (ĐÃ DUYỆT 2026-11-27 – áp dụng Constitution 1.2.0) – 2026-11-27
 
 Bối cảnh: chủ sở hữu yêu cầu (2026-11-27) phát triển tuần tự E2 → E3 → E4 → E5 → E6 → E7 → E8 theo Spec Kit, dùng MOCK khi chưa có
 API thật, và cho phép Claude tự tiếp tục các bước kỹ thuật khi đủ điều kiện. Tài liệu này rà soát Constitution v1.1.0 và Master
