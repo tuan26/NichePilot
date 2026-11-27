@@ -1,40 +1,42 @@
-# Phương án tách PR theo feature (CHỜ CHỦ SỞ HỮU DUYỆT) – 2026-11-27
+# Phương án tách PR theo feature – bản 2 (CHỜ CHỦ SỞ HỮU DUYỆT) – 2026-11-27
 
-## 1. Trạng thái thực tế (kiểm tra 2026-11-27)
+Chủ sở hữu đồng ý **nguyên tắc** (2026-11-27). Chưa thực hiện thao tác nào trên PR. Không force-push, không rewrite, không merge, không đóng
+PR #1 trước khi PR thay thế đã tạo và bao phủ đủ commit.
+
+## 1. Trạng thái thực tế (kiểm tra lại 2026-11-27, `git ls-remote` + `git log`)
 
 | Ref | Commit | Ghi chú |
 |---|---|---|
-| `main` (default, có ruleset `protect-main`) | `8125501` | = tag `e1-impl-complete` |
-| `claude/inspiring-wright-06dzhw` | `d05b1ba` (+ commit đề xuất này) | Hơn `main` 9 commit tới `d05b1ba` |
-| PR #1 (`claude/inspiring-wright-06dzhw` → `main`) | head = nhánh làm việc | Ban đầu chỉ `a1f0fbf` (báo cáo rà soát baseline); nay chứa cả E2 |
+| `main` (default, ruleset `protect-main`) | `8125501` | = tag `e1-impl-complete` |
+| `claude/inspiring-wright-06dzhw` = head PR #1 (base `main`) | `e019c8c` + commit tài liệu này | Lịch sử tuyến tính, không merge commit |
+| `feature/e3-keyword-audience` | tách từ `e019c8c` | Chỉ chứa commit E3 phía trên E2 |
 
-Commit trên nhánh làm việc (cũ → mới): `a1f0fbf` rà soát baseline · `bf849b6` spec E2 + đề xuất quy trình · `3c2e90a` Constitution 1.2.0 +
-clarify E2 · `cd01c4b` plan · `709a13a` tasks · `c3c1be9`, `79dd309`, `162b5da`, `d05b1ba` implement + báo cáo E2.
+Commit trên PR #1 (cũ → mới): `a1f0fbf` rà soát baseline · `bf849b6` spec E2 + đề xuất quy trình · `3c2e90a` Constitution 1.2.0 + clarify
+E2 · `cd01c4b` plan · `709a13a` tasks · `c3c1be9`, `79dd309`, `162b5da`, `d05b1ba` implement/báo cáo E2 · `e019c8c` đề xuất rubric v2 + PR
+plan · (commit tài liệu bản 2 này).
 
-Lịch sử tuyến tính, không có commit merge. Không cần (và không) viết lại lịch sử.
+## 2. Phương án khuyến nghị – giữ PR #1, thêm 1 PR, không đóng PR nào
 
-## 2. Phương án đề xuất – PR xếp chồng (không mất commit, không force-push)
+| PR | Base | Head | Commit được review | Hành động |
+|---|---|---|---|---|
+| **PR A (mới)** "Rà soát baseline E0/E1" | `main` (`8125501`) | `docs/baseline-review` = nhánh mới trỏ **đúng** `a1f0fbf` | `a1f0fbf` (1 commit) | Tạo nhánh + mở PR |
+| **PR #1 (giữ nguyên số)** đổi tên "E2 – Product & Affiliate Discovery" | đổi base `main` → `docs/baseline-review` | `claude/inspiring-wright-06dzhw` (không đổi) | `bf849b6` … commit tài liệu bản 2 (E2 + Constitution 1.2.0) | Đổi base + tiêu đề/mô tả |
+| **PR C (khi E3 xong)** "E3 – Keyword & Audience Research" | `claude/inspiring-wright-06dzhw` | `feature/e3-keyword-audience` | chỉ commit E3 | Mở khi E3 `TECHNICAL_VERIFIED` |
 
-| Bước | Hành động | Base | Head |
-|---|---|---|---|
-| 1 | Tạo nhánh `docs/baseline-review` tại `a1f0fbf` | – | – |
-| 2 | Tạo nhánh `feature/e2-product-affiliate` tại commit cuối của E2 (sau đề xuất này) | – | – |
-| 3 | PR A "Rà soát baseline E0/E1" | `main` | `docs/baseline-review` (1 commit) |
-| 4 | PR B "E2 – Product & Affiliate Discovery" (gồm Constitution 1.2.0) | `docs/baseline-review` | `feature/e2-product-affiliate` |
-| 5 | Đóng PR #1 **không merge** (nội dung đã nằm trọn trong PR A + B), ghi chú liên kết | – | – |
-| 6 | Merge (chủ sở hữu, qua ruleset): PR A → `main`; GitHub tự đổi base PR B sang `main` khi nhánh base bị xóa sau merge, hoặc đổi tay | | |
+Kiểm chứng bao phủ: `PR A ∪ PR #1 = toàn bộ 12 commit` của nhánh làm việc so với `main`; không commit nào bị bỏ hay lặp. Ưu điểm: không
+cần đóng PR #1, không tạo lại PR, SHA giữ nguyên.
 
-Mỗi PR chỉ hiển thị diff của feature mình. Commit giữ nguyên SHA (nhánh mới chỉ là con trỏ tới commit có sẵn).
+Thứ tự merge (chủ sở hữu thực hiện): PR A → `main`; sau đó đổi base PR #1 về `main` (GitHub cũng tự đổi nếu xóa nhánh `docs/baseline-review`
+sau merge) → merge PR #1; tương tự PR C.
 
-Phương án thay thế (đơn giản hơn): giữ PR #1, đổi tiêu đề/mô tả thành "Baseline + E2" và review một lần. Nhược điểm: diff lớn, khó review.
+## 3. Phương án dự phòng (nếu muốn PR E2 mới)
 
-## 3. Từ E3 trở đi
+PR B mới `feature/e2-product-affiliate` (trỏ cùng commit với nhánh làm việc) → base `docs/baseline-review`; **chỉ đóng PR #1 không merge sau
+khi** PR A và PR B đã tạo và tổng commit = 12. Nhiều thao tác hơn, không có lợi ích thêm.
 
-- Nhánh `feature/e3-keyword-audience` tạo từ commit cuối của E2 (E3 phụ thuộc mã E2 – không thể tạo từ `main` hiện tại).
-- PR C (khi E3 xong): `feature/e3-keyword-audience` → `feature/e2-product-affiliate` (xếp chồng), đổi base sang `main` sau khi PR B merge.
-- Nhánh `claude/inspiring-wright-06dzhw` dừng nhận commit feature mới sau E2.
+## 4. Thao tác Claude sẽ làm khi được duyệt
 
-## 4. Cần chủ sở hữu duyệt
-
-Bước 1–5 (tạo nhánh, mở PR A/B, đóng PR #1 không merge). Claude không merge, không force-push, không đổi ruleset. Riêng nhánh E3 (§3)
-được tạo ngay theo yêu cầu "từ E3 trở đi mỗi feature một nhánh riêng", base = commit cuối của E2.
+1. `git push origin a1f0fbf:refs/heads/docs/baseline-review` (tạo nhánh, không đổi commit nào).
+2. Mở PR A (base `main`, head `docs/baseline-review`).
+3. Đổi base PR #1 sang `docs/baseline-review`, cập nhật tiêu đề/mô tả; kiểm tra diff PR #1 chỉ còn commit E2.
+Không merge, không force-push, không xóa nhánh, không đổi ruleset.
