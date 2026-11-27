@@ -1,0 +1,344 @@
+openapi: 3.1.0
+info:
+  title: NichePilot API – E3 Keyword & Audience Research
+  version: 0.1.0-draft
+  description: |
+    Hợp đồng REST API của E3. Kế thừa quy ước E0/E1/E2: phiên cookie `np_session`, `X-CSRF-Token` cho request ghi, lỗi
+    `application/problem+json` với `code` ổn định, `data_origin` (REAL | MOCK), MOCK ẩn mặc định (`include_mock=false`).
+    - Lượt nghiên cứu keyword là job E0 `keywords.run`; lịch qua `/api/v1/schedules` với `job_type` ∈ {keywords.run (bắt buộc
+      `params.niche_id`), keywords.serp_check (bắt buộc `params.cluster_id`)}.
+    - Erasure ledger chưa áp dụng → 503 `ERASURE_LEDGER_NOT_APPLIED` (như E1/E2).
+    - Search Volume / CPC / Keyword Difficulty luôn trả kèm nguồn; không có nguồn → `null` và hiển thị `UNKNOWN` (FR-009).
+    - Keyword Opportunity là điểm ưu tiên nghiên cứu, KHÔNG phải dự báo traffic/doanh thu (FR-021).
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+tags:
+  - name: keywords
+  - name: keyword-scoring
+
+paths:
+  /api/v1/keyword-runs:
+    post:
+      tags: [keywords]
+      summary: Tạo lượt nghiên cứu keyword cho ngách (FR-001…FR-003) – job E0 `keywords.run`
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/KeywordRunCreate" } } }
+      responses:
+        "202":
+          description: Đã tạo job
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, run_id]
+                properties:
+                  job_id: { type: string, format: uuid }
+                  run_id: { type: string, format: uuid }
+        "404": { description: "`NICHE_NOT_FOUND`" }
+        "409": { description: "`NICHE_NOT_ELIGIBLE`, `KEYWORD_RUN_ACTIVE`" }
+        "422": { description: "`BUDGET_NOT_CONFIGURED`, `VALIDATION_ERROR`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+    get:
+      tags: [keywords]
+      summary: Danh sách lượt (lọc theo ngách)
+      parameters:
+        - { name: niche_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/KeywordRun" } }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/keyword-runs/{run_id}:
+    get:
+      tags: [keywords]
+      summary: Chi tiết lượt + số liệu FR-030
+      parameters: [{ name: run_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/KeywordRun" } } } }
+        "404": { description: "`KEYWORD_RUN_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/keyword-clusters:
+    get:
+      tags: [keywords]
+      summary: Danh sách cluster xếp hạng của ngách (màn hình 1, FR-028)
+      description: GET có thể ghi `keyword_evaluations` mới khi tập bằng chứng đã đổi (tính lại xác định, không AI).
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: list, in: query, schema: { type: string, enum: [ranked, needs_research], default: ranked } }
+        - { name: intent, in: query, schema: { $ref: "#/components/schemas/Intent" } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, disclaimer_key]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ClusterListItem" } }
+                  disclaimer_key: { type: string, const: keywords.opportunity.disclaimer }
+        "404": { description: "`NICHE_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/keyword-summary:
+    get:
+      tags: [keywords]
+      summary: Tóm tắt keyword cho trang chi tiết ngách E1
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keyword_count: { type: integer }
+                  cluster_count: { type: integer }
+                  long_tail_count: { type: integer }
+                  top_clusters: { type: array, items: { $ref: "#/components/schemas/ClusterListItem" } }
+                  last_run: { oneOf: [{ $ref: "#/components/schemas/KeywordRun" }, { type: "null" }] }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/keyword-report:
+    get:
+      tags: [keywords]
+      summary: Báo cáo keyword theo ngách (FR-026) – JSON/Markdown, VI/EN
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: format, in: query, schema: { type: string, enum: [json, markdown], default: json } }
+        - { name: lang, in: query, schema: { type: string, enum: [vi, en], default: vi } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`NICHE_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/keyword-clusters/{cluster_id}:
+    get:
+      tags: [keywords]
+      summary: Chi tiết cluster (màn hình 2) – keyword, SERP, đối thủ, gap, persona, kênh, strategy
+      parameters: [{ name: cluster_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ClusterDetail" } } } }
+        "404": { description: "`KEYWORD_CLUSTER_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/keyword-clusters/{cluster_id}/decision:
+    post:
+      tags: [keywords]
+      summary: Ghi quyết định cluster (FR-025) – không đổi điểm; audit
+      parameters: [{ name: cluster_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              additionalProperties: false
+              properties:
+                decision: { type: string, enum: [SELECTED, WATCH, REJECTED] }
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`KEYWORD_CLUSTER_NOT_FOUND`" }
+        "422": { description: "`VALIDATION_ERROR`" }
+  /api/v1/keyword-clusters/{cluster_id}/watch:
+    put:
+      tags: [keywords]
+      summary: Bật/tắt theo dõi SERP (FR-031, Should) – audit
+      parameters: [{ name: cluster_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } } } }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`KEYWORD_CLUSTER_NOT_FOUND`" }
+  /api/v1/keyword-clusters/{cluster_id}/serp-versions/{version}/acknowledge:
+    post:
+      tags: [keywords]
+      summary: Đánh dấu đã xem cảnh báo thay đổi SERP của keyword chính
+      parameters:
+        - { name: cluster_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`KEYWORD_CLUSTER_NOT_FOUND`" }
+  /api/v1/keyword-scoring/weights:
+    get:
+      tags: [keyword-scoring]
+      summary: Phiên bản trọng số keyword đang dùng + lịch sử
+      responses: { "200": { description: OK } }
+    post:
+      tags: [keyword-scoring]
+      summary: Tạo phiên bản trọng số mới (tổng 100, 5 tiêu chí) và kích hoạt; job `keywords.recompute` (không AI) – audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weights]
+              properties:
+                weights:
+                  type: object
+                  required: [fit, intent_value, competition, content_gap, demand]
+                  additionalProperties: false
+                  properties:
+                    fit: { type: number, minimum: 0, maximum: 100 }
+                    intent_value: { type: number, minimum: 0, maximum: 100 }
+                    competition: { type: number, minimum: 0, maximum: 100 }
+                    content_gap: { type: number, minimum: 0, maximum: 100 }
+                    demand: { type: number, minimum: 0, maximum: 100 }
+                coverage_min: { type: number, minimum: 0, maximum: 100 }
+      responses:
+        "201": { description: Created }
+        "422": { description: "`KEYWORD_WEIGHTS_INVALID`" }
+
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: np_session }
+  parameters:
+    IncludeMock:
+      name: include_mock
+      in: query
+      schema: { type: boolean, default: false }
+  responses:
+    LedgerNotApplied:
+      description: "`ERASURE_LEDGER_NOT_APPLIED`"
+  schemas:
+    Intent:
+      type: string
+      enum: [INFORMATIONAL, COMMERCIAL_INVESTIGATION, TRANSACTIONAL, NAVIGATIONAL]
+    KeywordRunCreate:
+      type: object
+      required: [niche_id]
+      additionalProperties: false
+      properties:
+        niche_id: { type: string, format: uuid }
+        max_keywords: { type: integer, minimum: 5, maximum: 200, default: 60 }
+        serp_keywords: { type: integer, minimum: 0, maximum: 30, default: 10 }
+        competitor_pages: { type: integer, minimum: 0, maximum: 5, default: 3 }
+        page_limit: { type: integer, minimum: 5, maximum: 200, default: 60 }
+        time_limit_s: { type: integer, minimum: 60, maximum: 5400, default: 1800 }
+    KeywordRun:
+      type: object
+      required: [id, job_id, niche_id, status, data_origin]
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        niche_id: { type: string, format: uuid }
+        status: { type: string, description: Trạng thái job E0 }
+        outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, FAILED, null] }
+        stop_reason: { type: [string, "null"] }
+        params: { type: object }
+        metrics: { type: object }
+        data_origin: { type: string, enum: [REAL, MOCK] }
+        created_at: { type: string, format: date-time }
+    Metric:
+      type: object
+      description: Chỉ số keyword; `value` null = UNKNOWN; có giá trị thì bắt buộc có nguồn (FR-009)
+      required: [value]
+      properties:
+        value: { type: [number, "null"] }
+        source: { type: [string, "null"] }
+        collected_at: { type: [string, "null"], format: date-time }
+        market: { type: [string, "null"] }
+    Evaluation:
+      type: object
+      properties:
+        opportunity_score: { type: [number, "null"] }
+        confidence_score: { type: number }
+        coverage: { type: number }
+        scoring_status: { type: string, enum: [SCORED, INSUFFICIENT_SCORING_DATA] }
+        criteria: { type: object }
+        missing: { type: array, items: { type: string } }
+        weights_version: { type: integer }
+        computed_at: { type: string, format: date-time }
+    Keyword:
+      type: object
+      required: [keyword_id, text, keyword_type, length_class, intent, origins, metrics, data_origin]
+      properties:
+        keyword_id: { type: string, format: uuid }
+        text: { type: string }
+        language: { type: string }
+        market: { type: string }
+        keyword_type: { type: string, enum: [PROBLEM, SOLUTION, PRODUCT, COMPARISON, INFORMATIONAL] }
+        length_class: { type: string, enum: [HEAD, MID, LONG_TAIL] }
+        intent: { $ref: "#/components/schemas/Intent" }
+        intent_status: { type: string, enum: [INFERRED, VERIFIED] }
+        intent_reason: { type: [string, "null"] }
+        risk_flags: { type: array, items: { type: string, enum: [BRAND_TERM, COMPLIANCE_SENSITIVE] } }
+        origins:
+          type: array
+          items:
+            type: object
+            properties:
+              origin_type: { type: string, enum: [PAIN_POINT, PERSONA, PRODUCT] }
+              ref_id: { type: [string, "null"] }
+              label: { type: string }
+              reason: { type: [string, "null"] }
+        metrics:
+          type: object
+          required: [search_volume, cpc, keyword_difficulty]
+          properties:
+            search_volume: { $ref: "#/components/schemas/Metric" }
+            cpc: { $ref: "#/components/schemas/Metric" }
+            keyword_difficulty: { $ref: "#/components/schemas/Metric" }
+        evaluation: { $ref: "#/components/schemas/Evaluation" }
+        data_origin: { type: string, enum: [REAL, MOCK] }
+    ClusterListItem:
+      type: object
+      required: [cluster_id, name, intent, keyword_count, decision_status, data_origin]
+      properties:
+        cluster_id: { type: string, format: uuid }
+        name: { type: string, description: Văn bản keyword chính }
+        intent: { $ref: "#/components/schemas/Intent" }
+        keyword_count: { type: integer }
+        long_tail_count: { type: integer }
+        opportunity_score: { type: [number, "null"] }
+        confidence_score: { type: [number, "null"] }
+        scored_count: { type: integer }
+        origin_label: { type: string }
+        decision_status: { type: string, enum: [CANDIDATE, SELECTED, WATCH, REJECTED] }
+        serp_alert: { type: boolean }
+        data_origin: { type: string, enum: [REAL, MOCK] }
+    ClusterDetail:
+      allOf:
+        - { $ref: "#/components/schemas/ClusterListItem" }
+        - type: object
+          properties:
+            keywords: { type: array, items: { $ref: "#/components/schemas/Keyword" } }
+            serp:
+              type: array
+              items:
+                type: object
+                properties:
+                  keyword_id: { type: string, format: uuid }
+                  version: { type: integer }
+                  collected_at: { type: string, format: date-time }
+                  results: { type: array, items: { type: object } }
+                  changes: { type: object }
+                  acknowledged_at: { type: [string, "null"], format: date-time }
+            competitor_pages: { type: array, items: { type: object } }
+            content_gaps:
+              type: object
+              description: "`status` UNKNOWN khi chưa phân tích trang đối thủ"
+              properties:
+                status: { type: string, enum: [OBSERVED, UNKNOWN] }
+                items: { type: array, items: { type: object } }
+            persona: { type: object, description: Thuộc tính persona cụm, mỗi thuộc tính có status + evidence }
+            channels: { type: object }
+            strategy: { type: object }
+            decision_reason: { type: [string, "null"] }
+            watch_enabled: { type: boolean }
+            disclaimer_key: { type: string, const: keywords.opportunity.disclaimer }

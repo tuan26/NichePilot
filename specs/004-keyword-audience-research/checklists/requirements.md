@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain – còn 1 (FR-017 tiêu chí/trọng số Opportunity keyword), chờ chủ sở hữu
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -34,3 +34,4 @@
 - Lần kiểm 1 (2026-11-27): đạt trừ 1 điểm quyết định nghiệp vụ.
 - "Nguồn ALLOWED", "job E0", "AI Gateway" là ràng buộc tái sử dụng do chủ sở hữu đặt, không phải chi tiết công nghệ.
 - SC-008 phụ thuộc nguồn `ALLOWED` + AI thật – `BLOCKED` như SC-013 (E1), SC-008 (E2).
+- Lần kiểm 2 (2026-11-27, sau clarify): 16/16 đạt.

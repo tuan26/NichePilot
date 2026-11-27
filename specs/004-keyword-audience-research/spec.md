@@ -12,6 +12,29 @@ nguồn hợp lệ thì UNKNOWN; không bắt buộc API keyword trả phí tron
 hợp, cạnh tranh quan sát được và bằng chứng; Opportunity và Confidence tách biệt; MOCK không phải dữ liệu nghiên cứu thật. Master E3-01…
 E3-15, BR-04, BR-05, BR-09, BR-10, BR-15, AC-10, AC-11, AC-16."
 
+## Clarifications
+
+### Session 2026-11-27 (quyết định chủ sở hữu – Q1 của /speckit-specify)
+
+- Q: Tiêu chí và trọng số Keyword Opportunity Score? → A: **A** – phù hợp pain point/persona/sản phẩm 30%, giá trị theo search intent 20%,
+  cơ hội cạnh tranh quan sát được 20%, khoảng trống nội dung 15%, bằng chứng nhu cầu 15%. Yêu cầu kèm: trọng số cấu hình được + version;
+  Coverage tối thiểu 60%; Opportunity ⟂ Confidence; `UNKNOWN` không gán điểm giả; không bịa Search Volume/CPC/KD; keyword xuất phát từ ngách,
+  pain point, persona, sản phẩm; ưu tiên long-tail và commercial intent phù hợp; **không mặc định keyword ý định mua cao luôn tốt hơn keyword
+  giải quyết vấn đề thực tế**.
+
+### Session 2026-11-27 (b) (/speckit-clarify – mặc định kỹ thuật cấu hình được, không có câu hỏi nghiệp vụ mới)
+
+- Q: "Giá trị theo search intent" chấm thế nào để không ưu tiên mặc định ý định mua? → A: Theo mức hữu ích cho nội dung affiliate giải quyết
+  vấn đề: `COMMERCIAL_INVESTIGATION` 100; `INFORMATIONAL` gắn pain point (loại `PROBLEM`/`SOLUTION`) 75; `TRANSACTIONAL` 75; `INFORMATIONAL`
+  chung chung 25; `NAVIGATIONAL` 0. Problem-based ngang hàng transactional; bảng nằm trong rubric, cấu hình được.
+- Q: Lượt có chạy được khi không có nguồn `ALLOWED`? → A: Có: keyword sinh từ dữ liệu nội bộ (ngách, pain point, persona, sản phẩm); bước
+  SERP/đối thủ/kênh bị bỏ qua với `NO_COMPLIANT_SEARCH_SOURCE`, các tiêu chí phụ thuộc SERP `UNKNOWN` → Coverage thấp hơn; không dữ liệu thay thế.
+- Q: Gom cluster? → A: Xác định: cùng nguồn gốc chính (pain point hoặc sản phẩm) và cùng intent; điểm cluster = trung bình keyword thành viên
+  `SCORED`, Confidence cluster = trung bình; cluster không có keyword `SCORED` → "cần nghiên cứu thêm".
+- Q: Giới hạn mặc định của lượt? → A: ≤ 60 keyword, phân tích SERP cho ≤ 10 keyword ưu tiên (xếp theo điểm sơ bộ không cần SERP), ≤ 3 trang đối
+  thủ/SERP, 60 trang, 30 phút – cấu hình được theo lượt.
+- Q: Theo dõi SERP (Should)? → A: Như theo dõi điều khoản E2: chủ sở hữu bật cho cluster + tự tạo lịch E0; cảnh báo trong ứng dụng.
+
 ## User Scenarios & Testing *(mandatory)*
 
 Tác nhân duy nhất: **chủ sở hữu**. "Hệ thống" gồm Keyword Research Agent và Content Strategy Agent (mức đề xuất) chạy như job E0, dùng hạ
@@ -177,8 +200,10 @@ trang đổi) và cảnh báo trong ứng dụng.
 - **FR-016**: Keyword MUST được gom cluster theo chủ đề và intent; mỗi keyword thuộc đúng một cluster; cluster có keyword chính, intent chủ
   đạo, pain point và sản phẩm liên quan. *(E3-07)*
 - **FR-017**: Mỗi keyword và cluster MUST có Opportunity Score (0–100) là tổng có trọng số của các tiêu chí keyword. Bộ tiêu chí và trọng số
-  mặc định: [NEEDS CLARIFICATION: tiêu chí và trọng số Opportunity cho keyword – Master không quy định]. Trọng số cấu hình được, tổng 100%, có
-  phiên bản; lưu điểm thành phần. *(E3-12, Constitution II)*
+  mặc định: phù hợp pain point/persona/sản phẩm 30%, giá trị theo search intent 20%, cơ hội cạnh tranh quan sát được 20%, khoảng trống
+  nội dung 15%, bằng chứng nhu cầu 15%. Mỗi tiêu chí chấm bằng quy tắc xác định từ dữ liệu có bằng chứng (riêng mức phù hợp do AI đề xuất có
+  bằng chứng, mã kiểm tra). Giá trị intent MUST NOT mặc định ưu tiên ý định mua hơn keyword giải quyết vấn đề thực tế. Trọng số cấu hình được,
+  tổng 100%, có phiên bản; lưu điểm thành phần. *(E3-12, Constitution II; Clarification Q1)*
 - **FR-018**: Tiêu chí `UNKNOWN` MUST NOT được gán điểm giả; Opportunity tính trên tiêu chí có dữ liệu kèm Coverage và danh sách thiếu; Coverage
   dưới ngưỡng (mặc định 60%, như E1/E2) → "cần nghiên cứu thêm".
 - **FR-019**: Confidence Score MUST tính riêng, không dùng Opportunity làm đầu vào, phản ánh độ phủ quan sát SERP, số nguồn độc lập, độ mới, tỷ
