@@ -13,6 +13,6 @@
 - Tài liệu, spec, báo cáo: tiếng Việt. Mã nguồn, tên biến/hàm/class/endpoint/bảng: tiếng Anh.
 - Không bịa dữ liệu; thiếu dữ liệu ghi `UNKNOWN`. Không báo cáo tích hợp API thật là "đã kiểm thử" khi chưa gọi API thật.
 - Lộ trình (chủ sở hữu duyệt 2026-11-27): tuần tự E2 → E3 → E4 → E5 → E6 → E7 → E8, mỗi feature đủ Spec Kit + Test & Verify; E5–E8 chỉ sau khi E4 `TECHNICAL_VERIFIED`, dùng MOCK/sandbox. Trạng thái: `TECHNICAL_VERIFIED` / `EXTERNAL_VERIFICATION_PENDING` / `PRODUCTION_VERIFIED` (MOCK không thay bằng chứng thực tế). Không mở rộng phạm vi ngoài spec.
-- E2 (`specs/003-product-affiliate-discovery`): đang Spec Kit. Quyết định Q1/Q2 (2026-11-27) trong spec §Clarifications.
+- E2 (`specs/003-product-affiliate-discovery`): `TECHNICAL_VERIFIED / EXTERNAL_VERIFICATION_PENDING` (2026-11-27, báo cáo `docs/reports/e2-final-report.md`). Q1/Q2 trong spec §Clarifications; SC-008 `BLOCKED` (chưa nguồn ALLOWED/AI thật); rubric mặc định chờ chủ sở hữu rà soát. Vận hành: `docs/operations/products.md`.
 - Tự tiếp tục (A4): được tự chuyển bước/feature khi feature trước `TECHNICAL_VERIFIED`, không còn CRITICAL/HIGH, test + CI đạt, không còn quyết định nghiệp vụ quan trọng chưa xác nhận, không cần quyền truy cập/API key mới, không phát sinh chi phí, không hành động bên ngoài có hậu quả. Không đáp ứng → dừng và hỏi chủ sở hữu.
 - E7: xuất bản chỉ mock/sandbox, công tắc xuất bản thật tắt mặc định, không tự đăng lên nền tảng ngoài. E8: chỉ dữ liệu test `MOCK` khi chưa có nguồn thật; không ghi doanh thu giả thành doanh thu thực.

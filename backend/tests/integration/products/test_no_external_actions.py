@@ -12,7 +12,7 @@ from tests.products_helpers import products_client, run_products, seed_niche
 pytestmark = [pytest.mark.integration, pytest.mark.products, pytest.mark.mock]
 
 
-async def test_TC_E2_FR025_02_only_read_only_tools_used(clean_db: AsyncEngine, migrated_db: str) -> None:
+async def test_TC_E2_FR025_02_TC_E2_SC002_01_only_read_only_tools_used(clean_db: AsyncEngine, migrated_db: str) -> None:
     async with products_client(migrated_db) as client:
         await allow_test_source(clean_db)
         niche = await seed_niche(client)

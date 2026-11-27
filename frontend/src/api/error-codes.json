@@ -115,6 +115,10 @@
     "status": 409,
     "title": "Model is not verified for paid calls"
   },
+  "NICHE_NOT_ELIGIBLE": {
+    "status": 409,
+    "title": "Niche is not eligible for product discovery"
+  },
   "NICHE_NOT_FOUND": {
     "status": 404,
     "title": "Niche not found"
@@ -142,6 +146,26 @@
   "PRICING_NOT_VERIFIED": {
     "status": 409,
     "title": "Model pricing is not verified"
+  },
+  "PRODUCT_NOT_FOUND": {
+    "status": 404,
+    "title": "Product not found"
+  },
+  "PRODUCT_RUN_ACTIVE": {
+    "status": 409,
+    "title": "A product discovery run is already active for this niche"
+  },
+  "PRODUCT_RUN_NOT_FOUND": {
+    "status": 404,
+    "title": "Product discovery run not found"
+  },
+  "PRODUCT_WEIGHTS_INVALID": {
+    "status": 422,
+    "title": "Product scoring weights are invalid"
+  },
+  "PROGRAM_NOT_FOUND": {
+    "status": 404,
+    "title": "Affiliate program not found"
   },
   "PROVIDER_AUTH_ERROR": {
     "status": 502,

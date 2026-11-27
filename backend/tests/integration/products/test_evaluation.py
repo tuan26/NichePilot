@@ -16,7 +16,9 @@ from tests.products_helpers import product_id, products_client, run_products, se
 pytestmark = [pytest.mark.integration, pytest.mark.products, pytest.mark.mock]
 
 
-async def test_TC_E2_FR027_07_reproducible_and_versioned(clean_db: AsyncEngine, migrated_db: str) -> None:
+async def test_TC_E2_FR027_07_TC_E2_SC004_01_reproducible_and_versioned(
+    clean_db: AsyncEngine, migrated_db: str
+) -> None:
     async with products_client(migrated_db) as client:
         await allow_test_source(clean_db)
         niche = await seed_niche(client)

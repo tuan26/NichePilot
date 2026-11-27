@@ -49,6 +49,16 @@ BUSINESS_TABLES = {
     "niche_evidence_links",
     "page_fetch_log",
     "evidence_erasure_requests",
+    # E2 (specs/003-product-affiliate-discovery, migration 0011)
+    "product_runs",
+    "products",
+    "product_niches",
+    "product_pain_point_links",
+    "affiliate_programs",
+    "product_programs",
+    "program_terms_versions",
+    "product_scoring_weights",
+    "product_evaluations",
 }
 # Bảng E1 có khóa chính tự nhiên (không phải UUID) theo data-model E1 §2
 NATURAL_PK_TABLES = {"domain_access_state", "erasure_ledger_state"}
@@ -67,6 +77,9 @@ IMMUTABLE_NO_UPDATED_AT = {
     "niche_evaluations",
     "page_fetch_log",
     "evidence_erasure_requests",
+    # E2: lần chấm điểm (bất biến, trigger) và phiên bản trọng số – chỉ thêm
+    "product_evaluations",
+    "product_scoring_weights",
 }
 
 

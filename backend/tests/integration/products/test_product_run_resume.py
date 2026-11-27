@@ -31,7 +31,7 @@ async def _dups(engine: AsyncEngine) -> dict[str, int]:
         return {k: int((await conn.execute(text(q))).scalar_one()) for k, q in DUP.items()}
 
 
-async def test_TC_E2_FR005_02_TC_E2_FR015_01_rerun_creates_no_duplicates(
+async def test_TC_E2_FR005_02_TC_E2_FR015_01_TC_E2_SC003_01_rerun_no_duplicates(
     clean_db: AsyncEngine, migrated_db: str
 ) -> None:
     async with products_client(migrated_db) as client:

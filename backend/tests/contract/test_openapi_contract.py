@@ -13,6 +13,7 @@ CONTRACT = (
     Path(__file__).resolve().parents[3] / "specs" / "001-foundation-ai-infrastructure" / "contracts" / "openapi.yaml"
 )
 E1_CONTRACT = CONTRACT.parents[2] / "002-niche-discovery" / "contracts" / "openapi.yaml"
+E2_CONTRACT = CONTRACT.parents[2] / "003-product-affiliate-discovery" / "contracts" / "openapi.yaml"
 METHODS = {"get", "post", "put", "patch", "delete"}
 
 
@@ -27,4 +28,6 @@ def test_TC_FR002_10_routes_match_contract() -> None:
     expected = _ops(CONTRACT)
     e1 = _ops(E1_CONTRACT)  # E1 triển khai dần theo user story; mọi endpoint E1 đã có phải nằm trong hợp đồng E1
     assert sorted(expected - impl) == [], "endpoint trong hợp đồng chưa được triển khai"
-    assert sorted(impl - expected - e1) == [], "endpoint triển khai nhưng không có trong hợp đồng"
+    e2 = _ops(E2_CONTRACT)  # E2: toàn bộ hợp đồng phải được triển khai
+    assert sorted(e2 - impl) == [], "endpoint E2 trong hợp đồng chưa được triển khai"
+    assert sorted(impl - expected - e1 - e2) == [], "endpoint triển khai nhưng không có trong hợp đồng"

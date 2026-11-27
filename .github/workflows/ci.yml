@@ -128,6 +128,8 @@ jobs:
           make up
           # ngách DEMO gắn MOCK cho E2E chi tiết/quyết định (chỉ development – lệnh từ chối khi APP_ENV=production)
           docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env exec -T api python -m nichepilot.jobs.discovery_demo_seed
+          # sản phẩm DEMO gắn MOCK cho E2E E2 (chỉ development – lệnh từ chối khi APP_ENV=production)
+          docker compose -f deploy/docker-compose.yml --env-file deploy/env/.env exec -T api python -m nichepilot.jobs.products_demo_seed
       - name: Playwright E2E – E1 discovery
         working-directory: frontend
         run: |

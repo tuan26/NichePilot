@@ -125,7 +125,13 @@
     "ERASURE_LEDGER_WRITE_FAILED": "The erasure ledger could not be written; nothing was erased.",
     "SOURCE_NOT_FOUND": "Source not found.",
     "SIMILARITY_NOT_FOUND": "Similarity pair not found.",
-    "SIMILARITY_ALREADY_RESOLVED": "This pair was already resolved."
+    "SIMILARITY_ALREADY_RESOLVED": "This pair was already resolved.",
+    "NICHE_NOT_ELIGIBLE": "This niche is not eligible for product discovery (insufficient evidence, rejected or merged).",
+    "PRODUCT_RUN_ACTIVE": "A product discovery run is already active for this niche.",
+    "PRODUCT_RUN_NOT_FOUND": "Product discovery run not found.",
+    "PRODUCT_NOT_FOUND": "Product not found.",
+    "PROGRAM_NOT_FOUND": "Affiliate program not found.",
+    "PRODUCT_WEIGHTS_INVALID": "Product weights are invalid (5 criteria, total 100)."
   },
   "discovery": {
     "opportunity": {
@@ -319,5 +325,106 @@
     "discovery": "Niche discovery",
     "ranking": "Ranking",
     "sources": "Sources"
+  },
+  "products": {
+    "title": "Products & affiliate",
+    "back": "Back to niche",
+    "run": "Find products",
+    "runStarted": "Product discovery run created.",
+    "includeMock": "Show simulated (MOCK) data",
+    "empty": "No products yet",
+    "list": {
+      "ranked": "Product ranking",
+      "needs_research": "Needs more research"
+    },
+    "opportunity": {
+      "disclaimer": "Product Opportunity Score is a research priority score, not a revenue forecast. READY_TO_PROMOTE is only an eligibility condition, not a recommendation to promote."
+    },
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "insufficient": "Insufficient scoring data",
+      "missing": "Missing",
+      "weightsVersion": "Weights version {{v}}"
+    },
+    "readiness": {
+      "READY_TO_PROMOTE": "Eligible to join",
+      "ELIGIBILITY_UNVERIFIED": "Eligibility not verified",
+      "NOT_ELIGIBLE": "Not eligible",
+      "AFFILIATE_UNVERIFIED": "Affiliate program not verified",
+      "NO_PROGRAM": "No program found",
+      "PROGRAM_CLOSED": "Program closed"
+    },
+    "flags": {
+      "MONETIZATION_RISK": "Monetization risk",
+      "MARKET_NOT_ALLOWED": "Market not allowed",
+      "MARKET_UNKNOWN": "Allowed markets unknown",
+      "COMPLIANCE_SENSITIVE": "Sensitive category"
+    },
+    "criteria": {
+      "fit": "Pain point & persona fit",
+      "affiliate": "Affiliate program appeal",
+      "eligibility": "Eligibility & promotion",
+      "quality": "Reputation & quality",
+      "price_fit": "Price fits ability to pay"
+    },
+    "attr": {
+      "official_website": "Official website",
+      "price": "Price",
+      "feature": "Features",
+      "target_customer": "Target customer",
+      "third_party_mention": "Third-party mentions",
+      "commission": "Commission",
+      "cookie_days": "Cookie duration",
+      "payment": "Payment",
+      "vn_eligibility": "Sign-up from Vietnam",
+      "promotion_regions": "Allowed countries",
+      "ad_restrictions": "Advertising restrictions",
+      "program_status": "Program status"
+    },
+    "detail": {
+      "attributes": "Product attributes",
+      "painPoints": "Pain points addressed",
+      "programs": "Affiliate programs",
+      "noPrograms": "No affiliate program found",
+      "operator": "Operator",
+      "terms": "Terms page",
+      "aiRecommendation": "AI recommendation",
+      "sources": "Sources",
+      "watch": "Watch terms changes",
+      "lastChecked": "Last checked",
+      "checkError": "Check error",
+      "termsChanged": "Terms changed (version {{v}})",
+      "acknowledge": "Acknowledge",
+      "noRegistration": "NichePilot never registers accounts or accepts affiliate terms on your behalf."
+    },
+    "status": {
+      "VERIFIED": "Verified",
+      "PARTIAL": "Partial",
+      "UNVERIFIED": "Unverified",
+      "CLOSED": "Closed"
+    },
+    "recommendation": {
+      "SELECT": "Select",
+      "REJECT": "Reject",
+      "UNKNOWN": "No recommendation"
+    },
+    "decision": {
+      "title": "Owner decision",
+      "reason": "Reason (required)",
+      "save": "Record decision",
+      "status": {
+        "CANDIDATE": "Candidate",
+        "SELECTED": "Selected",
+        "WATCH": "Watch",
+        "REJECTED": "Rejected"
+      }
+    },
+    "summary": {
+      "title": "Products",
+      "counts": "{{products}} products · {{verified}} verified programs · {{ready}} eligible to join",
+      "open": "View products"
+    }
   }
 }
