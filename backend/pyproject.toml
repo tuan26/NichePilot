@@ -91,6 +91,7 @@ markers = [
     "integration: cần PostgreSQL thật",
     "discovery: test E1 Autonomous Niche Discovery",
     "products: test E2 Product & Affiliate Discovery",
+    "keywords: test E3 Keyword & Audience Research",
     "live_sources: thu thập từ nguồn ALLOWED thật – chỉ chạy thủ công; thiếu nguồn ALLOWED → BLOCKED",
     "perf: test hiệu năng E1 – chạy riêng",
     "pii_ner: cần nhóm tùy chọn pii-ner (spaCy) – chỉ dev/test",

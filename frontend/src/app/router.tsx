@@ -6,6 +6,8 @@ import { NicheDetailPage } from '@/pages/discovery/NicheDetailPage'
 import { NicheRankingPage } from '@/pages/discovery/NicheRankingPage'
 import { SourcesPage } from '@/pages/discovery/SourcesPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { KeywordClusterPage } from '@/pages/keywords/KeywordClusterPage'
+import { NicheKeywordsPage } from '@/pages/keywords/NicheKeywordsPage'
 import { NicheProductsPage } from '@/pages/products/NicheProductsPage'
 import { ProductDetailPage } from '@/pages/products/ProductDetailPage'
 import { StatusPage } from '@/pages/StatusPage'
@@ -64,6 +66,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <ProductDetailPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/niches/:nicheId/keywords',
+    element: (
+      <RequireAuth>
+        <NicheKeywordsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/niches/:nicheId/keywords/:clusterId',
+    element: (
+      <RequireAuth>
+        <KeywordClusterPage />
       </RequireAuth>
     ),
   },

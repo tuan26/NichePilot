@@ -59,6 +59,15 @@ BUSINESS_TABLES = {
     "program_terms_versions",
     "product_scoring_weights",
     "product_evaluations",
+    # E3 (specs/004-keyword-audience-research, migration 0013)
+    "keyword_runs",
+    "keywords",
+    "keyword_origins",
+    "keyword_clusters",
+    "serp_observations",
+    "competitor_pages",
+    "keyword_scoring_weights",
+    "keyword_evaluations",
 }
 # Bảng E1 có khóa chính tự nhiên (không phải UUID) theo data-model E1 §2
 NATURAL_PK_TABLES = {"domain_access_state", "erasure_ledger_state"}
@@ -80,6 +89,10 @@ IMMUTABLE_NO_UPDATED_AT = {
     # E2: lần chấm điểm (bất biến, trigger) và phiên bản trọng số – chỉ thêm
     "product_evaluations",
     "product_scoring_weights",
+    # E3: nguồn gốc keyword, lần chấm điểm (bất biến, trigger) và phiên bản trọng số – chỉ thêm
+    "keyword_origins",
+    "keyword_evaluations",
+    "keyword_scoring_weights",
 }
 
 

@@ -335,3 +335,114 @@ export interface ProductSummary {
   monetization_risk: boolean
   last_run_id: string | null
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// E3 – Keyword & Audience Research (specs/004-keyword-audience-research/contracts/openapi.yaml)
+export type KeywordIntent = 'INFORMATIONAL' | 'COMMERCIAL_INVESTIGATION' | 'TRANSACTIONAL' | 'NAVIGATIONAL'
+export type KeywordList = 'ranked' | 'needs_research'
+export type ClusterDecision = 'CANDIDATE' | 'SELECTED' | 'WATCH' | 'REJECTED'
+
+export interface KeywordMetric {
+  value: number | null
+  source: string | null
+  collected_at: string | null
+  market: string | null
+}
+
+export interface KeywordEvaluation {
+  opportunity_score: number | null
+  confidence_score: number | null
+  coverage: number | null
+  scoring_status: 'SCORED' | 'INSUFFICIENT_SCORING_DATA'
+  criteria: Record<string, { level: number | null; status: string; reason: string; evidence_ids: string[] }>
+  missing: string[]
+  weights_version: number | null
+  computed_at: string | null
+}
+
+export interface KeywordItem {
+  keyword_id: string
+  cluster_id: string | null
+  text: string
+  language: string
+  market: string
+  keyword_type: 'PROBLEM' | 'SOLUTION' | 'PRODUCT' | 'COMPARISON' | 'INFORMATIONAL'
+  length_class: 'HEAD' | 'MID' | 'LONG_TAIL'
+  intent: KeywordIntent
+  intent_status: 'INFERRED' | 'VERIFIED'
+  intent_reason: string | null
+  risk_flags: string[]
+  origins: { origin_type: 'PAIN_POINT' | 'PERSONA' | 'PRODUCT'; ref_id: string | null; label: string; reason: string | null }[]
+  metrics: { search_volume: KeywordMetric; cpc: KeywordMetric; keyword_difficulty: KeywordMetric }
+  evaluation: KeywordEvaluation | null
+  data_origin: 'REAL' | 'MOCK'
+}
+
+export interface ClusterItem {
+  cluster_id: string
+  niche_id: string
+  name: string
+  intent: KeywordIntent
+  keyword_count: number
+  long_tail_count: number
+  opportunity_score: number | null
+  confidence_score: number | null
+  scored_count: number
+  origin_label: string
+  decision_status: ClusterDecision
+  serp_alert: boolean
+  data_origin: 'REAL' | 'MOCK'
+}
+
+export interface SerpResult {
+  position: number
+  url: string
+  domain: string
+  title: string | null
+  page_type: string
+}
+
+export interface CitedInsight {
+  status: 'INFERRED' | 'UNKNOWN'
+  value: string | null
+  evidence_ids: string[]
+}
+
+export interface ClusterDetail extends ClusterItem {
+  keywords: KeywordItem[]
+  serp: {
+    keyword_id: string
+    version: number
+    collected_at: string
+    results: SerpResult[]
+    changes: Record<string, unknown>
+    acknowledged_at: string | null
+  }[]
+  competitor_pages: { keyword_id: string; url: string; domain: string; summary: Record<string, unknown>; excerpt: string | null }[]
+  content_gaps: { status: 'OBSERVED' | 'UNKNOWN'; items: { pain_point_id: string; title: string; checked_urls: string[] }[] }
+  channels: { status: 'OBSERVED' | 'UNKNOWN'; items: { domain: string; kind: string; evidence_urls: string[] }[] }
+  persona: Partial<Record<'goals' | 'barriers' | 'knowledge_level' | 'typical_questions', CitedInsight>>
+  strategy: {
+    status: 'INFERRED' | 'UNKNOWN'
+    content_type?: string
+    angle?: string
+    pain_point_ids?: string[]
+    product_ids?: string[]
+    primary_keyword_id?: string | null
+    secondary_keyword_ids?: string[]
+    gap_refs?: string[]
+  }
+  decision_reason: string | null
+  watch_enabled: boolean
+  last_checked_at: string | null
+  last_check_error: string | null
+  disclaimer_key: string
+}
+
+export interface KeywordSummary {
+  keyword_count: number
+  cluster_count: number
+  long_tail_count: number
+  top_clusters: ClusterItem[]
+  last_run: { id: string; status: string; outcome: string | null; stop_reason: string | null } | null
+}

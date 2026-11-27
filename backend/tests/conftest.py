@@ -153,6 +153,21 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
     async with engine.begin() as conn:
         result = await conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
         existing = set(result.scalars())  # đọc trọn một lần
+        if "keywords" in existing:  # E3 – trước E2/E1 (FK tới products, pain_points, niches)
+            await conn.execute(
+                text("ALTER TABLE keyword_evaluations DISABLE TRIGGER trg_keyword_evaluations_immutable")
+            )
+            await conn.execute(text("DELETE FROM keyword_evaluations"))
+            await conn.execute(text("ALTER TABLE keyword_evaluations ENABLE TRIGGER trg_keyword_evaluations_immutable"))
+            await conn.execute(text("DELETE FROM competitor_pages"))
+            await conn.execute(text("DELETE FROM serp_observations"))
+            await conn.execute(text("DELETE FROM keyword_origins"))
+            await conn.execute(text("UPDATE keyword_clusters SET primary_keyword_id = NULL"))
+            await conn.execute(text("DELETE FROM keywords"))
+            await conn.execute(text("DELETE FROM keyword_clusters"))
+            await conn.execute(text("DELETE FROM keyword_runs"))
+            await conn.execute(text("DELETE FROM keyword_scoring_weights WHERE version > 1"))
+            await conn.execute(text("UPDATE keyword_scoring_weights SET is_active = true, created_by = NULL"))
         if "products" in existing:
             for table in E2_TABLES:
                 await conn.execute(text(f"DELETE FROM {table}"))  # noqa: S608 – tên bảng là hằng số

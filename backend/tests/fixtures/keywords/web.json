@@ -1,0 +1,28 @@
+{
+  "_note": "MOCK fixture tự soạn cho test E3 – kết quả SERP giả lập + trang đối thủ tự soạn trên tên miền .example; KHÔNG phải dữ liệu thật, không truy cập mạng.",
+  "pages": {
+    "https://bakeryblog.example/blog/stop-running-out": {"file": "article_covers.html", "status": 200},
+    "https://appreviews.example/review/bakery-stock-apps": {"file": "review_no_cover.html", "status": 200},
+    "https://shelfalert-demo.example/pricing": {"file": "shelfalert_pricing.html", "status": 200}
+  },
+  "robots": {},
+  "search": {
+    "default": [],
+    "how to stop running out of ingredients in a micro bakery": [
+      "https://bakersforum.example/t/flour-ran-out-again",
+      "https://cooking.stackexchange.com/questions/101/track-flour",
+      "https://bakeryblog.example/blog/stop-running-out",
+      "https://appreviews.example/review/bakery-stock-apps"
+    ],
+    "low stock alert app for small bakeries": [
+      "https://appreviews.example/review/bakery-stock-apps",
+      "https://shelfalert-demo.example/pricing",
+      "https://bakersforum.example/t/which-alert-app",
+      "https://www.youtube.com/watch?v=mockbakery"
+    ],
+    "best ShelfAlert alternatives": [
+      "https://appreviews.example/review/bakery-stock-apps",
+      "https://bakersforum.example/t/shelfalert-alternatives"
+    ]
+  }
+}

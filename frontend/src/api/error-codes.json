@@ -95,6 +95,22 @@
     "status": 409,
     "title": "Job token budget exceeded"
   },
+  "KEYWORD_CLUSTER_NOT_FOUND": {
+    "status": 404,
+    "title": "Keyword cluster not found"
+  },
+  "KEYWORD_RUN_ACTIVE": {
+    "status": 409,
+    "title": "A keyword research run is already active for this niche"
+  },
+  "KEYWORD_RUN_NOT_FOUND": {
+    "status": 404,
+    "title": "Keyword research run not found"
+  },
+  "KEYWORD_WEIGHTS_INVALID": {
+    "status": 422,
+    "title": "Keyword scoring weights are invalid"
+  },
   "MAX_AI_CALLS_EXCEEDED": {
     "status": 409,
     "title": "Maximum AI calls exceeded"

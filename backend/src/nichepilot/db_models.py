@@ -10,5 +10,6 @@ def import_all_models() -> None:
     import nichepilot.modules.discovery.models
     import nichepilot.modules.evidence.models
     import nichepilot.modules.identity.models
+    import nichepilot.modules.keywords.models
     import nichepilot.modules.products.models
     import nichepilot.modules.settings.models  # noqa: F401

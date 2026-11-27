@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import type { Evaluation, Finding, NicheDetail, ProductSummary, SimilarityPair } from '@/api/types'
+import type { Evaluation, Finding, KeywordSummary, NicheDetail, ProductSummary, SimilarityPair } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card, Input, Label } from '@/components/ui/form'
@@ -25,6 +25,7 @@ export interface NicheDetailViewProps {
   decisionError?: string | null
   /** E2 (FR-034): tóm tắt sản phẩm – chỉ hiển thị, không đổi dữ liệu E1. */
   productSummary?: ProductSummary
+  keywordSummary?: KeywordSummary
 }
 
 const PERSONA = ['segment', 'context', 'goals', 'obstacles', 'ability_to_pay']
@@ -283,6 +284,22 @@ export function NicheDetailView(props: NicheDetailViewProps) {
           )}
           <Link to={`/niches/${n.id}/products`} className="block text-sm underline" data-testid="open-products">
             {t('products.summary.open')}
+          </Link>
+        </Card>
+      )}
+
+      {props.keywordSummary && (
+        <Card className="space-y-2" data-testid="keyword-summary">
+          <h2 className="text-lg font-semibold">{t('keywords.summary.title')}</h2>
+          <p className="text-sm">
+            {t('keywords.summary.counts', {
+              keywords: props.keywordSummary.keyword_count,
+              clusters: props.keywordSummary.cluster_count,
+              longTail: props.keywordSummary.long_tail_count,
+            })}
+          </p>
+          <Link to={`/niches/${n.id}/keywords`} className="block text-sm underline" data-testid="open-keywords">
+            {t('keywords.summary.open')}
           </Link>
         </Card>
       )}

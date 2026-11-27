@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SPEC = ROOT / "specs" / "001-foundation-ai-infrastructure" / "spec.md"
 E1_SPEC = ROOT / "specs" / "002-niche-discovery" / "spec.md"
 E2_SPEC = ROOT / "specs" / "003-product-affiliate-discovery" / "spec.md"
+E3_SPEC = ROOT / "specs" / "004-keyword-audience-research" / "spec.md"
 DEFAULT_TEST_DIRS = [ROOT / "backend" / "tests", ROOT / "frontend" / "tests", ROOT / "deploy" / "tests"]
 # chấp nhận chú thích mức ưu tiên sau mã, vd. `**FR-034** *(Should)*:` (sửa nợ truy vết FR-034 E1 – 2026-11-27)
 REQ_LINE = re.compile(r"^- \*\*((?:FR|SC)-\d+[a-z]?)\*\*(?:\s*\*\([^)]*\)\*)?:\s*(.*)$")
@@ -188,7 +189,12 @@ def render(
     return "\n".join(lines) + "\n"
 
 
-DEFAULT_PROFILES = [Profile(DEFAULT_SPEC, "", "E0"), Profile(E1_SPEC, "E1", "E1"), Profile(E2_SPEC, "E2", "E2")]
+DEFAULT_PROFILES = [
+    Profile(DEFAULT_SPEC, "", "E0"),
+    Profile(E1_SPEC, "E1", "E1"),
+    Profile(E2_SPEC, "E2", "E2"),
+    Profile(E3_SPEC, "E3", "E3"),
+]
 
 
 def main(argv: list[str] | None = None) -> int:

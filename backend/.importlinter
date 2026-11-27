@@ -56,3 +56,17 @@ source_modules =
 forbidden_modules =
     nichepilot.modules.products
 
+
+# E3 (T003): keywords dùng API công khai chỉ đọc của discovery và products; các module đó không phụ thuộc ngược vào keywords.
+[importlinter:contract:no-reverse-dep-on-keywords]
+name = Module E0/E1/E2 không import module keywords (E3)
+type = forbidden
+source_modules =
+    nichepilot.modules.identity
+    nichepilot.modules.evidence
+    nichepilot.modules.audit
+    nichepilot.modules.settings
+    nichepilot.modules.discovery
+    nichepilot.modules.products
+forbidden_modules =
+    nichepilot.modules.keywords

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { ApiError } from '@/api/client'
 import { useEraseEvidence, useNiche, useRecordDecision, useResolveSimilarity } from '@/api/discovery'
+import { useKeywordSummary } from '@/api/keywords'
 import { useProductSummary } from '@/api/products'
 import { Layout } from '@/app/Layout'
 import { NicheDetailView } from '@/pages/discovery/NicheDetailView'
@@ -21,6 +22,7 @@ export function NicheDetailPage() {
   const decide = useRecordDecision(nicheId)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const summary = useProductSummary(nicheId, niche.data?.data_origin === 'MOCK')
+  const keywordSummary = useKeywordSummary(nicheId, niche.data?.data_origin === 'MOCK')
   return (
     <Layout
       syncProfile
@@ -47,6 +49,7 @@ export function NicheDetailPage() {
         onDecision={(decision, reason) => decide.mutate({ decision, reason })}
         decisionError={code(decide.error) ?? null}
         productSummary={summary.data}
+        keywordSummary={keywordSummary.data}
       />
     </Layout>
   )

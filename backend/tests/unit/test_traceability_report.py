@@ -152,4 +152,5 @@ def test_TC_E1_SC011_03_default_run_covers_all_specs() -> None:
         ("001-foundation-ai-infrastructure", ""),
         ("002-niche-discovery", "E1"),
         ("003-product-affiliate-discovery", "E2"),
+        ("004-keyword-audience-research", "E3"),
     ]

@@ -131,7 +131,11 @@
     "PRODUCT_RUN_NOT_FOUND": "Không tìm thấy lượt tìm sản phẩm.",
     "PRODUCT_NOT_FOUND": "Không tìm thấy sản phẩm.",
     "PROGRAM_NOT_FOUND": "Không tìm thấy chương trình affiliate.",
-    "PRODUCT_WEIGHTS_INVALID": "Trọng số sản phẩm không hợp lệ (5 tiêu chí, tổng 100)."
+    "PRODUCT_WEIGHTS_INVALID": "Trọng số sản phẩm không hợp lệ (5 tiêu chí, tổng 100).",
+    "KEYWORD_RUN_ACTIVE": "Ngách đang có lượt nghiên cứu keyword chạy.",
+    "KEYWORD_RUN_NOT_FOUND": "Không tìm thấy lượt nghiên cứu keyword.",
+    "KEYWORD_CLUSTER_NOT_FOUND": "Không tìm thấy cluster keyword.",
+    "KEYWORD_WEIGHTS_INVALID": "Trọng số keyword không hợp lệ (5 tiêu chí, tổng 100)."
   },
   "discovery": {
     "opportunity": {
@@ -426,5 +430,142 @@
       "counts": "{{products}} sản phẩm · {{verified}} chương trình đã xác minh · {{ready}} đủ điều kiện tham gia",
       "open": "Xem sản phẩm"
     }
+  },
+  "keywords": {
+    "title": "Keyword & audience",
+    "back": "Quay lại ngách",
+    "run": "Nghiên cứu keyword",
+    "runStarted": "Đã tạo lượt nghiên cứu keyword.",
+    "includeMock": "Hiện dữ liệu giả lập (MOCK)",
+    "empty": "Chưa có cluster keyword nào",
+    "inferred": "suy luận",
+    "list": {
+      "ranked": "Cluster xếp hạng",
+      "needs_research": "Cần nghiên cứu thêm"
+    },
+    "opportunity": {
+      "disclaimer": "Keyword Opportunity Score là điểm ưu tiên nghiên cứu, không phải dự báo traffic hay doanh thu. Search Volume, CPC và KD hiển thị UNKNOWN khi không có nguồn dữ liệu keyword hợp lệ."
+    },
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "insufficient": "Chưa đủ dữ liệu chấm điểm",
+      "missing": "Còn thiếu"
+    },
+    "criteria": {
+      "fit": "Phù hợp pain point/persona/sản phẩm",
+      "intent_value": "Giá trị theo intent",
+      "competition": "Cạnh tranh quan sát được",
+      "content_gap": "Khoảng trống nội dung",
+      "demand": "Bằng chứng nhu cầu"
+    },
+    "intent": {
+      "INFORMATIONAL": "Thông tin",
+      "COMMERCIAL_INVESTIGATION": "Tìm hiểu trước khi mua",
+      "TRANSACTIONAL": "Giao dịch",
+      "NAVIGATIONAL": "Điều hướng"
+    },
+    "intentStatus": {
+      "INFERRED": "Suy luận",
+      "VERIFIED": "Có tín hiệu SERP"
+    },
+    "length": {
+      "HEAD": "Ngắn",
+      "MID": "Trung bình",
+      "LONG_TAIL": "Long-tail"
+    },
+    "origin": {
+      "PAIN_POINT": "Pain point",
+      "PERSONA": "Persona",
+      "PRODUCT": "Sản phẩm"
+    },
+    "flags": {
+      "BRAND_TERM": "Từ khóa thương hiệu (hạn chế quảng cáo)",
+      "COMPLIANCE_SENSITIVE": "Nhạy cảm tuân thủ"
+    },
+    "metrics": {
+      "noSource": "Không có nguồn dữ liệu keyword hợp lệ",
+      "note": "Search Volume, CPC, KD chỉ hiển thị khi có nguồn hợp lệ (kèm nguồn, thời điểm, thị trường); hệ thống không ước tính các chỉ số này."
+    },
+    "cluster": {
+      "origin": "Nguồn gốc",
+      "keywords": "Keyword",
+      "counts": "{{total}} keyword · {{longTail}} long-tail",
+      "back": "Quay lại danh sách cluster"
+    },
+    "table": {
+      "keyword": "Keyword",
+      "intent": "Intent",
+      "length": "Độ dài",
+      "volume": "Search Volume",
+      "cpc": "CPC",
+      "kd": "KD"
+    },
+    "serp": {
+      "title": "SERP quan sát",
+      "watch": "Theo dõi thay đổi SERP",
+      "none": "UNKNOWN – chưa có quan sát SERP (cần nguồn ALLOWED)",
+      "version": "phiên bản {{version}}",
+      "changed": "SERP đã thay đổi (phiên bản {{version}})",
+      "acknowledge": "Đã xem",
+      "alert": "SERP thay đổi",
+      "checkError": "Lần kiểm tra gần nhất lỗi: {{error}}",
+      "note": "Vị trí là thứ tự quan sát từ nguồn ALLOWED tại thời điểm thu thập, không phải thứ hạng chính thức."
+    },
+    "pageType": {
+      "forum": "diễn đàn",
+      "qa": "hỏi đáp",
+      "video": "video",
+      "review": "đánh giá",
+      "article": "bài viết",
+      "product": "trang sản phẩm",
+      "other": "khác"
+    },
+    "gaps": {
+      "title": "Content gap",
+      "unknown": "chưa phân tích trang đối thủ",
+      "none": "Không phát hiện khoảng trống",
+      "checked": "đã đối chiếu {{n}} trang"
+    },
+    "channels": {
+      "title": "Cộng đồng & kênh tiếp cận"
+    },
+    "persona": {
+      "title": "Persona cấp cluster",
+      "goals": "Mục tiêu",
+      "barriers": "Rào cản",
+      "knowledge_level": "Mức hiểu biết",
+      "typical_questions": "Câu hỏi điển hình"
+    },
+    "strategy": {
+      "title": "Đề xuất content strategy",
+      "contentType": "Loại nội dung",
+      "angle": "Góc tiếp cận",
+      "note": "Đề xuất do AI suy luận từ bằng chứng; không xuất bản tự động."
+    },
+    "contentType": {
+      "GUIDE": "Hướng dẫn",
+      "COMPARISON": "So sánh",
+      "REVIEW": "Review",
+      "LIST": "Danh sách",
+      "FAQ": "FAQ"
+    },
+    "decision": {
+      "title": "Quyết định",
+      "reason": "Lý do (bắt buộc)",
+      "save": "Ghi quyết định",
+      "status": {
+        "CANDIDATE": "Chưa quyết định",
+        "SELECTED": "Chọn",
+        "WATCH": "Theo dõi",
+        "REJECTED": "Loại bỏ"
+      }
+    },
+    "summary": {
+      "title": "Keyword",
+      "counts": "{{keywords}} keyword · {{clusters}} cluster · {{longTail}} long-tail",
+      "open": "Xem keyword & audience"
+    },
+    "unknown": "UNKNOWN"
   }
 }

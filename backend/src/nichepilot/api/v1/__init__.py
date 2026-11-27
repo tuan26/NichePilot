@@ -10,6 +10,7 @@ from nichepilot.api.v1 import (
     costs,
     discovery,
     jobs,
+    keywords,
     models,
     products,
     providers,
@@ -30,3 +31,4 @@ api_router.include_router(providers.router)
 api_router.include_router(audit.router)
 api_router.include_router(discovery.router)  # E1
 api_router.include_router(products.router)  # E2
+api_router.include_router(keywords.router)  # E3

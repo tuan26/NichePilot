@@ -118,6 +118,43 @@ test('E2 MOCK: ngách → sản phẩm (hiện MOCK) → chi tiết → quyết 
   await page.getByRole('button', { name: 'VI' }).click()
 })
 
+test('E3 MOCK: ngách → keyword (hiện MOCK) → cluster → chỉ số UNKNOWN → quyết định → EN', async ({ page }) => {
+  expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
+  await page.goto('/login')
+  await page.getByLabel('Tên đăng nhập').fill(USER)
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page.getByRole('heading', { name: 'Trạng thái hệ thống' })).toBeVisible()
+
+  await page.goto('/niches')
+  await page.getByLabel('Hiện dữ liệu giả lập (MOCK)').check()
+  await page.getByTestId('ranking-row').filter({ hasText: '[MOCK DEMO]' }).getByRole('link').click()
+  // Tóm tắt E3 trên trang ngách E1 (chỉ hiển thị, không đổi dữ liệu E1)
+  await expect(page.getByTestId('keyword-summary')).toContainText('long-tail')
+  await page.getByTestId('open-keywords').click()
+
+  await expect(page.getByRole('heading', { name: 'Keyword & audience' })).toBeVisible()
+  await expect(page.getByText('Chưa có cluster keyword nào')).toBeVisible() // MOCK ẩn mặc định
+  await page.getByTestId('keywords-include-mock').check()
+  await expect(page.getByText('không phải dự báo traffic hay doanh thu')).toBeVisible()
+  const row = page.getByTestId('cluster-row').filter({ hasText: 'how to stop running out of ingredients' })
+  await expect(row).toBeVisible()
+  await expect(row.getByTestId('mock-badge')).toBeVisible()
+  await row.getByRole('link').click()
+
+  await expect(page.getByRole('heading', { name: 'how to stop running out of ingredients in a micro bakery' })).toBeVisible()
+  await expect(page.getByTestId('metric-unknown').first()).toHaveText('UNKNOWN') // không có nguồn chỉ số keyword
+  await expect(page.getByText('bakersforum-demo.example').first()).toBeVisible()
+  await page.getByTestId('cluster-decision-select').selectOption('WATCH')
+  await page.getByLabel('Lý do (bắt buộc)').fill('E2E: theo dõi thêm (dữ liệu MOCK)')
+  await page.getByRole('button', { name: 'Ghi quyết định' }).click()
+  await expect(page.getByTestId('cluster-decision')).toContainText('Theo dõi')
+
+  await page.getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByText('not a traffic or revenue forecast')).toBeVisible()
+  await page.getByRole('button', { name: 'VI' }).click()
+})
+
 test('E1 MOCK: xếp hạng (hiện MOCK) → chi tiết → ghi quyết định → xóa bằng chứng', async ({ page }) => {
   expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
   await page.goto('/login')

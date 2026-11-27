@@ -8,7 +8,9 @@ nội dung đã xóa →
 lưu nguồn + trích đoạn (REDACTED, ≤ 1000 ký tự, chống trùng theo `content_hash`). Không vượt CAPTCHA/đăng
 nhập/paywall: trang lỗi hoặc
 bị chặn chỉ được ghi lý do. Checkpoint (state) chỉ chứa URL công khai, ID và bộ đếm – không chứa nội dung trang.
-Logic lặp lại `NicheDiscoveryAgent._fetch` (E1) có chủ đích để không sửa agent E1 đã nghiệm thu (plan Y6).
+Logic lặp lại `NicheDiscoveryAgent._fetch` (E1) có chủ đích để không sửa agent E1 đã nghiệm thu (plan Y6). E3 dùng lại
+với
+`subject_type = keyword_run` (tham số bổ sung, mặc định giữ hành vi E2).
 """
 
 from __future__ import annotations
@@ -76,6 +78,7 @@ async def collect(
     country: str,
     time_left: Callable[[], float],
     batch: int = 5,
+    subject_type: str = "product_run",
 ) -> CollectResult:
     access = DomainAccessService(ctx.sessionmaker)
     m: dict[str, Any] = state["metrics"]
@@ -139,7 +142,9 @@ async def collect(
             fetched.append(uh)
             _count(m, "SKIPPED", "ERASED_CONTENT")
             continue
-        ids = await _store(ctx, {**page, "segments": kept}, item, project_id, run_origin, run_id, policies)
+        ids = await _store(
+            ctx, {**page, "segments": kept}, item, project_id, run_origin, run_id, policies, subject_type
+        )
         pages.setdefault(item["tag"], []).extend(i for i in ids if i not in pages.get(item["tag"], []))
         fetched.append(uh)
         _count(m, "SUCCESS", None)
@@ -154,6 +159,7 @@ async def _store(
     run_origin: str,
     run_id: uuid.UUID,
     policies: dict[str, Any],
+    subject_type: str = "product_run",
 ) -> list[str]:
     ev = EvidenceService(ctx.sessionmaker)
     texts = [str(seg["text"]) for seg in page["segments"]]
@@ -196,7 +202,7 @@ async def _store(
             data_origin=origin,
             source_id=source_id,
             excerpt=seg[:1000],
-            subject_type="product_run",
+            subject_type=subject_type,
             subject_id=run_id,
             job_id=ctx.job_id,
             redaction_status="REDACTED",

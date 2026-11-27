@@ -131,7 +131,11 @@
     "PRODUCT_RUN_NOT_FOUND": "Product discovery run not found.",
     "PRODUCT_NOT_FOUND": "Product not found.",
     "PROGRAM_NOT_FOUND": "Affiliate program not found.",
-    "PRODUCT_WEIGHTS_INVALID": "Product weights are invalid (5 criteria, total 100)."
+    "PRODUCT_WEIGHTS_INVALID": "Product weights are invalid (5 criteria, total 100).",
+    "KEYWORD_RUN_ACTIVE": "A keyword research run is already active for this niche.",
+    "KEYWORD_RUN_NOT_FOUND": "Keyword research run not found.",
+    "KEYWORD_CLUSTER_NOT_FOUND": "Keyword cluster not found.",
+    "KEYWORD_WEIGHTS_INVALID": "Keyword weights are invalid (5 criteria, sum 100)."
   },
   "discovery": {
     "opportunity": {
@@ -426,5 +430,142 @@
       "counts": "{{products}} products · {{verified}} verified programs · {{ready}} eligible to join",
       "open": "View products"
     }
+  },
+  "keywords": {
+    "title": "Keywords & audience",
+    "back": "Back to niche",
+    "run": "Research keywords",
+    "runStarted": "Keyword research run created.",
+    "includeMock": "Show simulated data (MOCK)",
+    "empty": "No keyword clusters yet",
+    "inferred": "inferred",
+    "list": {
+      "ranked": "Ranked clusters",
+      "needs_research": "Needs more research"
+    },
+    "opportunity": {
+      "disclaimer": "Keyword Opportunity Score is a research priority score, not a traffic or revenue forecast. Search Volume, CPC and KD show UNKNOWN when no valid keyword data source exists."
+    },
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "insufficient": "Not enough data to score",
+      "missing": "Missing"
+    },
+    "criteria": {
+      "fit": "Fit with pain points/persona/products",
+      "intent_value": "Intent value",
+      "competition": "Observed competition",
+      "content_gap": "Content gap",
+      "demand": "Demand evidence"
+    },
+    "intent": {
+      "INFORMATIONAL": "Informational",
+      "COMMERCIAL_INVESTIGATION": "Commercial investigation",
+      "TRANSACTIONAL": "Transactional",
+      "NAVIGATIONAL": "Navigational"
+    },
+    "intentStatus": {
+      "INFERRED": "Inferred",
+      "VERIFIED": "SERP signal observed"
+    },
+    "length": {
+      "HEAD": "Head",
+      "MID": "Mid",
+      "LONG_TAIL": "Long-tail"
+    },
+    "origin": {
+      "PAIN_POINT": "Pain point",
+      "PERSONA": "Persona",
+      "PRODUCT": "Product"
+    },
+    "flags": {
+      "BRAND_TERM": "Brand term (ad restrictions)",
+      "COMPLIANCE_SENSITIVE": "Compliance sensitive"
+    },
+    "metrics": {
+      "noSource": "No valid keyword data source",
+      "note": "Search Volume, CPC and KD are shown only with a valid source (with source, date and market); the system never estimates them."
+    },
+    "cluster": {
+      "origin": "Origin",
+      "keywords": "Keywords",
+      "counts": "{{total}} keywords · {{longTail}} long-tail",
+      "back": "Back to clusters"
+    },
+    "table": {
+      "keyword": "Keyword",
+      "intent": "Intent",
+      "length": "Length",
+      "volume": "Search Volume",
+      "cpc": "CPC",
+      "kd": "KD"
+    },
+    "serp": {
+      "title": "Observed SERP",
+      "watch": "Watch SERP changes",
+      "none": "UNKNOWN – no SERP observation yet (needs an ALLOWED source)",
+      "version": "version {{version}}",
+      "changed": "SERP changed (version {{version}})",
+      "acknowledge": "Acknowledge",
+      "alert": "SERP changed",
+      "checkError": "Last check failed: {{error}}",
+      "note": "Positions are the observed order from an ALLOWED source at collection time, not official rankings."
+    },
+    "pageType": {
+      "forum": "forum",
+      "qa": "Q&A",
+      "video": "video",
+      "review": "review",
+      "article": "article",
+      "product": "product page",
+      "other": "other"
+    },
+    "gaps": {
+      "title": "Content gaps",
+      "unknown": "competitor pages not analysed yet",
+      "none": "No gaps found",
+      "checked": "checked against {{n}} pages"
+    },
+    "channels": {
+      "title": "Communities & channels"
+    },
+    "persona": {
+      "title": "Cluster-level persona",
+      "goals": "Goals",
+      "barriers": "Barriers",
+      "knowledge_level": "Knowledge level",
+      "typical_questions": "Typical questions"
+    },
+    "strategy": {
+      "title": "Content strategy suggestion",
+      "contentType": "Content type",
+      "angle": "Angle",
+      "note": "AI suggestion inferred from evidence; nothing is published automatically."
+    },
+    "contentType": {
+      "GUIDE": "Guide",
+      "COMPARISON": "Comparison",
+      "REVIEW": "Review",
+      "LIST": "List",
+      "FAQ": "FAQ"
+    },
+    "decision": {
+      "title": "Decision",
+      "reason": "Reason (required)",
+      "save": "Save decision",
+      "status": {
+        "CANDIDATE": "Undecided",
+        "SELECTED": "Selected",
+        "WATCH": "Watch",
+        "REJECTED": "Rejected"
+      }
+    },
+    "summary": {
+      "title": "Keywords",
+      "counts": "{{keywords}} keywords · {{clusters}} clusters · {{longTail}} long-tail",
+      "open": "Open keywords & audience"
+    },
+    "unknown": "UNKNOWN"
   }
 }
