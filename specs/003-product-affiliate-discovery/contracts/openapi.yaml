@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: NichePilot API – E2 Product & Affiliate Discovery
+  version: 0.1.0-draft
+  description: |
+    Hợp đồng REST API của E2. Kế thừa quy ước E0/E1: phiên cookie `np_session`, request ghi gửi `X-CSRF-Token`, lỗi
+    `application/problem+json` với `code` ổn định, bản ghi có `data_origin` (REAL | MOCK), MOCK ẩn mặc định (`include_mock=false`).
+    - Lượt tìm sản phẩm là job E0 `products.run` (điều khiển qua `/api/v1/jobs/{job_id}/pause|resume|cancel`); lịch qua `/api/v1/schedules`
+      với `job_type` ∈ {products.run (bắt buộc `params.niche_id`), products.terms_check (bắt buộc `params.program_id`)}.
+    - Erasure ledger chưa áp dụng → mọi endpoint dữ liệu nghiên cứu E2 trả 503 `ERASURE_LEDGER_NOT_APPLIED` (như E1).
+    - Product Opportunity Score là điểm ưu tiên nghiên cứu, KHÔNG phải dự báo doanh thu; `READY_TO_PROMOTE` chỉ là điều kiện tham gia.
+    - Không có endpoint đăng ký affiliate, chấp nhận điều khoản, đăng nhập mạng affiliate hay tạo link (FR-025).
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+tags:
+  - name: products
+  - name: programs
+  - name: product-scoring
+
+paths:
+  /api/v1/product-runs:
+    post:
+      tags: [products]
+      summary: Tạo lượt tìm sản phẩm cho một ngách (FR-001…FR-004) – job E0 `products.run`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductRunCreate" }
+      responses:
+        "202":
+          description: Đã tạo job
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id, run_id]
+                properties:
+                  job_id: { type: string, format: uuid }
+                  run_id: { type: string, format: uuid }
+        "404": { description: "`NICHE_NOT_FOUND`" }
+        "409": { description: "`NICHE_NOT_ELIGIBLE` (INSUFFICIENT_EVIDENCE / REJECTED / HIDDEN / đã gộp), `PRODUCT_RUN_ACTIVE`, `NO_COMPLIANT_SEARCH_SOURCE` (mã E1 – 409)" }
+        "422": { description: "`BUDGET_NOT_CONFIGURED`, `VALIDATION_ERROR`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+    get:
+      tags: [products]
+      summary: Danh sách lượt (lọc theo ngách)
+      parameters:
+        - { name: niche_id, in: query, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ProductRun" } }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/product-runs/{run_id}:
+    get:
+      tags: [products]
+      summary: Chi tiết lượt + số liệu FR-038
+      parameters: [{ name: run_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ProductRun" } } } }
+        "404": { description: "`PRODUCT_RUN_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/products:
+    get:
+      tags: [products]
+      summary: Danh sách sản phẩm của ngách (màn hình 1, FR-032)
+      description: GET có thể ghi `product_evaluations` mới khi tập bằng chứng ACTIVE đã đổi (tính lại xác định, idempotent, không AI – R-06).
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: list, in: query, schema: { type: string, enum: [ranked, needs_research], default: ranked } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ProductListItem" } }
+        "404": { description: "`NICHE_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/product-summary:
+    get:
+      tags: [products]
+      summary: Tóm tắt E2 cho ngách (FR-034) – không đổi dữ liệu E1
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [products, programs_verified, ready_to_promote, monetization_risk]
+                properties:
+                  products: { type: integer }
+                  programs_verified: { type: integer }
+                  ready_to_promote: { type: integer }
+                  monetization_risk: { type: boolean }
+                  last_run_id: { type: [string, "null"], format: uuid }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/niches/{niche_id}/product-report:
+    get:
+      tags: [products]
+      summary: Báo cáo sản phẩm theo ngách (FR-032) – JSON hoặc Markdown, VI/EN, loại MOCK mặc định
+      parameters:
+        - { name: niche_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: format, in: query, schema: { type: string, enum: [json, markdown], default: json } }
+        - { name: lang, in: query, schema: { type: string, enum: [vi, en], default: vi } }
+        - { $ref: "#/components/parameters/IncludeMock" }
+      responses:
+        "200": { description: OK }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/products/{product_id}:
+    get:
+      tags: [products]
+      summary: Chi tiết sản phẩm trong ngữ cảnh một ngách (màn hình 2)
+      parameters:
+        - { name: product_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: niche_id, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ProductDetail" } } } }
+        "404": { description: "`PRODUCT_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/products/{product_id}/decision:
+    post:
+      tags: [products]
+      summary: Ghi quyết định của chủ sở hữu cho cặp (sản phẩm, ngách) (FR-033) – không đổi điểm; audit
+      parameters: [{ name: product_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [niche_id, decision, reason]
+              properties:
+                niche_id: { type: string, format: uuid }
+                decision: { type: string, enum: [SELECTED, WATCH, REJECTED] }
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`PRODUCT_NOT_FOUND`" }
+        "422": { description: "`VALIDATION_ERROR`" }
+  /api/v1/affiliate-programs/{program_id}:
+    get:
+      tags: [programs]
+      summary: Chi tiết chương trình affiliate – thuộc tính có trạng thái/nguồn, lịch sử phiên bản điều khoản
+      parameters: [{ name: program_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ProgramDetail" } } } }
+        "404": { description: "`PROGRAM_NOT_FOUND`" }
+        "503": { $ref: "#/components/responses/LedgerNotApplied" }
+  /api/v1/affiliate-programs/{program_id}/watch:
+    put:
+      tags: [programs]
+      summary: Bật/tắt theo dõi điều khoản (FR-040, Should) – audit; lịch kiểm tra do chủ sở hữu tạo qua /schedules
+      parameters: [{ name: program_id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } } } }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`PROGRAM_NOT_FOUND`" }
+  /api/v1/affiliate-programs/{program_id}/terms-versions/{version}/acknowledge:
+    post:
+      tags: [programs]
+      summary: Đánh dấu đã xem cảnh báo thay đổi điều khoản
+      parameters:
+        - { name: program_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`PROGRAM_NOT_FOUND`" }
+  /api/v1/product-scoring/weights:
+    get:
+      tags: [product-scoring]
+      summary: Phiên bản trọng số đang dùng + lịch sử
+      responses: { "200": { description: OK } }
+    post:
+      tags: [product-scoring]
+      summary: Tạo phiên bản trọng số mới (tổng 100, 5 tiêu chí) và kích hoạt; job `products.recompute` (không AI) – audit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [weights]
+              properties:
+                weights:
+                  type: object
+                  required: [fit, affiliate, eligibility, quality, price_fit]
+                  additionalProperties: false
+                  properties:
+                    fit: { type: number, minimum: 0, maximum: 100 }
+                    affiliate: { type: number, minimum: 0, maximum: 100 }
+                    eligibility: { type: number, minimum: 0, maximum: 100 }
+                    quality: { type: number, minimum: 0, maximum: 100 }
+                    price_fit: { type: number, minimum: 0, maximum: 100 }
+                coverage_min: { type: number, minimum: 0, maximum: 100 }
+      responses:
+        "201": { description: Created }
+        "422": { description: "`PRODUCT_WEIGHTS_INVALID`" }
+
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: np_session }
+  parameters:
+    IncludeMock:
+      name: include_mock
+      in: query
+      schema: { type: boolean, default: false }
+  responses:
+    LedgerNotApplied:
+      description: "`ERASURE_LEDGER_NOT_APPLIED`"
+  schemas:
+    ProductRunCreate:
+      type: object
+      required: [niche_id]
+      additionalProperties: false
+      properties:
+        niche_id: { type: string, format: uuid }
+        max_products: { type: integer, minimum: 1, maximum: 20, default: 10 }
+        page_limit: { type: integer, minimum: 5, maximum: 200, default: 60 }
+        time_limit_s: { type: integer, minimum: 60, maximum: 5400, default: 1800 }
+    ProductRun:
+      type: object
+      required: [id, job_id, niche_id, status, data_origin]
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        niche_id: { type: string, format: uuid }
+        status: { type: string, description: Trạng thái job E0 }
+        outcome: { type: [string, "null"], enum: [COMPLETED, PARTIAL_COMPLETED, FAILED, null] }
+        stop_reason: { type: [string, "null"] }
+        params: { type: object }
+        metrics: { type: object }
+        data_origin: { type: string, enum: [REAL, MOCK] }
+        created_at: { type: string, format: date-time }
+    Attribute:
+      type: object
+      required: [key, status]
+      properties:
+        key: { type: string }
+        status: { type: string, enum: [VERIFIED, INFERRED, CONFLICTING, UNKNOWN] }
+        value: { description: Giá trị gộp; NULL khi UNKNOWN }
+        values:
+          type: array
+          description: Mọi giá trị kèm nguồn (CONFLICTING hiển thị đủ)
+          items:
+            type: object
+            properties:
+              value: {}
+              status: { type: string }
+              evidence_id: { type: string, format: uuid }
+              source_url: { type: string }
+              excerpt: { type: string }
+              collected_at: { type: string, format: date-time }
+              verified_at: { type: [string, "null"], format: date-time }
+    Evaluation:
+      type: object
+      properties:
+        opportunity_score: { type: [number, "null"] }
+        confidence_score: { type: number }
+        coverage: { type: number }
+        scoring_status: { type: string, enum: [SCORED, INSUFFICIENT_SCORING_DATA] }
+        criteria: { type: object }
+        missing: { type: array, items: { type: string } }
+        weights_version: { type: integer }
+        computed_at: { type: string, format: date-time }
+    ProductListItem:
+      type: object
+      required: [product_id, name, readiness_status, decision_status, data_origin]
+      properties:
+        product_id: { type: string, format: uuid }
+        name: { type: string }
+        vendor: { type: [string, "null"] }
+        official_domain: { type: [string, "null"] }
+        readiness_status:
+          type: string
+          enum: [READY_TO_PROMOTE, ELIGIBILITY_UNVERIFIED, NOT_ELIGIBLE, AFFILIATE_UNVERIFIED, NO_PROGRAM, PROGRAM_CLOSED]
+        risk_flags: { type: array, items: { type: string } }
+        evaluation: { $ref: "#/components/schemas/Evaluation" }
+        ai_recommendation: { type: string, enum: [SELECT, REJECT, UNKNOWN] }
+        decision_status: { type: string, enum: [CANDIDATE, SELECTED, WATCH, REJECTED] }
+        data_origin: { type: string, enum: [REAL, MOCK] }
+    ProductDetail:
+      allOf:
+        - { $ref: "#/components/schemas/ProductListItem" }
+        - type: object
+          properties:
+            attributes: { type: array, items: { $ref: "#/components/schemas/Attribute" } }
+            pain_points:
+              type: array
+              items: { type: object, properties: { pain_point_id: { type: string }, title: { type: string }, evidence: { type: array, items: { type: object } } } }
+            persona_match: { type: string, enum: [MATCH, PARTIAL, NO_MATCH, UNKNOWN] }
+            programs: { type: array, items: { $ref: "#/components/schemas/ProgramDetail" } }
+            ai_recommendation_reason: { type: [string, "null"] }
+            decision_reason: { type: [string, "null"] }
+            disclaimer_key: { type: string, const: products.opportunity.disclaimer }
+    ProgramDetail:
+      type: object
+      required: [program_id, name, verification_status, attributes]
+      properties:
+        program_id: { type: string, format: uuid }
+        name: { type: string }
+        operator_type: { type: string, enum: [VENDOR, NETWORK, UNKNOWN] }
+        operator_name: { type: [string, "null"] }
+        operator_domain: { type: [string, "null"] }
+        terms_url: { type: [string, "null"] }
+        verification_status: { type: string, enum: [VERIFIED, PARTIAL, UNVERIFIED, CLOSED] }
+        attributes: { type: array, items: { $ref: "#/components/schemas/Attribute" } }
+        watch_enabled: { type: boolean }
+        last_checked_at: { type: [string, "null"], format: date-time }
+        last_check_error: { type: [string, "null"] }
+        terms_versions:
+          type: array
+          items:
+            type: object
+            properties:
+              version: { type: integer }
+              checked_at: { type: string, format: date-time }
+              changes: { type: array, items: { type: object } }
+              acknowledged_at: { type: [string, "null"], format: date-time }
+        data_origin: { type: string, enum: [REAL, MOCK] }

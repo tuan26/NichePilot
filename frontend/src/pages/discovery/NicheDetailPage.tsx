@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { ApiError } from '@/api/client'
 import { useEraseEvidence, useNiche, useRecordDecision, useResolveSimilarity } from '@/api/discovery'
+import { useProductSummary } from '@/api/products'
 import { Layout } from '@/app/Layout'
 import { NicheDetailView } from '@/pages/discovery/NicheDetailView'
 
@@ -19,6 +20,7 @@ export function NicheDetailPage() {
   const resolve = useResolveSimilarity(nicheId)
   const decide = useRecordDecision(nicheId)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const summary = useProductSummary(nicheId, niche.data?.data_origin === 'MOCK')
   return (
     <Layout
       syncProfile
@@ -44,6 +46,7 @@ export function NicheDetailPage() {
         onResolveDuplicate={(pair, status, keep) => resolve.mutate({ id: pair.id, status, keep })}
         onDecision={(decision, reason) => decide.mutate({ decision, reason })}
         decisionError={code(decide.error) ?? null}
+        productSummary={summary.data}
       />
     </Layout>
   )

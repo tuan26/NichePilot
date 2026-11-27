@@ -2,7 +2,8 @@
 // View thuần (dễ kiểm thử); container ở NicheDetailPage. MOCK luôn gắn nhãn; UNKNOWN hiển thị rõ, không suy diễn giá trị.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Evaluation, Finding, NicheDetail, SimilarityPair } from '@/api/types'
+import { Link } from 'react-router'
+import type { Evaluation, Finding, NicheDetail, ProductSummary, SimilarityPair } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card, Input, Label } from '@/components/ui/form'
@@ -22,6 +23,8 @@ export interface NicheDetailViewProps {
   onResolveDuplicate?: (pair: SimilarityPair, status: 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE', keep?: string) => void
   onDecision?: (decision: string, reason: string) => void
   decisionError?: string | null
+  /** E2 (FR-034): tóm tắt sản phẩm – chỉ hiển thị, không đổi dữ liệu E1. */
+  productSummary?: ProductSummary
 }
 
 const PERSONA = ['segment', 'context', 'goals', 'obstacles', 'ability_to_pay']
@@ -265,6 +268,24 @@ export function NicheDetailView(props: NicheDetailViewProps) {
       <DuplicatesCard n={n} props={props} />
       <ScoringCard ev={n.latest_evaluation} n={n} />
       <DecisionCard n={n} props={props} />
+      {props.productSummary && (
+        <Card className="space-y-2" data-testid="product-summary">
+          <h2 className="text-lg font-semibold">{t('products.summary.title')}</h2>
+          <p className="text-sm">
+            {t('products.summary.counts', {
+              products: props.productSummary.products,
+              verified: props.productSummary.programs_verified,
+              ready: props.productSummary.ready_to_promote,
+            })}
+          </p>
+          {props.productSummary.monetization_risk && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs">{t('products.flags.MONETIZATION_RISK')}</span>
+          )}
+          <Link to={`/niches/${n.id}/products`} className="block text-sm underline" data-testid="open-products">
+            {t('products.summary.open')}
+          </Link>
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">{t('discovery.niche.painPoints')}</h2>

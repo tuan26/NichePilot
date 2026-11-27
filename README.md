@@ -43,6 +43,8 @@ Windows 10/11: `docs/operations/windows-setup.md`.
 | Master Requirements | `docs/requirements/master-requirements.md` |
 | Kiến trúc tổng thể | `docs/architecture/system-architecture.md` |
 | Spec / plan / tasks E0 | `specs/001-foundation-ai-infrastructure/` |
+| Spec E1 – Niche Discovery | `specs/002-niche-discovery/` |
+| Spec E2 – Product & Affiliate Discovery | `specs/003-product-affiliate-discovery/` (vận hành: `docs/operations/products.md`) |
 | Vận hành (tiếng Việt) | `docs/operations/` |
 | Kết quả kiểm chứng E0 | `specs/001-foundation-ai-infrastructure/checklists/verification.md` |
 

@@ -511,11 +511,21 @@ end-to-end khi cần, acceptance. Mock chỉ dùng trong test và phải phân b
 Thứ tự trong MVP: mỗi feature đi đủ vòng Spec Kit; không bắt đầu feature tiếp theo khi feature trước
 chưa qua Test & Verify.
 
+**Sửa đổi 2026-11-27 (Constitution 1.2.0, chủ sở hữu duyệt):**
+- "Qua Test & Verify" = trạng thái `TECHNICAL_VERIFIED` (implementation, test tự động, quality gate, truy vết đạt; analyze không còn
+  CRITICAL/HIGH). Kiểm thử cần API thật, nguồn thật, Windows ghi `EXTERNAL_VERIFICATION_PENDING`, không chặn feature tiếp theo ở mức
+  kỹ thuật. `PRODUCTION_VERIFIED` chỉ khi mọi điều kiện nghiệm thu production được kiểm chứng thực tế.
+- GĐ2 (E5, E6) và GĐ3 (E7, E8) được phát triển kỹ thuật tuần tự sau khi E4 đạt `TECHNICAL_VERIFIED`, trước khi MVP đạt AC-01…AC-20 ở
+  mức kiểm chứng thực tế, bằng `MockAIProvider`, adapter mock/sandbox và dữ liệu test gắn `MOCK`. Điều kiện hoàn thành của GĐ1–GĐ3 ở
+  cột trên vẫn là điều kiện để **vận hành thật** từng giai đoạn.
+
 ---
 
 ## 12. Ngoài phạm vi MVP (tường minh)
 
-- Xuất bản bài viết/video/social; đăng ký affiliate tự động; tạo nội dung (E5–E8).
+- Xuất bản bài viết/video/social; đăng ký affiliate tự động; tạo nội dung (E5–E8) – ngoài phạm vi **MVP**; từ 2026-11-27 E5–E8 được
+  phát triển kỹ thuật bằng MOCK sau MVP theo §11. Xuất bản thật (E7) tắt mặc định, chỉ mock/sandbox; đăng ký affiliate tự động vẫn bị
+  cấm (BR-08); E8 không ghi nhận doanh thu giả thành doanh thu thực.
 - Multi-user, multi-tenant, SaaS, billing.
 - LLM chạy local, yêu cầu GPU.
 - Mua dữ liệu keyword trả phí (Ahrefs/Semrush…) – chỉ xem xét khi được phê duyệt riêng.

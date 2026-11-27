@@ -88,6 +88,13 @@ ERROR_CATALOG: dict[str, ErrorSpec] = {
         503, "The evidence erasure ledger could not be written; nothing was erased"
     ),
     "PII_ENGINE_NOT_APPROVED": ErrorSpec(409, "PII engine is not approved for this environment"),
+    # E2 – Product & Affiliate Discovery (Y2, specs/003-product-affiliate-discovery/contracts/internal-interfaces.md §5)
+    "NICHE_NOT_ELIGIBLE": ErrorSpec(409, "Niche is not eligible for product discovery"),
+    "PRODUCT_RUN_ACTIVE": ErrorSpec(409, "A product discovery run is already active for this niche"),
+    "PRODUCT_RUN_NOT_FOUND": ErrorSpec(404, "Product discovery run not found"),
+    "PRODUCT_NOT_FOUND": ErrorSpec(404, "Product not found"),
+    "PROGRAM_NOT_FOUND": ErrorSpec(404, "Affiliate program not found"),
+    "PRODUCT_WEIGHTS_INVALID": ErrorSpec(422, "Product scoring weights are invalid"),
     "TASK_TYPE_NOT_ALLOWED": ErrorSpec(409, "Task type is not registered for this agent"),
     "SERVICE_UNAVAILABLE": ErrorSpec(503, "Service temporarily unavailable"),
     "INTERNAL_ERROR": ErrorSpec(500, "Internal error"),

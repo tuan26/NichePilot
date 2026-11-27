@@ -1,0 +1,20 @@
+{
+  "_note": "MOCK fixture tự soạn cho test E2 – ánh xạ URL giả lập → file; KHÔNG phải dữ liệu thật, không truy cập mạng.",
+  "pages": {
+    "https://bakeryblog.example/best-inventory-apps": {"file": "review_inventory_apps.html", "status": 200},
+    "https://stockpal.example/pricing": {"file": "stockpal_pricing.html", "status": 200},
+    "https://stockpal.example/partners": {"file": "stockpal_partners.html", "status": 200},
+    "https://affiliatedeals.example/stockpal-review": {"file": "thirdparty_stockpal.html", "status": 200},
+    "https://doughtrack.example/pricing": {"file": "doughtrack_pricing.html", "status": 200},
+    "https://doughtrack.example/affiliates": {"file": "doughtrack_affiliates.html", "status": 200},
+    "https://members.example/affiliate-terms": {"file": "login_required.html", "status": 200}
+  },
+  "robots": {},
+  "search": {
+    "default": ["https://bakeryblog.example/best-inventory-apps"],
+    "StockPal pricing": ["https://stockpal.example/pricing"],
+    "StockPal affiliate program": ["https://stockpal.example/partners", "https://affiliatedeals.example/stockpal-review"],
+    "DoughTrack pricing": ["https://doughtrack.example/pricing"],
+    "DoughTrack affiliate program": ["https://doughtrack.example/affiliates", "https://members.example/affiliate-terms"]
+  }
+}

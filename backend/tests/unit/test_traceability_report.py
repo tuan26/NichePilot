@@ -151,4 +151,5 @@ def test_TC_E1_SC011_03_default_run_covers_all_specs() -> None:
     assert [(p.spec.parent.name, p.prefix) for p in profiles] == [
         ("001-foundation-ai-infrastructure", ""),
         ("002-niche-discovery", "E1"),
+        ("003-product-affiliate-discovery", "E2"),
     ]

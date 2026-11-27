@@ -230,3 +230,108 @@ export interface SimilarityPair {
   score: number
   status: 'POSSIBLE' | 'CONFIRMED_DUPLICATE' | 'NOT_DUPLICATE'
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// E2 – Product & Affiliate Discovery (specs/003-product-affiliate-discovery/contracts/openapi.yaml)
+// ---------------------------------------------------------------------------------------------------------------------
+export type AttrStatus = 'VERIFIED' | 'INFERRED' | 'CONFLICTING' | 'UNKNOWN'
+export type Readiness =
+  | 'READY_TO_PROMOTE'
+  | 'ELIGIBILITY_UNVERIFIED'
+  | 'NOT_ELIGIBLE'
+  | 'AFFILIATE_UNVERIFIED'
+  | 'NO_PROGRAM'
+  | 'PROGRAM_CLOSED'
+export type ProductList = 'ranked' | 'needs_research'
+export type ProductDecision = 'CANDIDATE' | 'SELECTED' | 'WATCH' | 'REJECTED'
+
+export interface ProductCriterion {
+  level: number | null
+  status: string
+  reason: string
+  evidence_ids: string[]
+}
+
+export interface ProductEvaluation {
+  opportunity_score: number | null
+  confidence_score: number | null
+  coverage: number | null
+  scoring_status: 'SCORED' | 'INSUFFICIENT_SCORING_DATA'
+  criteria: Record<string, ProductCriterion>
+  missing: string[]
+  weights_version: number | null
+  computed_at: string | null
+}
+
+export interface ProductItem {
+  product_id: string
+  name: string
+  vendor: string | null
+  official_domain: string | null
+  category: string
+  readiness_status: Readiness
+  risk_flags: string[]
+  evaluation: ProductEvaluation | null
+  ai_recommendation: 'SELECT' | 'REJECT' | 'UNKNOWN'
+  ai_recommendation_reason: string | null
+  decision_status: ProductDecision
+  decision_reason: string | null
+  persona_match: string
+  data_origin: 'REAL' | 'MOCK'
+}
+
+export interface AttributeValue {
+  value: unknown
+  status: string
+  evidence_id: string
+  source_url: string | null
+  excerpt: string | null
+  collected_at: string | null
+  verified_at: string | null
+}
+
+export interface ProductAttribute {
+  key: string
+  status: AttrStatus
+  value: unknown
+  flags: string[]
+  values: AttributeValue[]
+}
+
+export interface TermsVersion {
+  version: number
+  checked_at: string
+  changes: { claim_key: string; old: unknown; new: unknown }[]
+  acknowledged_at: string | null
+}
+
+export interface AffiliateProgram {
+  program_id: string
+  name: string
+  operator_type: string
+  operator_name: string | null
+  operator_domain: string | null
+  terms_url: string | null
+  verification_status: 'VERIFIED' | 'PARTIAL' | 'UNVERIFIED' | 'CLOSED'
+  attributes: ProductAttribute[]
+  watch_enabled: boolean
+  last_checked_at: string | null
+  last_check_error: string | null
+  terms_versions: TermsVersion[]
+  data_origin: 'REAL' | 'MOCK'
+}
+
+export interface ProductDetail extends ProductItem {
+  attributes: ProductAttribute[]
+  pain_points: { pain_point_id: string; title: string; evidence: { evidence_id: string; excerpt: string; source_url: string | null }[] }[]
+  programs: AffiliateProgram[]
+  disclaimer_key: string
+}
+
+export interface ProductSummary {
+  products: number
+  programs_verified: number
+  ready_to_promote: number
+  monetization_risk: boolean
+  last_run_id: string | null
+}

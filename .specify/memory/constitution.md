@@ -1,3 +1,15 @@
+<!--
+Sync Impact Report (2026-11-27)
+- Version: 1.1.0 → 1.2.0 (MINOR – mở rộng quy trình; không xóa/định nghĩa lại nguyên tắc nào)
+- Sửa đổi (chủ sở hữu duyệt 2026-11-27, đề xuất docs/proposals/2026-11-27-process-amendment-e2-e8.md):
+  - A1: thêm ba mức trạng thái kiểm chứng TECHNICAL_VERIFIED / EXTERNAL_VERIFICATION_PENDING / PRODUCTION_VERIFIED.
+  - A2: thứ tự triển khai mở rộng E0 → … → E8; E5–E8 được phát triển bằng MOCK sau khi E4 đạt TECHNICAL_VERIFIED.
+  - A3: Nguyên tắc IV – xuất bản (E7) chỉ mock/sandbox, công tắc xuất bản thật tắt mặc định; E8 chỉ dữ liệu test MOCK.
+  - A4: điều kiện tự tiếp tục ghi trong CLAUDE.md (không đổi constitution).
+- Nguyên tắc giữ nguyên: I–XII (Evidence-First, Cost-Aware, OSS-First, TDD, Security… không đổi).
+- Tài liệu cập nhật theo: docs/requirements/master-requirements.md §11–§12 ✅, CLAUDE.md ✅.
+  Template .specify/templates/* không cần sửa (Constitution Check vẫn đối chiếu I–XII).
+-->
 # NichePilot Constitution
 
 NichePilot (tên kỹ thuật: Affiliate Automation OS – AAOS) là hệ thống AI Agent tự host, tự động hóa
@@ -53,6 +65,10 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
   nội dung khi chưa có phê duyệt được ghi nhận. Trong MVP (E0–E4) mọi hành động xuất bản/đăng ký bị
   vô hiệu hóa hoàn toàn.
 - Mọi hành động có tác động bên ngoài MUST đi qua cơ chế approval request và được ghi audit log.
+- Trong giai đoạn phát triển E7–E8: adapter xuất bản CHỈ chạy với mock hoặc sandbox được chủ sở hữu cho phép; công tắc xuất bản thật
+  MUST tắt mặc định và chỉ bật khi chủ sở hữu cho phép rõ ràng, vẫn qua approval request + audit log. Hệ thống MUST NOT tự đăng
+  bài/video lên nền tảng bên ngoài. E8 khi chưa có nguồn dữ liệu thật CHỈ dùng dữ liệu test gắn `MOCK`; MUST NOT ghi nhận hay hiển thị
+  doanh thu giả như doanh thu thực.
 
 ### V. AI Safety & Kiểm soát Agent
 
@@ -160,7 +176,16 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
   Analyze → Implement → Test & Verify. Mỗi feature có `spec.md`, `plan.md`, `tasks.md` riêng.
 - Không triển khai chức năng chưa được đặc tả; không tự mở rộng phạm vi; yêu cầu chưa rõ phải hỏi xác
   nhận trước khi triển khai, ưu tiên câu hỏi ảnh hưởng kiến trúc, dữ liệu, nghiệp vụ.
-- Thứ tự triển khai: E0 → E1 → E2 → E3 → E4. Không chuyển sang E5–E8 khi chưa được yêu cầu.
+- Thứ tự triển khai: E0 → E1 → E2 → E3 → E4 → E5 → E6 → E7 → E8, tuần tự, không triển khai đồng thời nhiều feature. E5–E8 chỉ bắt
+  đầu sau khi E4 đạt `TECHNICAL_VERIFIED` (chủ sở hữu yêu cầu 2026-11-27) và phát triển bằng `MockAIProvider`, adapter mock/sandbox, dữ
+  liệu test gắn `MOCK` cho tới khi có API/nguồn thật được phê duyệt; không bỏ bước Spec Kit, không tự thay đổi yêu cầu nghiệp vụ.
+- Trạng thái kiểm chứng của mỗi feature:
+  - `TECHNICAL_VERIFIED`: implementation hoàn tất, toàn bộ test tự động và quality gate đạt, truy vết yêu cầu → test đầy đủ (FR mức
+    Must), `/speckit-analyze` không còn CRITICAL/HIGH. Đủ điều kiện chuyển sang feature tiếp theo.
+  - `EXTERNAL_VERIFICATION_PENDING`: còn kiểm thử cần API thật, nguồn thật, Windows hoặc môi trường production chưa thực hiện; không chặn
+    feature tiếp theo ở mức kỹ thuật nhưng chặn vận hành thật.
+  - `PRODUCTION_VERIFIED`: CHỈ khi mọi điều kiện nghiệm thu production đã được kiểm chứng thực tế. Kết quả với MOCK MUST NOT thay thế
+    bằng chứng kiểm thử thực tế.
 - Cổng chất lượng trước khi merge: lint + type check sạch, toàn bộ test tự động pass, migration chạy
   được từ đầu và rollback được, không có secret trong diff, tài liệu cập nhật.
 - Sau mỗi bước, báo cáo bằng tiếng Việt: việc đã làm, file đã tạo/sửa, quyết định kỹ thuật, vấn đề phát
@@ -179,4 +204,4 @@ doanh thu → tối ưu. Constitution này là luật gốc; mọi spec, plan, t
   việc triển khai.
 - Hướng dẫn phát triển runtime cho AI coding agent nằm trong `CLAUDE.md`.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-18
+**Version**: 1.2.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-27

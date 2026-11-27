@@ -6,6 +6,8 @@ import { NicheDetailPage } from '@/pages/discovery/NicheDetailPage'
 import { NicheRankingPage } from '@/pages/discovery/NicheRankingPage'
 import { SourcesPage } from '@/pages/discovery/SourcesPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { NicheProductsPage } from '@/pages/products/NicheProductsPage'
+import { ProductDetailPage } from '@/pages/products/ProductDetailPage'
 import { StatusPage } from '@/pages/StatusPage'
 
 export const router = createBrowserRouter([
@@ -46,6 +48,22 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <NicheDetailPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/niches/:nicheId/products',
+    element: (
+      <RequireAuth>
+        <NicheProductsPage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/niches/:nicheId/products/:productId',
+    element: (
+      <RequireAuth>
+        <ProductDetailPage />
       </RequireAuth>
     ),
   },

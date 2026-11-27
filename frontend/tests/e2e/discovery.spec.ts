@@ -80,6 +80,44 @@ test('E1: tạo lượt → xếp hạng → nguồn → VI/EN', async ({ page }
 
 // Ngách DEMO gắn MOCK do `python -m nichepilot.jobs.discovery_demo_seed` nạp trước khi chạy (chỉ dev/test – chủ sở hữu duyệt
 // 2026-11-25). Không phải dữ liệu nghiên cứu; ẩn khỏi xếp hạng mặc định; không liên quan SC-013.
+test('E2 MOCK: ngách → sản phẩm (hiện MOCK) → chi tiết → quyết định → EN', async ({ page }) => {
+  expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
+  await page.goto('/login')
+  await page.getByLabel('Tên đăng nhập').fill(USER)
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page.getByRole('heading', { name: 'Trạng thái hệ thống' })).toBeVisible()
+
+  await page.goto('/niches')
+  await page.getByLabel('Hiện dữ liệu giả lập (MOCK)').check()
+  await page.getByTestId('ranking-row').filter({ hasText: '[MOCK DEMO]' }).getByRole('link').click()
+  // Tóm tắt E2 trên trang ngách E1 (chỉ hiển thị, không đổi dữ liệu E1)
+  await expect(page.getByTestId('product-summary')).toContainText('2 sản phẩm')
+  await page.getByTestId('open-products').click()
+
+  await expect(page.getByRole('heading', { name: 'Sản phẩm & affiliate' })).toBeVisible()
+  await expect(page.getByText('Chưa có sản phẩm nào')).toBeVisible() // MOCK ẩn mặc định
+  await page.getByLabel('Hiện dữ liệu giả lập (MOCK)').check()
+  const row = page.getByTestId('product-row').filter({ hasText: '[MOCK DEMO] ShelfAlert' })
+  await expect(row).toBeVisible()
+  await expect(row.getByTestId('readiness')).toHaveText('Đủ điều kiện tham gia')
+  await expect(row.getByTestId('mock-badge')).toBeVisible()
+  await expect(page.getByText('không phải dự báo doanh thu')).toBeVisible()
+  await row.getByRole('link').click()
+
+  await expect(page.getByRole('heading', { name: '[MOCK DEMO] ShelfAlert' })).toBeVisible()
+  await expect(page.getByTestId('program-status')).toHaveText('Đã xác minh')
+  await expect(page.getByTestId('attr-price')).toContainText('https://shelfalert-demo.example/pricing')
+  await page.getByTestId('product-decision-select').selectOption('WATCH')
+  await page.getByLabel('Lý do (bắt buộc)').fill('E2E: theo dõi thêm (dữ liệu MOCK)')
+  await page.getByRole('button', { name: 'Ghi quyết định' }).click()
+  await expect(page.getByTestId('product-decision')).toContainText('Theo dõi')
+
+  await page.getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByTestId('readiness')).toHaveText('Eligible to join')
+  await page.getByRole('button', { name: 'VI' }).click()
+})
+
 test('E1 MOCK: xếp hạng (hiện MOCK) → chi tiết → ghi quyết định → xóa bằng chứng', async ({ page }) => {
   expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
   await page.goto('/login')

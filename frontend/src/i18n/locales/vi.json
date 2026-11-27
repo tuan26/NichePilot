@@ -125,7 +125,13 @@
     "ERASURE_LEDGER_WRITE_FAILED": "Không ghi được sổ xóa bằng chứng; chưa có gì bị xóa.",
     "SOURCE_NOT_FOUND": "Không tìm thấy nguồn.",
     "SIMILARITY_NOT_FOUND": "Không tìm thấy cặp ngách.",
-    "SIMILARITY_ALREADY_RESOLVED": "Cặp ngách này đã được xử lý."
+    "SIMILARITY_ALREADY_RESOLVED": "Cặp ngách này đã được xử lý.",
+    "NICHE_NOT_ELIGIBLE": "Ngách chưa đủ điều kiện tìm sản phẩm (chưa đủ bằng chứng, đã loại bỏ hoặc đã gộp).",
+    "PRODUCT_RUN_ACTIVE": "Ngách này đang có một lượt tìm sản phẩm chưa kết thúc.",
+    "PRODUCT_RUN_NOT_FOUND": "Không tìm thấy lượt tìm sản phẩm.",
+    "PRODUCT_NOT_FOUND": "Không tìm thấy sản phẩm.",
+    "PROGRAM_NOT_FOUND": "Không tìm thấy chương trình affiliate.",
+    "PRODUCT_WEIGHTS_INVALID": "Trọng số sản phẩm không hợp lệ (5 tiêu chí, tổng 100)."
   },
   "discovery": {
     "opportunity": {
@@ -319,5 +325,106 @@
     "discovery": "Khám phá ngách",
     "ranking": "Bảng xếp hạng",
     "sources": "Nguồn dữ liệu"
+  },
+  "products": {
+    "title": "Sản phẩm & affiliate",
+    "back": "Quay lại ngách",
+    "run": "Tìm sản phẩm",
+    "runStarted": "Đã tạo lượt tìm sản phẩm.",
+    "includeMock": "Hiện dữ liệu giả lập (MOCK)",
+    "empty": "Chưa có sản phẩm nào",
+    "list": {
+      "ranked": "Xếp hạng sản phẩm",
+      "needs_research": "Cần nghiên cứu thêm"
+    },
+    "opportunity": {
+      "disclaimer": "Product Opportunity Score là điểm ưu tiên nghiên cứu, không phải dự báo doanh thu. READY_TO_PROMOTE chỉ là điều kiện tham gia, không phải khuyến nghị quảng bá."
+    },
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "insufficient": "Chưa đủ dữ liệu chấm điểm",
+      "missing": "Còn thiếu",
+      "weightsVersion": "Phiên bản trọng số {{v}}"
+    },
+    "readiness": {
+      "READY_TO_PROMOTE": "Đủ điều kiện tham gia",
+      "ELIGIBILITY_UNVERIFIED": "Chưa xác minh điều kiện tham gia",
+      "NOT_ELIGIBLE": "Không đủ điều kiện",
+      "AFFILIATE_UNVERIFIED": "Chưa xác minh chương trình affiliate",
+      "NO_PROGRAM": "Không tìm thấy chương trình",
+      "PROGRAM_CLOSED": "Chương trình đã đóng"
+    },
+    "flags": {
+      "MONETIZATION_RISK": "Rủi ro kiếm tiền",
+      "MARKET_NOT_ALLOWED": "Thị trường không được phép",
+      "MARKET_UNKNOWN": "Chưa rõ thị trường được phép",
+      "COMPLIANCE_SENSITIVE": "Lĩnh vực nhạy cảm"
+    },
+    "criteria": {
+      "fit": "Phù hợp pain point & persona",
+      "affiliate": "Hấp dẫn chương trình affiliate",
+      "eligibility": "Khả năng tham gia & quảng bá",
+      "quality": "Uy tín & chất lượng",
+      "price_fit": "Giá phù hợp khả năng chi trả"
+    },
+    "attr": {
+      "official_website": "Website chính thức",
+      "price": "Giá",
+      "feature": "Tính năng",
+      "target_customer": "Khách hàng mục tiêu",
+      "third_party_mention": "Đánh giá bên thứ ba",
+      "commission": "Hoa hồng",
+      "cookie_days": "Thời hạn cookie",
+      "payment": "Thanh toán",
+      "vn_eligibility": "Đăng ký từ Việt Nam",
+      "promotion_regions": "Quốc gia được quảng bá",
+      "ad_restrictions": "Giới hạn quảng cáo",
+      "program_status": "Trạng thái chương trình"
+    },
+    "detail": {
+      "attributes": "Thuộc tính sản phẩm",
+      "painPoints": "Pain point được giải quyết",
+      "programs": "Chương trình affiliate",
+      "noPrograms": "Không tìm thấy chương trình affiliate",
+      "operator": "Đơn vị vận hành",
+      "terms": "Trang điều khoản",
+      "aiRecommendation": "Đề xuất AI",
+      "sources": "Nguồn",
+      "watch": "Theo dõi thay đổi điều khoản",
+      "lastChecked": "Kiểm tra lần cuối",
+      "checkError": "Lỗi kiểm tra",
+      "termsChanged": "Điều khoản đã thay đổi (phiên bản {{v}})",
+      "acknowledge": "Đã xem",
+      "noRegistration": "NichePilot không đăng ký tài khoản hay chấp nhận điều khoản affiliate thay bạn."
+    },
+    "status": {
+      "VERIFIED": "Đã xác minh",
+      "PARTIAL": "Một phần",
+      "UNVERIFIED": "Chưa xác minh",
+      "CLOSED": "Đã đóng"
+    },
+    "recommendation": {
+      "SELECT": "Nên chọn",
+      "REJECT": "Nên loại",
+      "UNKNOWN": "Chưa đề xuất"
+    },
+    "decision": {
+      "title": "Quyết định của chủ sở hữu",
+      "reason": "Lý do (bắt buộc)",
+      "save": "Ghi quyết định",
+      "status": {
+        "CANDIDATE": "Ứng viên",
+        "SELECTED": "Chọn",
+        "WATCH": "Theo dõi",
+        "REJECTED": "Loại bỏ"
+      }
+    },
+    "summary": {
+      "title": "Sản phẩm",
+      "counts": "{{products}} sản phẩm · {{verified}} chương trình đã xác minh · {{ready}} đủ điều kiện tham gia",
+      "open": "Xem sản phẩm"
+    }
   }
 }
