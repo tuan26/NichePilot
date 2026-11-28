@@ -5,12 +5,15 @@ export class ApiError extends Error {
   readonly status: number
   readonly code: string
   readonly params: Record<string, string>
+  /** Lỗi theo trường của VALIDATION_ERROR (E4 FR-017 – hiển thị theo trường). */
+  readonly errors: { field: string; code: string }[]
 
-  constructor(status: number, code: string, params: Record<string, string> = {}) {
+  constructor(status: number, code: string, params: Record<string, string> = {}, errors: { field: string; code: string }[] = []) {
     super(code)
     this.status = status
     this.code = code
     this.params = params
+    this.errors = errors
   }
 }
 
@@ -43,8 +46,8 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   if (res.status === 204) return undefined as T
   const data: unknown = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const problem = data as { code?: string; params?: Record<string, string> }
-    throw new ApiError(res.status, problem.code ?? 'INTERNAL_ERROR', problem.params ?? {})
+    const problem = data as { code?: string; params?: Record<string, string>; errors?: { field: string; code: string }[] }
+    throw new ApiError(res.status, problem.code ?? 'INTERNAL_ERROR', problem.params ?? {}, problem.errors ?? [])
   }
   return data as T
 }
@@ -53,4 +56,9 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 export function errorKey(err: unknown): string {
   if (err instanceof ApiError) return err.code === 'NETWORK' ? 'errors.network' : `errors.${err.code}`
   return 'errors.generic'
+}
+
+/** Mã lỗi rút gọn cho view (network/generic/mã API) – dùng ở các trang E4. */
+export function errorCode(err: unknown): string | undefined {
+  return err instanceof ApiError ? (err.code === 'NETWORK' ? 'network' : err.code) : err ? 'generic' : undefined
 }

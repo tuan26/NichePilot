@@ -328,7 +328,15 @@
     "status": "Status",
     "discovery": "Niche discovery",
     "ranking": "Ranking",
-    "sources": "Sources"
+    "sources": "Sources",
+    "label": "Main navigation",
+    "overview": "Overview",
+    "niches": "Niches",
+    "products": "Products",
+    "keywords": "Keywords",
+    "jobs": "Agent jobs",
+    "costs": "Costs",
+    "settings": "Settings"
   },
   "products": {
     "title": "Products & affiliate",
@@ -567,5 +575,186 @@
       "open": "Open keywords & audience"
     },
     "unknown": "UNKNOWN"
+  },
+  "dashboard": {
+    "unknown": "UNKNOWN",
+    "includeMock": "Show simulated data (MOCK)",
+    "updatedAt": "Updated at {{time}}",
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "disclaimer": "Opportunity is a research priority score, not a revenue forecast; always read it with Confidence and the evidence on the detail page."
+    },
+    "overview": {
+      "title": "Overview",
+      "niches": "Niches",
+      "products": "Products",
+      "productsValue": "{{total}} · {{ready}} ready",
+      "keywords": "Keywords",
+      "keywordsValue": "{{total}} · {{clusters}} clusters",
+      "jobs": "Agent jobs",
+      "jobsValue": "{{running}} running · {{failed}} failed (7 days)",
+      "emptyNiches": "No niches yet.",
+      "startDiscovery": "Start niche discovery",
+      "topNiches": "Top niches",
+      "noTopNiches": "No scored niches yet."
+    },
+    "research": {
+      "title": {
+        "products": "Product Discovery",
+        "keywords": "Keyword Research"
+      },
+      "description": {
+        "products": "Eligible niches with a product/affiliate summary. Open a niche for details or to run product discovery.",
+        "keywords": "Eligible niches with a keyword summary. Open a niche to see clusters or run keyword research."
+      },
+      "notRunProducts": "Product discovery not run",
+      "notRunKeywords": "Keyword research not run",
+      "productsSummary": "{{total}} products · {{ready}} affiliate-ready",
+      "keywordsSummary": "{{total}} keywords · {{clusters}} clusters · {{longTail}} long-tail",
+      "bestCluster": "Best cluster",
+      "empty": "No eligible niches yet.",
+      "openNiches": "Open niche ranking"
+    },
+    "jobs": {
+      "title": "Agent jobs",
+      "filterStatus": "Status",
+      "filterType": "Job type",
+      "all": "All",
+      "empty": "No jobs match the filter.",
+      "truncated": "Showing the latest {{shown}}/{{total}} jobs.",
+      "status": {
+        "QUEUED": "Queued",
+        "RUNNING": "Running",
+        "RETRY_SCHEDULED": "Retry scheduled",
+        "PAUSED": "Paused",
+        "PAUSED_BUDGET": "Paused (budget)",
+        "SUCCEEDED": "Succeeded",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "stepStatus": {
+        "RUNNING": "Running",
+        "SUCCEEDED": "Succeeded",
+        "FAILED": "Failed",
+        "SKIPPED": "Skipped",
+        "PENDING": "Pending"
+      },
+      "col": {
+        "type": "Job type",
+        "status": "Status",
+        "created": "Created",
+        "cost": "Cost",
+        "actions": "Actions"
+      },
+      "action": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "cancel": "Cancel",
+        "retry": "Retry"
+      },
+      "confirmCancel": "Cancel this job? This cannot be undone.",
+      "confirmDelete": "Delete this schedule?",
+      "schedules": "Schedules",
+      "noSchedules": "No schedules yet.",
+      "nextRun": "Next run",
+      "enabled": "Enabled",
+      "delete": "Delete",
+      "back": "Back to jobs",
+      "reasonCode": "Reason code: {{code}}",
+      "aiCalls": "AI calls",
+      "params": "Parameters",
+      "steps": "Steps",
+      "noSteps": "No steps yet."
+    },
+    "costs": {
+      "title": "AI costs",
+      "today": "Today",
+      "month": "This month",
+      "mockSeparate": "MOCK cost this month (not counted as real cost): {{amount}}",
+      "open": "Open cost details",
+      "total": "Total",
+      "calls": "Calls",
+      "noUsage": "No cost in this period.",
+      "provider": "Provider",
+      "model": "Model",
+      "tokens": "Tokens in/out",
+      "cost": "Cost",
+      "jobs": "{{n}} jobs",
+      "period": {
+        "day": "Today",
+        "month": "This month"
+      },
+      "budget": "Budget (real cost)",
+      "remaining": "Remaining",
+      "warning": {
+        "DAILY_80": "Daily budget warning threshold reached",
+        "MONTHLY_80": "Monthly budget warning threshold reached",
+        "DAILY_EXHAUSTED": "Daily budget exhausted",
+        "MONTHLY_EXHAUSTED": "Monthly budget exhausted",
+        "UNCERTAIN_RESERVATIONS": "Uncertain reservations need resolving"
+      },
+      "timezone": "Budget time zone: {{tz}}",
+      "real": "Real cost (REAL)",
+      "mock": "Simulated (MOCK)",
+      "mockNote": "Simulated data for development/testing – not real cost."
+    },
+    "settings": {
+      "title": "Settings",
+      "saved": "Saved.",
+      "save": "Save",
+      "general": "System",
+      "projectTitle": "Market & content language",
+      "budgetTitle": "AI budget",
+      "aiTitle": "AI providers & models (read-only)",
+      "paidCalls": "Paid API calls",
+      "taskType": "Task",
+      "readOnlyNote": "Providers, models and prices are display-only. Enabling paid calls, verifying models or testing connections is not done from the dashboard.",
+      "languageIndependent": "Content and research languages are independent of the interface language.",
+      "keys": {
+        "system_timezone": "Time zone",
+        "ui_default_locale": "Default interface language",
+        "agent_default_max_steps": "Default agent max steps",
+        "agent_default_max_ai_calls": "Default max AI calls",
+        "agent_default_job_timeout_s": "Default job timeout (seconds)"
+      },
+      "project": {
+        "target_market": "Target market (country code)",
+        "content_language": "Content language",
+        "research_language": "Research language (or auto)"
+      },
+      "budget": {
+        "daily_usd": "Daily budget (USD)",
+        "monthly_usd": "Monthly budget (USD)",
+        "per_job_default_usd": "Default per-job budget (USD)",
+        "warning_threshold": "Warning threshold (0.1–1)"
+      },
+      "validation": {
+        "invalid": "Invalid value",
+        "per_job_le_daily_le_monthly": "Required: per job ≤ daily ≤ monthly",
+        "string_pattern_mismatch": "Invalid format",
+        "value_error": "Invalid value",
+        "greater_than": "Must be greater than 0"
+      }
+    },
+    "csv": {
+      "export": "Export CSV",
+      "name": "Name",
+      "country": "Country",
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "evidence": "Evidence",
+      "decision": "Decision",
+      "data_origin": "Data origin",
+      "domain": "Domain",
+      "readiness": "Affiliate readiness",
+      "keyword": "Keyword",
+      "intent": "Intent",
+      "length": "Length",
+      "volume": "Search Volume",
+      "cpc": "CPC",
+      "kd": "KD"
+    }
   }
 }

@@ -1,6 +1,8 @@
 // Màn hình 2 – Bảng xếp hạng ngách (T099, FR-024, FR-026, FR-019c): 3 danh sách theo scoring-rubric §4. View thuần; container ở
 // NicheRankingPage. Opportunity là điểm ưu tiên nghiên cứu, không phải dự báo doanh thu (chú thích luôn hiển thị).
 import { useTranslation } from 'react-i18next'
+import { ExportCsvButton } from '@/components/ExportCsvButton'
+import { rankingCsv } from '@/lib/exports'
 import { Link } from 'react-router'
 import type { NicheSummary, RankingList } from '@/api/types'
 import { MockBadge } from '@/components/MockBadge'
@@ -70,7 +72,12 @@ export function NicheRankingView(props: NicheRankingViewProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">{t('discovery.ranking.title')}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold">{t('discovery.ranking.title')}</h1>
+          <span className="ml-auto">
+            <ExportCsvButton filename="niche-ranking.csv" build={() => rankingCsv(props.items, t)} disabled={props.items.length === 0} />
+          </span>
+        </div>
         <Alert variant="info" className="mt-2">
           {t('discovery.opportunity.disclaimer')}
         </Alert>

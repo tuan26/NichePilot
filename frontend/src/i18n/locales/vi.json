@@ -328,7 +328,15 @@
     "status": "Trạng thái",
     "discovery": "Khám phá ngách",
     "ranking": "Bảng xếp hạng",
-    "sources": "Nguồn dữ liệu"
+    "sources": "Nguồn dữ liệu",
+    "label": "Điều hướng chính",
+    "overview": "Tổng quan",
+    "niches": "Ngách",
+    "products": "Sản phẩm",
+    "keywords": "Keyword",
+    "jobs": "Agent jobs",
+    "costs": "Chi phí",
+    "settings": "Cài đặt"
   },
   "products": {
     "title": "Sản phẩm & affiliate",
@@ -567,5 +575,186 @@
       "open": "Xem keyword & audience"
     },
     "unknown": "UNKNOWN"
+  },
+  "dashboard": {
+    "unknown": "UNKNOWN",
+    "includeMock": "Hiện dữ liệu giả lập (MOCK)",
+    "updatedAt": "Cập nhật lúc {{time}}",
+    "score": {
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "disclaimer": "Opportunity là điểm ưu tiên nghiên cứu, không phải dự báo doanh thu; luôn xem kèm Confidence và bằng chứng ở trang chi tiết."
+    },
+    "overview": {
+      "title": "Tổng quan",
+      "niches": "Ngách",
+      "products": "Sản phẩm",
+      "productsValue": "{{total}} · {{ready}} sẵn sàng",
+      "keywords": "Keyword",
+      "keywordsValue": "{{total}} · {{clusters}} cluster",
+      "jobs": "Agent jobs",
+      "jobsValue": "{{running}} đang chạy · {{failed}} lỗi (7 ngày)",
+      "emptyNiches": "Chưa có ngách nào.",
+      "startDiscovery": "Bắt đầu khám phá ngách",
+      "topNiches": "Ngách hàng đầu",
+      "noTopNiches": "Chưa có ngách được chấm điểm."
+    },
+    "research": {
+      "title": {
+        "products": "Product Discovery",
+        "keywords": "Keyword Research"
+      },
+      "description": {
+        "products": "Các ngách đủ điều kiện và tóm tắt sản phẩm/affiliate. Mở ngách để xem chi tiết hoặc chạy tìm sản phẩm.",
+        "keywords": "Các ngách đủ điều kiện và tóm tắt keyword. Mở ngách để xem cluster hoặc chạy nghiên cứu keyword."
+      },
+      "notRunProducts": "Chưa tìm sản phẩm",
+      "notRunKeywords": "Chưa nghiên cứu keyword",
+      "productsSummary": "{{total}} sản phẩm · {{ready}} sẵn sàng affiliate",
+      "keywordsSummary": "{{total}} keyword · {{clusters}} cluster · {{longTail}} long-tail",
+      "bestCluster": "Cluster tốt nhất",
+      "empty": "Chưa có ngách đủ điều kiện.",
+      "openNiches": "Xem bảng xếp hạng ngách"
+    },
+    "jobs": {
+      "title": "Agent jobs",
+      "filterStatus": "Trạng thái",
+      "filterType": "Loại job",
+      "all": "Tất cả",
+      "empty": "Chưa có job nào khớp bộ lọc.",
+      "truncated": "Hiển thị {{shown}}/{{total}} job mới nhất.",
+      "status": {
+        "QUEUED": "Đang chờ",
+        "RUNNING": "Đang chạy",
+        "RETRY_SCHEDULED": "Chờ thử lại",
+        "PAUSED": "Tạm dừng",
+        "PAUSED_BUDGET": "Tạm dừng (ngân sách)",
+        "SUCCEEDED": "Thành công",
+        "FAILED": "Lỗi",
+        "CANCELLED": "Đã hủy"
+      },
+      "stepStatus": {
+        "RUNNING": "Đang chạy",
+        "SUCCEEDED": "Thành công",
+        "FAILED": "Lỗi",
+        "SKIPPED": "Bỏ qua",
+        "PENDING": "Đang chờ"
+      },
+      "col": {
+        "type": "Loại job",
+        "status": "Trạng thái",
+        "created": "Tạo lúc",
+        "cost": "Chi phí",
+        "actions": "Thao tác"
+      },
+      "action": {
+        "pause": "Tạm dừng",
+        "resume": "Tiếp tục",
+        "cancel": "Hủy",
+        "retry": "Thử lại"
+      },
+      "confirmCancel": "Hủy job này? Thao tác không hoàn tác.",
+      "confirmDelete": "Xóa lịch chạy này?",
+      "schedules": "Lịch chạy",
+      "noSchedules": "Chưa có lịch chạy.",
+      "nextRun": "Lần chạy tiếp theo",
+      "enabled": "Bật",
+      "delete": "Xóa",
+      "back": "Quay lại danh sách job",
+      "reasonCode": "Mã lý do: {{code}}",
+      "aiCalls": "Lời gọi AI",
+      "params": "Tham số",
+      "steps": "Các bước",
+      "noSteps": "Chưa có bước nào."
+    },
+    "costs": {
+      "title": "Chi phí AI",
+      "today": "Hôm nay",
+      "month": "Tháng này",
+      "mockSeparate": "Chi phí MOCK tháng này (không tính vào chi phí thực): {{amount}}",
+      "open": "Xem chi tiết chi phí",
+      "total": "Tổng",
+      "calls": "Lời gọi",
+      "noUsage": "Chưa có chi phí trong kỳ.",
+      "provider": "Provider",
+      "model": "Model",
+      "tokens": "Token vào/ra",
+      "cost": "Chi phí",
+      "jobs": "{{n}} job",
+      "period": {
+        "day": "Hôm nay",
+        "month": "Tháng này"
+      },
+      "budget": "Ngân sách (chi phí thực)",
+      "remaining": "Còn lại",
+      "warning": {
+        "DAILY_80": "Đã dùng ≥ ngưỡng cảnh báo ngân sách ngày",
+        "MONTHLY_80": "Đã dùng ≥ ngưỡng cảnh báo ngân sách tháng",
+        "DAILY_EXHAUSTED": "Hết ngân sách ngày",
+        "MONTHLY_EXHAUSTED": "Hết ngân sách tháng",
+        "UNCERTAIN_RESERVATIONS": "Có khoản giữ chỗ chưa xác định cần xử lý"
+      },
+      "timezone": "Múi giờ tính ngân sách: {{tz}}",
+      "real": "Chi phí thực (REAL)",
+      "mock": "Giả lập (MOCK)",
+      "mockNote": "Dữ liệu giả lập dùng cho phát triển/kiểm thử – không phải chi phí thực."
+    },
+    "settings": {
+      "title": "Cài đặt",
+      "saved": "Đã lưu.",
+      "save": "Lưu",
+      "general": "Hệ thống",
+      "projectTitle": "Thị trường & ngôn ngữ nội dung",
+      "budgetTitle": "Ngân sách AI",
+      "aiTitle": "AI provider & model (chỉ đọc)",
+      "paidCalls": "Gọi API có phí",
+      "taskType": "Tác vụ",
+      "readOnlyNote": "Provider, model và giá chỉ hiển thị. Bật gọi có phí, xác minh model hay kiểm tra kết nối không thực hiện từ dashboard.",
+      "languageIndependent": "Ngôn ngữ nội dung và ngôn ngữ nghiên cứu độc lập với ngôn ngữ giao diện.",
+      "keys": {
+        "system_timezone": "Múi giờ",
+        "ui_default_locale": "Ngôn ngữ giao diện mặc định",
+        "agent_default_max_steps": "Số bước tối đa mặc định của agent",
+        "agent_default_max_ai_calls": "Số lời gọi AI tối đa mặc định",
+        "agent_default_job_timeout_s": "Thời gian chạy tối đa mặc định (giây)"
+      },
+      "project": {
+        "target_market": "Thị trường mục tiêu (mã quốc gia)",
+        "content_language": "Ngôn ngữ nội dung",
+        "research_language": "Ngôn ngữ nghiên cứu (hoặc auto)"
+      },
+      "budget": {
+        "daily_usd": "Ngân sách ngày (USD)",
+        "monthly_usd": "Ngân sách tháng (USD)",
+        "per_job_default_usd": "Ngân sách mặc định mỗi job (USD)",
+        "warning_threshold": "Ngưỡng cảnh báo (0,1–1)"
+      },
+      "validation": {
+        "invalid": "Giá trị không hợp lệ",
+        "per_job_le_daily_le_monthly": "Cần: mỗi job ≤ ngày ≤ tháng",
+        "string_pattern_mismatch": "Sai định dạng",
+        "value_error": "Giá trị không hợp lệ",
+        "greater_than": "Phải lớn hơn 0"
+      }
+    },
+    "csv": {
+      "export": "Xuất CSV",
+      "name": "Tên",
+      "country": "Quốc gia",
+      "opportunity": "Opportunity",
+      "confidence": "Confidence",
+      "coverage": "Coverage",
+      "evidence": "Bằng chứng",
+      "decision": "Quyết định",
+      "data_origin": "Nguồn dữ liệu",
+      "domain": "Tên miền",
+      "readiness": "Sẵn sàng affiliate",
+      "keyword": "Keyword",
+      "intent": "Intent",
+      "length": "Độ dài",
+      "volume": "Search Volume",
+      "cpc": "CPC",
+      "kd": "KD"
+    }
   }
 }

@@ -15,6 +15,7 @@ CONTRACT = (
 E1_CONTRACT = CONTRACT.parents[2] / "002-niche-discovery" / "contracts" / "openapi.yaml"
 E2_CONTRACT = CONTRACT.parents[2] / "003-product-affiliate-discovery" / "contracts" / "openapi.yaml"
 E3_CONTRACT = CONTRACT.parents[2] / "004-keyword-audience-research" / "contracts" / "openapi.yaml"
+E4_CONTRACT = CONTRACT.parents[2] / "005-bilingual-dashboard" / "contracts" / "openapi.yaml"
 METHODS = {"get", "post", "put", "patch", "delete"}
 
 
@@ -33,4 +34,6 @@ def test_TC_FR002_10_routes_match_contract() -> None:
     assert sorted(e2 - impl) == [], "endpoint E2 trong hợp đồng chưa được triển khai"
     e3 = _ops(E3_CONTRACT)  # E3: toàn bộ hợp đồng phải được triển khai
     assert sorted(e3 - impl) == [], "endpoint E3 trong hợp đồng chưa được triển khai"
-    assert sorted(impl - expected - e1 - e2 - e3) == [], "endpoint triển khai nhưng không có trong hợp đồng"
+    e4 = _ops(E4_CONTRACT)  # E4: toàn bộ hợp đồng phải được triển khai
+    assert sorted(e4 - impl) == [], "endpoint E4 trong hợp đồng chưa được triển khai"
+    assert sorted(impl - expected - e1 - e2 - e3 - e4) == [], "endpoint triển khai nhưng không có trong hợp đồng"

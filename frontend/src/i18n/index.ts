@@ -36,4 +36,20 @@ export function formatNumber(value: number, locale: Locale = currentLocale()): s
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value)
 }
 
+/** Tiền USD theo locale (E4-06); chi phí AI dùng tới 6 chữ số thập phân nên giữ tối đa 6, tối thiểu 2. */
+export function formatMoney(value: number | string, locale: Locale = currentLocale()): string {
+  const n = typeof value === 'string' ? Number(value) : value
+  return new Intl.NumberFormat(INTL_LOCALE[locale], {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(n)
+}
+
+/** Phần trăm từ tỉ lệ 0–1 (E4-06). */
+export function formatPercent(ratio: number, locale: Locale = currentLocale()): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale], { style: 'percent', maximumFractionDigits: 1 }).format(ratio)
+}
+
 export default i18n

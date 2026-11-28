@@ -3,9 +3,11 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { ProductItem, ProductList } from '@/api/types'
+import { ExportCsvButton } from '@/components/ExportCsvButton'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card } from '@/components/ui/form'
+import { productsCsv } from '@/lib/exports'
 
 export interface NicheProductsViewProps {
   nicheId: string
@@ -84,7 +86,10 @@ export function NicheProductsView(props: NicheProductsViewProps) {
           <Link to={`/niches/${props.nicheId}`} className="text-sm underline">
             {t('products.back')}
           </Link>
-          <Button size="sm" className="ml-auto" disabled={props.running} onClick={props.onRun} data-testid="run-products">
+          <span className="ml-auto">
+            <ExportCsvButton filename="products.csv" build={() => productsCsv(props.items, t)} disabled={props.items.length === 0} />
+          </span>
+          <Button size="sm" disabled={props.running} onClick={props.onRun} data-testid="run-products">
             {t('products.run')}
           </Button>
         </div>

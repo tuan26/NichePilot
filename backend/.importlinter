@@ -70,3 +70,31 @@ source_modules =
     nichepilot.modules.products
 forbidden_modules =
     nichepilot.modules.keywords
+
+# E4 (T002): dashboard chỉ đọc bằng SQL, không phụ thuộc module nghiệp vụ; không module nào phụ thuộc dashboard.
+[importlinter:contract:dashboard-isolated]
+name = Module dashboard (E4) độc lập
+type = forbidden
+source_modules =
+    nichepilot.modules.dashboard
+forbidden_modules =
+    nichepilot.modules.discovery
+    nichepilot.modules.products
+    nichepilot.modules.keywords
+    nichepilot.jobs
+    nichepilot.ai
+
+[importlinter:contract:no-dep-on-dashboard]
+name = Không module nào import dashboard (E4)
+type = forbidden
+source_modules =
+    nichepilot.modules.identity
+    nichepilot.modules.evidence
+    nichepilot.modules.audit
+    nichepilot.modules.settings
+    nichepilot.modules.discovery
+    nichepilot.modules.products
+    nichepilot.modules.keywords
+    nichepilot.jobs
+forbidden_modules =
+    nichepilot.modules.dashboard

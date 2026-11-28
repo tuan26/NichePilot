@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { ClusterDecision, ClusterDetail, KeywordItem, KeywordMetric } from '@/api/types'
+import { ExportCsvButton } from '@/components/ExportCsvButton'
 import { MockBadge } from '@/components/MockBadge'
 import { Button } from '@/components/ui/button'
 import { Alert, Card, Input, Label } from '@/components/ui/form'
 import { formatDateTime } from '@/i18n'
+import { keywordsCsv } from '@/lib/exports'
 
 export interface KeywordClusterViewProps {
   nicheId: string
@@ -162,7 +164,12 @@ export function KeywordClusterView(props: KeywordClusterViewProps) {
       </Card>
 
       <Card className="space-y-2 overflow-x-auto">
-        <h2 className="text-lg font-semibold">{t('keywords.cluster.keywords')}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">{t('keywords.cluster.keywords')}</h2>
+          <span className="ml-auto">
+            <ExportCsvButton filename="keywords.csv" build={() => keywordsCsv(c.keywords, t)} disabled={c.keywords.length === 0} />
+          </span>
+        </div>
         <table className="w-full text-left">
           <thead className="text-xs text-slate-500">
             <tr>

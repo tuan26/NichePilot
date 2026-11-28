@@ -155,6 +155,52 @@ test('E3 MOCK: ngách → keyword (hiện MOCK) → cluster → chỉ số UNKNO
   await page.getByRole('button', { name: 'VI' }).click()
 })
 
+// TC_E4_FR022_01 TC_E4_SC005_01 – luồng end-to-end dashboard E4 (MOCK)
+test('E4 MOCK: tổng quan → sản phẩm → keyword → jobs → chi phí → cài đặt → EN', async ({ page }) => {
+  expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
+  await page.goto('/login')
+  await page.getByLabel('Tên đăng nhập').fill(USER)
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(PASSWORD)
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page.getByRole('heading', { name: 'Trạng thái hệ thống' })).toBeVisible()
+
+  await page.getByTestId('nav-overview').click()
+  await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible()
+  await expect(page.getByTestId('nav-overview')).toHaveAttribute('aria-current', 'page')
+  await page.getByTestId('dashboard-include-mock').check()
+  await expect(page.getByTestId('top-niche').filter({ hasText: '[MOCK DEMO]' })).toBeVisible()
+  await expect(page.getByTestId('overview-costs')).toContainText('không tính vào chi phí thực')
+
+  await page.getByTestId('nav-products').click()
+  await expect(page.getByRole('heading', { name: 'Product Discovery' })).toBeVisible()
+  await page.getByTestId('dashboard-include-mock').check()
+  await expect(page.getByTestId('research-row').filter({ hasText: '[MOCK DEMO]' })).toContainText('sẵn sàng affiliate')
+
+  await page.getByTestId('nav-keywords').click()
+  await page.getByTestId('dashboard-include-mock').check()
+  const kwRow = page.getByTestId('research-row').filter({ hasText: '[MOCK DEMO]' })
+  await expect(kwRow).toContainText('long-tail')
+  await kwRow.getByRole('link').first().click()
+  await expect(page.getByRole('heading', { name: 'Keyword & audience' })).toBeVisible()
+
+  await page.getByTestId('nav-jobs').click()
+  await expect(page.getByRole('heading', { name: 'Agent jobs' })).toBeVisible()
+  await expect(page.getByTestId('job-row').first()).toBeVisible()
+
+  await page.getByTestId('nav-costs').click()
+  await expect(page.getByTestId('costs-mock')).toBeVisible()
+
+  await page.getByTestId('nav-settings').click()
+  await expect(page.getByTestId('ai-readonly')).toBeVisible()
+  await expect(page.getByTestId('paid-calls-state')).toContainText('TẮT')
+
+  await page.getByRole('button', { name: 'EN' }).click()
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible() // ghi nhớ ngôn ngữ
+  await page.getByRole('button', { name: 'VI' }).click()
+})
+
 test('E1 MOCK: xếp hạng (hiện MOCK) → chi tiết → ghi quyết định → xóa bằng chứng', async ({ page }) => {
   expect(PASSWORD.length).toBeGreaterThanOrEqual(12)
   await page.goto('/login')

@@ -46,6 +46,7 @@ Windows 10/11: `docs/operations/windows-setup.md`.
 | Spec E1 – Niche Discovery | `specs/002-niche-discovery/` |
 | Spec E2 – Product & Affiliate Discovery | `specs/003-product-affiliate-discovery/` (vận hành: `docs/operations/products.md`) |
 | Spec E3 – Keyword & Audience Research | `specs/004-keyword-audience-research/` (vận hành: `docs/operations/keywords.md`) |
+| Spec E4 – Bilingual Dashboard | `specs/005-bilingual-dashboard/` (vận hành: `docs/operations/dashboard.md`) |
 | Vận hành (tiếng Việt) | `docs/operations/` |
 | Kết quả kiểm chứng E0 | `specs/001-foundation-ai-infrastructure/checklists/verification.md` |
 
