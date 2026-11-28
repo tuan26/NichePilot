@@ -1,0 +1,98 @@
+openapi: 3.1.0
+info:
+  title: NichePilot API – E4 Bilingual Dashboard
+  version: 0.1.0-draft
+  description: |
+    Hai endpoint chỉ đọc cho dashboard E4. Mọi chức năng khác dùng API E0–E3 sẵn có. Phiên cookie `np_session`; lỗi problem+json;
+    MOCK ẩn mặc định (`include_mock=false`); erasure ledger chưa áp dụng → 503 `ERASURE_LEDGER_NOT_APPLIED`.
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+tags:
+  - name: dashboard
+paths:
+  /api/v1/dashboard/overview:
+    get:
+      tags: [dashboard]
+      summary: Số liệu Tổng quan (FR-006, FR-007) – chi phí lấy từ /api/v1/budget
+      parameters:
+        - { name: include_mock, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [niches, products, keywords, jobs, top_niches, include_mock]
+                properties:
+                  niches:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      by_evidence_status: { type: object, additionalProperties: { type: integer } }
+                      by_decision: { type: object, additionalProperties: { type: integer } }
+                  products:
+                    type: object
+                    properties: { total: { type: integer }, ready_to_promote: { type: integer } }
+                  keywords:
+                    type: object
+                    properties: { total: { type: integer }, clusters: { type: integer }, long_tail: { type: integer } }
+                  jobs:
+                    type: object
+                    properties:
+                      by_status: { type: object, additionalProperties: { type: integer } }
+                      failed_7d: { type: integer }
+                  top_niches:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      properties:
+                        niche_id: { type: string, format: uuid }
+                        name: { type: string }
+                        opportunity_score: { type: [number, "null"] }
+                        confidence_score: { type: [number, "null"] }
+                        data_origin: { type: string, enum: [REAL, MOCK] }
+                  include_mock: { type: boolean }
+                  generated_at: { type: string, format: date-time }
+        "503": { description: "`ERASURE_LEDGER_NOT_APPLIED`" }
+  /api/v1/dashboard/niches:
+    get:
+      tags: [dashboard]
+      summary: Ngách kèm tóm tắt E2/E3 cho trang Sản phẩm/Keyword toàn cục (FR-010, FR-011)
+      parameters:
+        - { name: include_mock, in: query, schema: { type: boolean, default: false } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 200 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        niche_id: { type: string, format: uuid }
+                        name: { type: string }
+                        country: { type: string }
+                        evidence_status: { type: string }
+                        decision_status: { type: string }
+                        eligible: { type: boolean }
+                        opportunity_score: { type: [number, "null"] }
+                        confidence_score: { type: [number, "null"] }
+                        products: { type: object }
+                        keywords: { type: object }
+                        data_origin: { type: string, enum: [REAL, MOCK] }
+                  total: { type: integer }
+                  limit: { type: integer }
+        "422": { description: "`VALIDATION_ERROR`" }
+        "503": { description: "`ERASURE_LEDGER_NOT_APPLIED`" }
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: np_session }
