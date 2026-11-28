@@ -34,11 +34,12 @@ không tạo job/lịch mới.
 | Test E4 backend | 9 integration/contract + 1 perf (3 endpoint p95 < 500 ms với 500 ngách/500 job) |
 | Frontend lint / typecheck / test / build | PASS – 55/55 (E4: 19 test mới) |
 | Truy vết `--strict` | E0 58/58 · E1 59/59 · E2 42/42 · E3 31/31 · **E4 22/22** |
-| Playwright E2E (thêm test E4) | chạy trong CI – xem §4 |
+| Playwright E2E | 5/5 PASS trong CI #87 (không chạy local) |
 
 ## 4. CI
 
-Xem kết quả CI của commit implement E4 (cập nhật ở cuối báo cáo).
+CI #87 (`02135b4`): **6/6 job success** (backend, frontend, secrets, traceability, smoke, e2e). Playwright 5/5 PASS, gồm test mới
+"E4 MOCK: tổng quan → sản phẩm → keyword → jobs → chi phí → cài đặt → EN" (kiểm cả ghi nhớ ngôn ngữ sau khi tải lại trang).
 
 ## 5. Thay đổi kiến trúc / điểm chạm (bổ sung)
 
